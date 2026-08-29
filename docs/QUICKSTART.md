@@ -2,9 +2,13 @@
 
 How to set the project up and manually exercise everything M0 built.
 
-Everything below is run from the repository root, `C:\dev\pokemonbot`, in
-PowerShell. Commands use `.venv\Scripts\python.exe` explicitly so they work
-whether or not the virtualenv is activated.
+Everything below is run from the repository root, `C:\dev\pokemonbot`. Commands
+use forward-slash paths (`.venv/Scripts/python.exe`), which work unmodified in
+both PowerShell and Git Bash — the two shells this was tested from. They also
+work with the venv activated (`python` alone is then enough), so if you've
+already run `.venv\Scripts\Activate.ps1` (PowerShell) or
+`source .venv/Scripts/activate` (Git Bash), feel free to drop the
+`.venv/Scripts/` prefix.
 
 ## 1. Prerequisites
 
@@ -13,28 +17,48 @@ whether or not the virtualenv is activated.
 | Python | 3.12.10 | `python --version` |
 | Node.js | 24.19.0 (LTS) | `node --version` |
 | Git | 2.55 | `git --version` |
+| GNU Make | 4.4.1 (optional) | `make --version` |
 
-Both Python and Node were installed with `winget` (`Python.Python.3.12`,
-`OpenJS.NodeJS.LTS`). If a command is "not recognized", open a new terminal:
-`winget` updates `PATH` only for new shells.
+Python, Node, and Make were all installed with `winget`
+(`Python.Python.3.12`, `OpenJS.NodeJS.LTS`, `ezwinports.make`). If a command
+is "not recognized", open a new terminal: `winget` updates `PATH` only for
+new shells.
+
+Make is optional — every command below has a raw `.venv/Scripts/python.exe
+scripts/...` form — but if it's installed, `make help` lists shortcuts for
+everything in this guide and they're shown alongside each section.
 
 ## 2. One-time setup
 
 ```powershell
 # Python environment
 python -m venv .venv
-.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.venv/Scripts/python.exe -m pip install -e ".[dev]"
 
-# Showdown simulator, pinned to the commit in vendor/SHOWDOWN_COMMIT
+# Showdown simulator
 git clone https://github.com/smogon/pokemon-showdown.git vendor/showdown
 cd vendor/showdown
-git checkout (Get-Content ..\SHOWDOWN_COMMIT)
 npm install
 node build
-cd ..\..
+cd ../..
 
 # The resolved Champions dex (gitignored, regenerated locally)
-.venv\Scripts\python.exe scripts/build_dex.py gen9championsvgc2026regmb --delta
+.venv/Scripts/python.exe scripts/build_dex.py gen9championsvgc2026regmb --delta
+```
+
+Or, with `make`: `make venv`, then `make vendor` (clones, checks out the
+pinned commit, builds), then `make dex`.
+
+Pin the checkout to the commit in `vendor/SHOWDOWN_COMMIT` before `npm install`:
+
+```powershell
+# PowerShell, from vendor/showdown
+git checkout (Get-Content ../SHOWDOWN_COMMIT)
+```
+
+```bash
+# Git Bash, from vendor/showdown
+git checkout "$(cat ../SHOWDOWN_COMMIT)"
 ```
 
 The last step writes `data/dex/gen9championsvgc2026regmb.<hash>.json` and
@@ -44,30 +68,32 @@ vendor build always produces the same one.
 ## 3. Run the tests
 
 ```powershell
-.venv\Scripts\python.exe -m pytest
+.venv/Scripts/python.exe -m pytest       # or: make test
 ```
 
 56 tests, about 30 seconds. They start and stop their own Showdown server, so
 nothing needs to be running first. Also available:
 
 ```powershell
-.venv\Scripts\python.exe -m ruff check .      # lint
-.venv\Scripts\python.exe -m ruff format .     # format
-.venv\Scripts\python.exe -m mypy .            # types
+.venv/Scripts/python.exe -m ruff check .      # lint       (make lint)
+.venv/Scripts/python.exe -m ruff format .     # format     (make format)
+.venv/Scripts/python.exe -m mypy .            # types      (make typecheck)
 ```
+
+`make check` runs lint, typecheck, and test in one go.
 
 ## 4. Play against the bot yourself
 
 The most direct way to see it work. In one terminal:
 
 ```powershell
-.venv\Scripts\python.exe scripts/run_local_server.py 8090
+.venv/Scripts/python.exe scripts/run_local_server.py 8090   # or: make server
 ```
 
 In a second terminal:
 
 ```powershell
-.venv\Scripts\python.exe scripts/play_human.py --agent greedy
+.venv/Scripts/python.exe scripts/play_human.py --agent greedy   # or: make play
 ```
 
 Then in a browser:
@@ -83,14 +109,15 @@ Then in a browser:
    `data/teams/regmb-alpha.txt`.
 4. Find Users → `champbot` → Challenge, pick the Reg M-B format, and send it.
 
-Use `--agent random` for the weaker opponent. `--games 5` to keep it alive for
-several matches. If prompted about Open Team Sheets, decline — the bot always
-declines, by design, because Champions has no such mechanism.
+Use `--agent random` (`make play AGENT=random`) for the weaker opponent.
+`--games 5` to keep it alive for several matches. If prompted about Open Team
+Sheets, decline — the bot always declines, by design, because Champions has
+no such mechanism.
 
 ## 5. Watch two bots play each other
 
 ```powershell
-.venv\Scripts\python.exe scripts/selfplay.py 50
+.venv/Scripts/python.exe scripts/selfplay.py 50   # or: make selfplay GAMES=50
 ```
 
 ```
@@ -111,9 +138,9 @@ browser client first — though at roughly 10 games/second you will want
 Traces are append-only JSONL, one file per agent-view of a battle:
 
 ```powershell
-.venv\Scripts\python.exe scripts/show_trace.py            # most recent under traces/
-.venv\Scripts\python.exe scripts/show_trace.py runs/human # or a directory
-.venv\Scripts\python.exe scripts/show_trace.py path\to\one.jsonl --full
+.venv/Scripts/python.exe scripts/show_trace.py            # most recent under traces/  (make trace)
+.venv/Scripts/python.exe scripts/show_trace.py runs/human # or a directory   (make trace TRACE=runs/human)
+.venv/Scripts/python.exe scripts/show_trace.py path/to/one.jsonl --full
 ```
 
 ```
@@ -139,7 +166,7 @@ for:
 ## 7. Evaluate agents against each other
 
 ```powershell
-.venv\Scripts\python.exe scripts/run_ladder.py 50
+.venv/Scripts/python.exe scripts/run_ladder.py 50   # or: make ladder GAMES=50
 ```
 
 ```
@@ -156,7 +183,7 @@ run reproducible; the same seed gives the same games.
 ## 8. Benchmark the simulator
 
 ```powershell
-.venv\Scripts\python.exe scripts/bench.py
+.venv/Scripts/python.exe scripts/bench.py   # or: make bench
 ```
 
 Writes `docs/benchmarks.md` and compares local throughput against the reference
@@ -166,7 +193,7 @@ for the reference container.
 ## 9. Check simulator determinism
 
 ```powershell
-.venv\Scripts\python.exe scripts/differential.py 1000
+.venv/Scripts/python.exe scripts/differential.py 1000   # or: make differential GAMES=1000
 ```
 
 ```
@@ -190,12 +217,24 @@ engine at M8.
 Showdown at a different commit. Delete the stale
 `data/dex/gen9championsvgc2026regmb.*.json` and rebuild.
 
+**Backslash paths don't work in Git Bash.** `.venv\Scripts\python.exe` (or
+anything else with backslashes) only works in PowerShell/cmd. In Git Bash use
+forward slashes: `.venv/Scripts/python.exe` — every command in this guide
+already uses the slash form for exactly this reason, or use `make`, which
+works from either shell.
+
 **Port 8090 already in use.** A server is still running. Find and stop it:
 
 ```powershell
+# PowerShell
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
   Where-Object { $_.CommandLine -like '*pokemon-showdown*' } |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+```bash
+# Git Bash
+netstat -ano | grep ':8090.*LISTENING' | awk '{print $5}' | xargs -r -I{} powershell.exe -c "Stop-Process -Id {} -Force"
 ```
 
 **`ConnectionResetError` / `no close frame received` at the end of a run.**
