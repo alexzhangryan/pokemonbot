@@ -79,7 +79,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `belch`
-- `desc`: null -> "Fails unless the user has eaten a Berry, either by eating one that was held, stealing and eating one off another Pokemon with Bug Bite or Pluck, or eating one that was thrown at it with Fling. Once t…
+- `desc`: null -> "Fails unless the user has eaten a Berry, either by eating one that was held, stealing and eating one off another Pokemon with Bug Bite or Pluck, or eating one that was thrown at it with Fling. Once tâ€¦
 - `shortDesc`: null -> "Fails unless the user has eaten a Berry."
 
 ### `bite`
@@ -712,7 +712,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 30 -> 20
 
 ### `ragefist`
-- `desc`: null -> "Power is equal to 50+(X*50), where X is the total number of times the user has been hit by a damaging attack during the battle, even if the user did not lose HP from the attack. X cannot be greater t…
+- `desc`: null -> "Power is equal to 50+(X*50), where X is the total number of times the user has been hit by a damaging attack during the battle, even if the user did not lose HP from the attack. X cannot be greater tâ€¦
 - `shortDesc`: null -> "+50 BP/hit on user. Max 6 hits. Resets on switch-out."
 
 ### `rapidspin`
@@ -758,7 +758,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 25 -> 20
 
 ### `saltcure`
-- `desc`: null -> "Causes damage to the target equal to 1/16 of its maximum HP (1/8 if the target is Steel or Water type), rounded down, at the end of each turn during effect. This effect ends when the target is no lon…
+- `desc`: null -> "Causes damage to the target equal to 1/16 of its maximum HP (1/8 if the target is Steel or Water type), rounded down, at the end of each turn during effect. This effect ends when the target is no lonâ€¦
 - `shortDesc`: null -> "Deals 1/16 max HP each turn; 1/8 on Steel, Water."
 
 ### `sandattack`
@@ -886,7 +886,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 40 -> 20
 
 ### `stuffcheeks`
-- `desc`: null -> "Fails if the user is not holding a Berry. The user eats its Berry and raises its Defense by 2 stages. This effect is not prevented by the Klutz or Unnerve Abilities, or the effects of Embargo or Magi…
+- `desc`: null -> "Fails if the user is not holding a Berry. The user eats its Berry and raises its Defense by 2 stages. This effect is not prevented by the Klutz or Unnerve Abilities, or the effects of Embargo or Magiâ€¦
 - `shortDesc`: null -> "Fails unless the user has a berry. User eats Berry, Def +2."
 
 ### `stunspore`

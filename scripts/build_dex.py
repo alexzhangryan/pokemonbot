@@ -90,7 +90,9 @@ def _format_value(value: Any) -> str:
 
 def render_delta_doc(base_mod: str, override_mod: str, delta: dict[str, dict[str, Any]]) -> str:
     showdown_commit = (
-        SHOWDOWN_COMMIT_FILE.read_text().strip() if SHOWDOWN_COMMIT_FILE.exists() else "unknown"
+        SHOWDOWN_COMMIT_FILE.read_text(encoding="utf-8").strip()
+        if SHOWDOWN_COMMIT_FILE.exists()
+        else "unknown"
     )
 
     lines = [
@@ -141,7 +143,7 @@ def build_delta(format_id: str, base_mod: str) -> Path:
 
     delta = diff_mods(base_dump, override_dump)
     DELTA_DOC.parent.mkdir(parents=True, exist_ok=True)
-    DELTA_DOC.write_text(render_delta_doc(base_mod, override_mod, delta))
+    DELTA_DOC.write_text(render_delta_doc(base_mod, override_mod, delta), encoding="utf-8")
     return DELTA_DOC
 
 
