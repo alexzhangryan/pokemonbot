@@ -23,6 +23,8 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.13",
     "hypothesis>=6.0",
+    # Browser QA for the viewer. Needs `playwright install chromium` once.
+    "playwright>=1.48",
 ]
 
 [build-system]

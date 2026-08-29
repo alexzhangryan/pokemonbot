@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>battle</title>
+    <!--
+      Showdown's own battle renderer, hosted in a frame of our own origin.
+
+      Two things make this the right shape rather than an expedient one.
+
+      It is a frame because `battle.css` is a large global stylesheet written for
+      the Showdown client's own page, and loading it into the viewer would
+      restyle the whole instrument. A same-origin frame gives complete CSS
+      isolation for free, and the parent drives it over postMessage.
+
+      It is the `Battle` class rather than `replay-embed.js`, even though that
+      file exists and explicitly supports third-party embedding. The embed
+      bootstraps a whole replay page: its own wrapper, its own speed and colour
+      choosers, its own controls. We already have a turn spine and a scrubber,
+      and two sets of controls disagreeing about the current turn is worse than
+      no animation at all. `Battle` is what the embed drives underneath, and it
+      takes a log and a turn number, which is exactly our interface.
+
+      Nothing here is a workaround for the frame-bust in D16: that guard lives in
+      the client's own index page, not in the renderer, which Smogon publishes
+      for exactly this use.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+        overflow: hidden;
+      }
+      #frame {
+        /* Showdown lays the battle out at a fixed 640x360 and scales with
+           transform; the wrapper is what we size. */
+        width: 640px;
+        height: 360px;
+        transform-origin: top left;
+      }
+      #status {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        font: 12px ui-monospace, Consolas, monospace;
+        color: #5f6879;
+        text-align: center;
+        padding: 16px;
+      }
+      #status[hidden] {
+        display: none;
+      }
+      /* The renderer writes a text log we do not use: the viewer has its own,
+         and it is already showing the same lines. */
+      #log {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="frame"></div>
+    <div id="log"></div>
+    <div id="status">loading Showdown's renderer…</div>
+
+    <script>
+      "use strict";
+
+      // The dependency list and order are taken from Showdown's own
+      // replay-embed.js. Order matters: battle.js needs the data files and
+      // jQuery to already be defined.
+      var BASE = "https://play.pokemonshowdown.com";
+      var STYLES = ["/style/font-awesome.css", "/style/battle.css?a7", "/style/utilichart.css?a7"];
+      var SCRIPTS = [
+        "/js/lib/ps-polyfill.js",
+        "/config/config.js?a7",
+        "/js/lib/jquery-1.11.0.min.js",
+        "/js/lib/html-sanitizer-minified.js",
+        "/js/battle-sound.js",
+        "/js/battledata.js?a7",
+        "/data/pokedex-mini.js?a7",
+        "/data/pokedex-mini-bw.js?a7",
+        "/data/graphics.js?a7",
+        "/data/pokedex.js?a7",
+        "/data/moves.js?a7",
+        "/data/abilities.js?a7",
+        "/data/items.js?a7",
+        "/data/teambuilder-tables.js?a7",
+        "/js/battle-tooltips.js?a7",
+        "/js/battle.js?a7",
+      ];
+
+      var statusEl = document.getElementById("status");
+      var battle = null;
+      var loadedLines = 0;
+      var pending = null;
+      var freshBuild = false;
+      var viewpoint = null;
+
+      /* Showdown's own speed presets, from the chooser in replay-embed.js.
+       * `instant` is ours: it is not a speed but a mode, and the parent uses it
+       * to stop asking for animation at all. */
+      var SPEEDS = {
+        instant: null,
+        hyperfast: { fade: 40, shown: 1 },
+        fast: { fade: 50, shown: 1 },
+        normal: { fade: 300, shown: 1 },
+        slow: { fade: 500, shown: 1000 },
+      };
+      var speed = "normal";
+
+      function fail(message) {
+        statusEl.hidden = false;
+        statusEl.textContent = message;
+      }
+
+      function loadStyles() {
+        STYLES.forEach(function (href) {
+          var link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.href = BASE + href;
+          document.head.appendChild(link);
+        });
+      }
+
+      // Sequential, not parallel: these files define globals each other depend
+      // on, and a parallel load races that.
+      function loadScripts(index, done) {
+        if (index >= SCRIPTS.length) return done();
+        var script = document.createElement("script");
+        script.src = BASE + SCRIPTS[index];
+        script.onload = function () {
+          loadScripts(index + 1, done);
+        };
+        script.onerror = function () {
+          fail(
+            "could not load Showdown's renderer from " +
+              BASE +
+              ". The battle view needs internet; " +
+              "everything else in the viewer works offline."
+          );
+        };
+        document.head.appendChild(script);
+      }
+
+      function fit() {
+        // The renderer draws at a fixed size, so scale rather than reflow.
+        var frame = document.getElementById("frame");
+        var scale = Math.min(window.innerWidth / 640, window.innerHeight / 360);
+        frame.style.transform = "scale(" + scale + ")";
+      }
+
+      function applySpeed() {
+        if (!battle) return;
+        var preset = SPEEDS[speed];
+        if (!preset) return;
+        battle.messageFadeTime = preset.fade;
+        battle.messageShownTime = preset.shown;
+        if (battle.scene && battle.scene.updateAcceleration) battle.scene.updateAcceleration();
+      }
+
+      /* Which side is drawn at the bottom.
+       *
+       * The renderer defaults to p1 near, but a trace is one agent's view and
+       * that agent is as often p2. Left alone, a battle the bot played as p2 is
+       * shown from the opponent's chair, with the bot's team across the top --
+       * which is backwards for the one thing this window is for. */
+      function applyViewpoint() {
+        if (!battle || !viewpoint || !battle.setViewpoint) return;
+        try {
+          battle.setViewpoint(viewpoint);
+        } catch (error) {
+          // Older renderer, or a log too short to have sides yet.
+        }
+      }
+
+      function build(lines) {
+        if (battle) {
+          battle.destroy();
+          battle = null;
+        }
+        loadedLines = 0;
+        battle = new Battle({
+          id: "champions",
+          $frame: $("#frame"),
+          $logFrame: $("#log"),
+          log: [],
+          isReplay: true,
+          paused: true,
+          autoresize: false,
+        });
+        freshBuild = true;
+        // Exposed deliberately: this frame has no UI of its own, so the battle
+        // object is the only way to inspect playback state from the outside,
+        // which the browser tests do and which is invaluable when the animation
+        // misbehaves.
+        window.battle = battle;
+        applySpeed();
+        add(lines);
+        applyViewpoint();
+      }
+
+      function add(lines) {
+        // A parent that appends before it has built gets a build, rather than
+        // silently rendering nothing.
+        if (!battle) return build(lines);
+        for (var i = loadedLines; i < lines.length; i++) battle.add(lines[i]);
+        loadedLines = lines.length;
+      }
+
+      /* Land on a turn without animating the way there.
+       *
+       * seekTurn's forward path turns animation off and fast-forwards, so it is
+       * the right call for scrubbing and the wrong one for watching: it is why
+       * the live view used to show each turn's outcome with no move ever
+       * playing. Scrubbing gets this; live play gets follow(). */
+      function seek(turn) {
+        if (!battle) return;
+        try {
+          battle.pause();
+          battle.seekTurn(turn, true);
+          freshBuild = false;
+        } catch (error) {
+          fail("could not render this turn");
+        }
+      }
+
+      /* Play forward from here, animating, as new lines arrive.
+       *
+       * The first call after a build jumps to the current turn first, so
+       * attaching to a battle in progress does not replay the whole game at
+       * animation speed before catching up -- the same thing the real client
+       * does when you join a battle late. */
+      function follow(turn) {
+        if (!battle) return;
+        try {
+          // Catch up instantly when more than a turn behind, then animate from
+          // there. Attaching to a battle in progress, or coming back to a tab
+          // that has been away, should not replay minutes of backlog at
+          // animation speed before showing the present.
+          if (freshBuild || battle.turn < turn - 1) {
+            battle.seekTurn(Math.max(0, turn - 1), true);
+            freshBuild = false;
+          }
+          battle.play();
+        } catch (error) {
+          fail("could not play this battle");
+        }
+      }
+
+      window.addEventListener("message", function (event) {
+        if (event.source !== window.parent) return;
+        var data = event.data || {};
+
+        if (data.kind === "battle-speed") {
+          speed = data.speed in SPEEDS ? data.speed : "normal";
+          applySpeed();
+          return;
+        }
+        if (data.kind !== "battle") return;
+
+        if (!window.Battle) {
+          pending = data;
+          return;
+        }
+        statusEl.hidden = true;
+        if (data.viewpoint) viewpoint = data.viewpoint;
+        if (data.reset) build(data.lines || []);
+        else add(data.lines || []);
+        applyViewpoint();
+
+        if (typeof data.turn !== "number") return;
+        // "play" only when the parent is following a live battle and the reader
+        // has asked for animation; everything else lands instantly.
+        if (data.mode === "play" && speed !== "instant") follow(data.turn);
+        else seek(data.turn);
+      });
+
+      window.addEventListener("resize", fit);
+
+      loadStyles();
+      // Showdown's own dark scheme, the one its colour chooser sets. Without it
+      // the scene is a bright rectangle in the middle of a dark instrument.
+      document.body.className = "dark";
+      loadScripts(0, function () {
+        fit();
+        statusEl.hidden = true;
+        if (pending) {
+          if (pending.viewpoint) viewpoint = pending.viewpoint;
+          build(pending.lines || []);
+          applyViewpoint();
+          if (typeof pending.turn === "number") seek(pending.turn);
+          pending = null;
+        }
+        // Tell the parent we can take a log now.
+        parent.postMessage({ kind: "battle-ready" }, "*");
+      });
+    </script>
+  </body>
+</html>

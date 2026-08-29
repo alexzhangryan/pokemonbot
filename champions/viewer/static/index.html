@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Champions bot viewer</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header id="topbar">
+      <div class="brand">
+        <span class="mark">CHAMPIONS</span>
+        <span class="sub">bot viewer</span>
+      </div>
+      <select id="trace-picker" title="Which battle to watch"></select>
+      <div id="battle-meta" class="meta"></div>
+      <div class="spacer"></div>
+      <button id="showdown" class="ghost" title="Open the real Showdown client beside this window">
+        Showdown &#8599;
+      </button>
+      <button id="goto-live" class="primary" hidden>Live battle &#8595;</button>
+      <button id="follow" class="ghost" hidden>Jump to latest</button>
+      <div id="live-badge" class="badge idle">idle</div>
+    </header>
+
+    <!-- One row, always visible. This replaced a drawer of four cards: setting
+         a session up is a handful of small decisions, and hiding them behind a
+         toggle made a two-second job feel like a mode you had to enter. -->
+    <section id="bar">
+      <div class="bar-group" id="sim-group">
+        <span id="sim-dot" class="dot"></span>
+        <span id="sim-state" class="bar-state">checking</span>
+        <button id="sim-start" class="ghost small">start</button>
+        <button id="sim-stop" class="ghost small">stop</button>
+      </div>
+
+      <div class="bar-group">
+        <span class="bar-label">self-play</span>
+        <input id="sp-games" type="number" min="1" max="500" value="5" title="Games" />
+        <select id="sp-agent-a" title="Side A"></select>
+        <span class="bar-sep">vs</span>
+        <select id="sp-agent-b" title="Side B"></select>
+        <input id="sp-seed" type="number" min="0" value="0" title="Seed" class="seed" />
+        <button id="sp-start" class="primary small">run</button>
+      </div>
+
+      <div class="bar-group">
+        <span class="bar-label">play the bot</span>
+        <select id="host-agent" title="Agent"></select>
+        <button id="host-start" class="primary small">put up</button>
+      </div>
+
+      <div class="bar-group grow" id="run-group">
+        <span id="run-label" class="bar-state dim">idle</span>
+        <button id="run-log-toggle" class="ghost small" hidden>output</button>
+        <button id="run-stop" class="ghost small" hidden>stop</button>
+      </div>
+    </section>
+
+    <pre id="run-log" hidden></pre>
+
+    <!-- Only while a bot is actually waiting: the one moment the viewer sends
+         you somewhere else. -->
+    <div id="host-invite" class="invite" hidden></div>
+
+    <main id="layout">
+      <!-- The spine: one row per decision, click to scrub. -->
+      <section id="turns" class="pane">
+        <h2>Turns</h2>
+        <div id="turn-list"></div>
+      </section>
+
+      <section id="field" class="pane">
+        <div id="eval-strip" class="pending-block">
+          <div class="pending-label">Win probability</div>
+          <div class="pending-bar"><span></span></div>
+          <div class="pending-note" data-milestone="M6"></div>
+        </div>
+
+        <!-- The battle, laid out as one: them above, us below, the field
+             between. Smogon's client frame-busts, so this is rendered from the
+             trace instead - which buys the thing an embed could never do,
+             namely marking who the agent is acting with and what it is aiming
+             at. The real client is one button away in its own window. -->
+        <div id="stage">
+          <div id="side-theirs" class="side theirs"></div>
+
+          <!-- Showdown's own renderer, replaying this battle's protocol log.
+               Same-origin frame for CSS isolation; see static/battle.html. -->
+          <div id="scene">
+            <iframe id="scene-frame" src="/static/battle.html" title="battle"></iframe>
+            <div id="scene-controls">
+              <label for="scene-speed">speed</label>
+              <select id="scene-speed" title="Animation speed">
+                <option value="instant">skip animations</option>
+                <option value="hyperfast">hyperfast</option>
+                <option value="fast">fast</option>
+                <option value="normal" selected>normal</option>
+                <option value="slow">slow</option>
+              </select>
+              <button id="scene-toggle" class="ghost" title="Hide the battle animation">hide</button>
+            </div>
+          </div>
+
+          <button id="scene-show" class="ghost" hidden>Show the battle animation</button>
+          <div id="conditions" class="conditions"></div>
+          <div id="side-ours" class="side ours"></div>
+        </div>
+
+        <div id="log-block">
+          <h2>What the server said <span class="hint">protocol, censored to our view</span></h2>
+          <pre id="log"></pre>
+        </div>
+      </section>
+
+      <section id="decision" class="pane">
+        <div id="chosen"></div>
+        <div id="timing"></div>
+        <div id="strategy"></div>
+        <div id="candidates"></div>
+        <div id="belief"></div>
+      </section>
+    </main>
+
+    <div id="empty" class="empty">
+      <p>No trace selected.</p>
+      <p class="hint">
+        Run a battle, then pick it above. A file that is still being written streams in live.
+      </p>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

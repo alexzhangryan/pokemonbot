@@ -14,8 +14,10 @@ from typing import Any
 from poke_env.ps_client import AccountConfiguration
 from poke_env.ps_client.server_configuration import ServerConfiguration
 
-from champions.agents.baseline import RandomAgent
-from champions.teams import ALPHA, BETA, load_team
+from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
+from champions.agents.oneply import OnePlyAgent
+from champions.dex.loader import Dex
+from champions.teams import ALPHA, BETA, available_teams, load_team
 from champions.trace.validate import validate_trace_file
 
 FORMAT_ID = "gen9championsvgc2026regmb"
@@ -63,19 +65,63 @@ def local_server(port: int) -> ServerConfiguration:
     )
 
 
+AGENTS = {"random": RandomAgent, "greedy": MaxBasePowerAgent, "oneply": OnePlyAgent}
+
+# Agents that compute their numbers from the resolved Champions dex rather than
+# from poke-env's mainline data, and so cannot run without it built.
+NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent)
+
+
+def build_agent(kind: str, **kwargs: Any) -> TracingPlayer:
+    """One of the baseline agents by name, as the viewer's control panel and the
+    command line both refer to them."""
+    try:
+        agent_class = AGENTS[kind]
+    except KeyError:
+        raise ValueError(f"unknown agent {kind!r}; expected one of {sorted(AGENTS)}") from None
+    if issubclass(agent_class, NEEDS_DEX):
+        kwargs["dex"] = Dex.load(FORMAT_ID)
+    return agent_class(**kwargs)
+
+
 async def run_selfplay(
     n_games: int,
     port: int,
     trace_dir: str | Path,
     seed: int = 0,
     username_suffix: str = "",
-) -> tuple[RandomAgent, RandomAgent, list[str]]:
-    """Play `n_games` between two random agents.
+    agent_a: str = "random",
+    agent_b: str = "random",
+    team_a: str = ALPHA,
+    team_b: str = BETA,
+) -> tuple[TracingPlayer, TracingPlayer, list[str]]:
+    """Play `n_games` between two agents.
+
+    Teams are parameters, and defaulting them to two *different* teams is only
+    right for a demonstration game. For any measurement that compares agents,
+    pass the same team to both: the two checked-in teams are not balanced
+    against each other -- greedy on BETA beats greedy on ALPHA 10-0 -- so a
+    head-to-head between different teams measures the teams at least as much as
+    the agents. See `docs/DECISIONS.md` D30.
 
     Returns both players and any Showdown protocol failures (invalid choice,
     inactivity timeout) seen during the run.
     """
     server = local_server(port)
+
+    finished = 0
+
+    def report(battle: Any) -> None:
+        """One line per completed battle, so a run in progress is legible.
+
+        Only p1 reports, or every battle would be announced twice: both agents
+        see the same game end.
+        """
+        nonlocal finished
+        finished += 1
+        result = "win" if battle.won else ("tie" if battle.won is None else "loss")
+        print(f"battle {finished}/{n_games}: {battle.battle_tag} -> champ-a {result}", flush=True)
+
     common: dict[str, Any] = {
         "battle_format": FORMAT_ID,
         "server_configuration": server,
@@ -86,15 +132,18 @@ async def run_selfplay(
         "decision_deadline_s": 45.0,
     }
 
-    p1 = RandomAgent(
+    p1 = build_agent(
+        agent_a,
         account_configuration=AccountConfiguration(f"champ-a{username_suffix}", None),
-        team=load_team(ALPHA),
+        team=load_team(team_a),
         seed=seed,
+        on_battle_end=report,
         **common,
     )
-    p2 = RandomAgent(
+    p2 = build_agent(
+        agent_b,
         account_configuration=AccountConfiguration(f"champ-b{username_suffix}", None),
-        team=load_team(BETA),
+        team=load_team(team_b),
         seed=seed + 1,
         **common,
     )
@@ -117,9 +166,22 @@ async def main() -> None:
     parser.add_argument("--port", type=int, default=8090)
     parser.add_argument("--trace-dir", default="traces")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--agent-a", choices=sorted(AGENTS), default="random")
+    parser.add_argument("--agent-b", choices=sorted(AGENTS), default="random")
+    parser.add_argument("--team-a", default=ALPHA, choices=available_teams())
+    parser.add_argument("--team-b", default=BETA, choices=available_teams())
     args = parser.parse_args()
 
-    p1, p2, failures = await run_selfplay(args.n_games, args.port, args.trace_dir, seed=args.seed)
+    p1, p2, failures = await run_selfplay(
+        args.n_games,
+        args.port,
+        args.trace_dir,
+        seed=args.seed,
+        agent_a=args.agent_a,
+        agent_b=args.agent_b,
+        team_a=args.team_a,
+        team_b=args.team_b,
+    )
 
     print(f"finished: {p1.n_finished_battles}/{args.n_games} battles")
     print(f"  {p1.username}: {p1.n_won_battles} wins")

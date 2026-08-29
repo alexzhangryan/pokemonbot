@@ -1,0 +1,1281 @@
+/* Champions bot viewer.
+ *
+ * This is an instrument, not a product page, and the visual language is chosen
+ * to say so. Three rules run through everything below:
+ *
+ * 1. Monospace means machine truth. Every number, action string, species id and
+ *    protocol line is mono; every label we wrote ourselves is sans. The reader
+ *    can tell at a glance what came out of the battle and what is our chrome,
+ *    without a legend.
+ * 2. One accent, used sparingly. Amber marks the agent's own decision and
+ *    nothing else. Type colors are a separate, fixed vocabulary: they encode
+ *    data a player already reads instantly, so they are not decoration.
+ * 3. Unimplemented is a visual state, not a blank. Anything the agent cannot
+ *    compute yet is hatched and tagged with the milestone that fills it, so an
+ *    empty panel is never mistaken for a zero or for a bug.
+ *
+ * The layout is deliberately not "battle in the middle, big". The decision
+ * column is the widest one, because the question this page exists to answer is
+ * what the agent was thinking, not what the field looked like.
+ */
+
+:root {
+  --ground: #0e1014;
+  --panel: #15181e;
+  --raised: #1b1f27;
+  --line: #262b35;
+  --line-soft: #1e222b;
+
+  --ink: #e8eaed;
+  --ink-dim: #99a1b0;
+  --ink-faint: #5f6879;
+
+  /* The agent's own choices, and only those. */
+  --accent: #f0b429;
+  --accent-soft: #4a3a12;
+
+  --ours: #5aa9e6;
+  --theirs: #e5715c;
+
+  --ok: #4ec9a5;
+  --warn: #e8833a;
+  --danger: #e5534b;
+
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+
+  --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  --radius: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 13px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+h2 {
+  margin: 0 0 var(--s2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+/* ---------------------------------------------------------------- topbar */
+
+#topbar {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  gap: var(--s3);
+  padding: 0 var(--s4);
+  height: 44px;
+  flex: none;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.brand .mark {
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+
+.brand .sub {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+#trace-picker {
+  min-width: 0;
+  flex: 0 1 auto;
+  font: 12px var(--mono);
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s1) var(--s2);
+  max-width: 420px;
+}
+
+#trace-picker:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.meta {
+  font: 11px var(--mono);
+  color: var(--ink-dim);
+  display: flex;
+  gap: var(--s3);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.meta b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.spacer {
+  flex: 1;
+}
+
+button.ghost {
+  font: 11px var(--sans);
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius);
+  padding: var(--s1) var(--s2);
+  cursor: pointer;
+}
+
+button.ghost:hover {
+  background: var(--accent-soft);
+}
+
+.badge {
+  font: 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px var(--s2);
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+}
+
+.badge.live {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.badge.live::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ----------------------------------------------------------- control bar
+ *
+ * One row, always there. It replaced a drawer of four cards: setting a session
+ * up is a handful of small decisions, and putting them behind a toggle made a
+ * two-second job feel like a mode you had to enter and leave.
+ *
+ * It stays quieter than the battle view on purpose. These are controls; the
+ * findings are below them.
+ */
+
+#bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+  padding: 7px var(--s4);
+  flex: none;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+
+.bar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.bar-group.grow {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.bar-label {
+  font: 10px var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.bar-sep {
+  color: var(--ink-faint);
+  font: 10px var(--mono);
+}
+
+.bar-state {
+  font: 11px var(--mono);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 380px;
+}
+
+.bar-state.dim {
+  color: var(--ink-faint);
+}
+
+/* The simulator is one dot and one word: it is either up or it is not, and
+   anything longer is a paragraph nobody reads twice. */
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+
+.dot.ok {
+  background: var(--ok);
+}
+
+.dot.busy {
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot.bad {
+  background: var(--danger);
+}
+
+#bar input,
+#bar select {
+  font: 11px var(--mono);
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 3px 5px;
+  min-width: 0;
+}
+
+#bar input[type="number"] {
+  width: 52px;
+}
+
+#bar input.seed {
+  width: 44px;
+}
+
+#bar input:focus-visible,
+#bar select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button.small {
+  font: 10px var(--sans);
+  padding: 3px var(--s2);
+}
+
+button.primary {
+  font: 11px var(--sans);
+  font-weight: 600;
+  background: var(--accent);
+  color: #14161b;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 4px var(--s3);
+  cursor: pointer;
+}
+
+button.primary:hover {
+  background: color-mix(in srgb, var(--accent) 85%, #fff);
+}
+
+button.primary:disabled,
+button.ghost:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#run-log {
+  margin: 0;
+  max-height: 128px;
+  overflow-y: auto;
+  padding: var(--s2) var(--s4);
+  flex: none;
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
+  font: 11px/1.6 var(--mono);
+  color: var(--ink-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#run-log[hidden] {
+  display: none;
+}
+
+/* The handoff into Showdown: the one place the viewer sends you elsewhere, so
+   it is the one control that gets to be loud. One line, not a checklist. */
+.invite {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s3);
+  padding: var(--s2) var(--s4);
+  flex: none;
+  border-bottom: 1px solid var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font: 11px var(--mono);
+  color: var(--ink-dim);
+}
+
+.invite[hidden] {
+  display: none;
+}
+
+.invite b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.invite code {
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+
+.invite a.launch {
+  font: 11px var(--sans);
+  font-weight: 600;
+  background: var(--accent);
+  color: #14161b;
+  text-decoration: none;
+  border-radius: var(--radius);
+  padding: 4px var(--s3);
+  margin-left: auto;
+}
+
+/* Header pills reuse the live badge's vocabulary. */
+.badge.ok {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+
+.badge.busy {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+}
+
+.badge.bad {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.badge[hidden] {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+#layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  /* Asymmetric on purpose: the decision column is the point of the page. */
+  grid-template-columns: 188px minmax(360px, 1fr) minmax(400px, 1.15fr);
+}
+
+#layout[hidden] {
+  display: none;
+}
+
+.pane {
+  min-height: 0;
+  /* Grid children default to min-width:auto, which lets a wide table prop the
+     column open and scroll the whole page sideways. The viewer is meant to sit
+     beside Showdown on half a screen, so columns must actually shrink. */
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--s4);
+  border-right: 1px solid var(--line);
+}
+
+.pane:last-child {
+  border-right: 0;
+}
+
+#turns {
+  background: var(--panel);
+  padding: var(--s3) 0 var(--s4);
+}
+
+#turns h2 {
+  padding: 0 var(--s4);
+}
+
+/* ------------------------------------------------------------ turn spine */
+
+.turn-row {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  padding: 7px var(--s4) 7px calc(var(--s4) - 3px);
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--ink-dim);
+  font: 12px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.turn-row:hover {
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.turn-row[aria-current="true"] {
+  background: var(--raised);
+  border-left-color: var(--accent);
+  color: var(--ink);
+}
+
+.turn-row .n {
+  font: 11px var(--mono);
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.turn-row[aria-current="true"] .n {
+  color: var(--accent);
+}
+
+.turn-row .what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 11px var(--mono);
+}
+
+.turn-row.preview .n {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+
+.turn-row.slow .what::after {
+  content: " ⏱";
+  color: var(--warn);
+}
+
+.turn-row.result-win,
+.turn-row.result-loss,
+.turn-row.result-tie {
+  border-top: 1px solid var(--line);
+  margin-top: var(--s2);
+  padding-top: var(--s3);
+}
+
+.turn-row.result-win .what {
+  color: var(--ok);
+}
+
+.turn-row.result-loss .what {
+  color: var(--danger);
+}
+
+/* --------------------------------------------------------------- the stage
+ *
+ * A battlefield, not a list: them above, us below, the field between, and the
+ * two rows offset in opposite directions the way the real game frames it. The
+ * asymmetry is doing work — it is what makes "which side is this" preattentive,
+ * so neither row needs a label to be read at a glance.
+ *
+ * What an embedded Showdown window could never show is here instead: the slot
+ * the agent is acting with, and the slot it is aiming at, both marked in the
+ * accent reserved for the agent's own decisions.
+ */
+
+#stage {
+  position: relative;
+  padding: var(--s3) var(--s3) var(--s4);
+  margin-bottom: var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(229, 113, 92, 0.05), transparent 60%),
+    radial-gradient(120% 80% at 50% 100%, rgba(90, 169, 230, 0.05), transparent 60%),
+    var(--panel);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+/* Them to the right, us to the left. */
+.side.theirs {
+  align-items: flex-end;
+}
+
+.side.ours {
+  align-items: flex-start;
+}
+
+.side-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  font: 10px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.side-head .who {
+  font-weight: 600;
+}
+
+.side.theirs .side-head .who {
+  color: var(--theirs);
+}
+
+.side.ours .side-head .who {
+  color: var(--ours);
+}
+
+.side-head .count {
+  font: 11px var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-faint);
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s2);
+  width: 100%;
+  max-width: 620px;
+}
+
+/* ------------------------------------------------------------------- cards */
+
+.mon {
+  position: relative;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s2) var(--s3);
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: center;
+}
+
+.side.theirs .mon {
+  border-top: 2px solid color-mix(in srgb, var(--theirs) 55%, var(--line));
+}
+
+.side.ours .mon {
+  border-bottom: 2px solid color-mix(in srgb, var(--ours) 55%, var(--line));
+}
+
+.mon.empty {
+  border-style: dashed;
+  color: var(--ink-faint);
+  font: 11px var(--mono);
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-content: center;
+  min-height: 78px;
+}
+
+.mon.fainted {
+  opacity: 0.4;
+}
+
+/* The agent's own decision, marked on the field it applies to. */
+.mon.is-actor {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.mon.is-target {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--raised);
+}
+
+.mon .marker {
+  position: absolute;
+  top: -8px;
+  right: var(--s2);
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 5px;
+  border-radius: 2px;
+  background: var(--accent);
+  color: #14161b;
+  font-weight: 600;
+}
+
+.mon .marker.target {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.mon .sprite {
+  width: 64px;
+  height: 58px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.mon .sprite.missing {
+  display: none;
+}
+
+.mon .name {
+  font: 13px var(--mono);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mon .lvl {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+/* Bench: same information, a third of the space. */
+.bench {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  width: 100%;
+  max-width: 620px;
+}
+
+.side.theirs .bench {
+  justify-content: flex-end;
+}
+
+.bench .mon {
+  grid-template-columns: 28px minmax(0, 1fr);
+  padding: var(--s1) var(--s2);
+  gap: 6px;
+  /* No grow: with only two left on the bench they would stretch to half the
+     row each and stop reading as benched at a glance. */
+  flex: 0 1 138px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  background: var(--panel);
+}
+
+.bench .mon .sprite {
+  width: 28px;
+  height: 26px;
+}
+
+.bench .mon .name {
+  font-size: 11px;
+}
+
+.bench .hp-bar {
+  height: 2px;
+}
+
+/* HP ------------------------------------------------------------------- */
+
+.hp-bar {
+  position: relative;
+  height: 5px;
+  margin: 5px 0 4px;
+  background: var(--line-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  transition: width 0.25s ease;
+}
+
+.hp-bar.mid span {
+  background: var(--warn);
+}
+
+.hp-bar.low span {
+  background: var(--danger);
+}
+
+.hp-text {
+  font: 10px var(--mono);
+  color: var(--ink-dim);
+}
+
+.hp-text .approx {
+  color: var(--ink-faint);
+}
+
+/* Chips: status, boosts, effects, revealed items ------------------------- */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: 4px;
+}
+
+.chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 5px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  background: var(--panel);
+}
+
+.chip.up {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+}
+
+.chip.down {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.chip.unknown {
+  color: var(--ink-faint);
+  border-style: dashed;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Status colors are the ones every player already reads without a legend. */
+.chip.st-par {
+  color: #e0c341;
+  border-color: #6a5a1a;
+}
+.chip.st-brn {
+  color: #eb8a55;
+  border-color: #6d3f22;
+}
+.chip.st-psn,
+.chip.st-tox {
+  color: #c07ad6;
+  border-color: #552f63;
+}
+.chip.st-slp {
+  color: #a6adba;
+  border-color: #3d444f;
+}
+.chip.st-frz {
+  color: #6fc6e0;
+  border-color: #26525f;
+}
+.chip.st-fnt {
+  color: var(--danger);
+  border-color: #5c2320;
+}
+
+.types {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.type {
+  font: 9px/1 var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 5px;
+  border-radius: 2px;
+  color: #0e1014;
+}
+
+/* The Showdown scene ---------------------------------------------------- */
+
+#scene {
+  position: relative;
+  margin: var(--s3) 0;
+  /* Showdown draws at 640x360 and the frame scales to fit, so the box holds
+     that aspect and the renderer fills it. */
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0b0d11;
+}
+
+#scene[hidden] {
+  display: none;
+}
+
+#scene-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Controls sit over the scene and stay out of the way until wanted. */
+#scene-controls {
+  position: absolute;
+  top: var(--s2);
+  right: var(--s2);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 5px var(--s2);
+  border-radius: var(--radius);
+  background: rgba(14, 16, 20, 0.82);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#scene:hover #scene-controls,
+#scene-controls:focus-within {
+  opacity: 1;
+}
+
+#scene-controls label {
+  font: 10px var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+#scene-speed {
+  font: 11px var(--mono);
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 3px var(--s1);
+}
+
+#scene-speed:focus-visible,
+#scene-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* When the animation is hidden, the button has to live somewhere. */
+#scene-show {
+  margin: var(--s2) 0;
+}
+
+#scene-show[hidden] {
+  display: none;
+}
+
+/* Field conditions ------------------------------------------------------ */
+
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s1);
+  padding: var(--s3) 0;
+  margin: var(--s2) 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  min-height: 40px;
+  align-items: center;
+}
+
+.conditions:empty::after {
+  content: "clear field";
+  font: 11px var(--mono);
+  color: var(--ink-faint);
+}
+
+.chip.field {
+  color: var(--ink);
+  background: var(--raised);
+}
+
+/* Battle log ------------------------------------------------------------ */
+
+#log-block {
+  margin-top: var(--s4);
+}
+
+#log {
+  margin: 0;
+  padding: var(--s3);
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: 11px/1.65 var(--mono);
+  color: var(--ink-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#log .empty-line {
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------- decision column */
+
+#decision > div {
+  margin-bottom: var(--s5);
+}
+
+.chosen {
+  border: 1px solid var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 8%, transparent),
+    transparent 60%
+  );
+  padding: var(--s3);
+}
+
+.chosen .label {
+  font: 10px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+
+.chosen .action {
+  font: 15px/1.35 var(--mono);
+  color: var(--ink);
+}
+
+.chosen .wire {
+  margin-top: 6px;
+  font: 10px var(--mono);
+  color: var(--ink-faint);
+  word-break: break-all;
+}
+
+/* Timing ---------------------------------------------------------------- */
+
+.timing {
+  display: flex;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.stat {
+  min-width: 76px;
+}
+
+.stat .v {
+  font: 17px/1.15 var(--mono);
+  color: var(--ink);
+}
+
+.stat .v.warn {
+  color: var(--warn);
+}
+
+.stat .v.danger {
+  color: var(--danger);
+}
+
+.stat .v.ok {
+  color: var(--ok);
+}
+
+.stat .k {
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Tables ---------------------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 11px var(--mono);
+}
+
+th {
+  text-align: left;
+  font: 9px var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 0 var(--s2) 5px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+th.pending-col {
+  color: var(--ink-faint);
+  opacity: 0.55;
+}
+
+td {
+  padding: 5px var(--s2) 5px 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink-dim);
+  vertical-align: top;
+}
+
+tr.is-chosen td {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+tr.is-chosen td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+td.na {
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.more {
+  font: 11px var(--mono);
+  color: var(--ink-faint);
+  padding-top: var(--s2);
+}
+
+/* Belief ---------------------------------------------------------------- */
+
+.belief-mon {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s2) var(--s3);
+  margin-bottom: var(--s2);
+  background: var(--panel);
+}
+
+.belief-mon .top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  font: 12px var(--mono);
+}
+
+.belief-mon .known {
+  margin-top: 5px;
+  font: 11px var(--mono);
+  color: var(--ink-dim);
+}
+
+.belief-mon .known b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* -------------------------------------------------- the unimplemented UI
+ *
+ * Hatching, not emptiness. A panel that is dim and striped reads as "nothing
+ * here yet" at a glance; a blank one reads as a bug, and a zero reads as a
+ * measurement. The milestone tag says when it fills.
+ */
+
+.pending-block,
+.pending {
+  position: relative;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: var(--s3);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 7px,
+    rgba(255, 255, 255, 0.017) 7px,
+    rgba(255, 255, 255, 0.017) 14px
+  );
+}
+
+.pending-block {
+  margin-bottom: var(--s4);
+}
+
+.pending-label {
+  font: 10px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.pending-bar {
+  height: 6px;
+  margin: var(--s2) 0 6px;
+  background: var(--line-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pending-bar span {
+  display: block;
+  width: 50%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--line),
+    var(--line) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.pending-note,
+.milestone {
+  font: 10px var(--mono);
+  color: var(--ink-faint);
+}
+
+.milestone {
+  display: inline-block;
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+}
+
+.pending-note[data-milestone]::before {
+  content: "not computed yet — " attr(data-milestone);
+}
+
+/* --------------------------------------------------------------- states */
+
+.empty {
+  flex: 1;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--s2);
+  color: var(--ink-dim);
+}
+
+.empty[hidden] {
+  display: none;
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* Narrow windows: the viewer is meant to sit beside Showdown, so it has to
+ * survive half a screen. The columns stack rather than compress. */
+@media (max-width: 1180px) {
+  #layout {
+    grid-template-columns: 152px minmax(0, 1fr);
+    /* Explicit fractions with a zero minimum, not `auto`: the decision column
+       is by far the tallest content, and an auto-sized second row takes the
+       whole viewport and crushes the field and the spine to nothing. Each pane
+       scrolls inside its own share instead. */
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1.15fr);
+  }
+
+  #decision {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 720px) {
+  #layout {
+    grid-template-columns: 1fr;
+  }
+
+  #battle-meta {
+    display: none;
+  }
+
+  .brand .sub {
+    display: none;
+  }
+
+  #turns {
+    display: none;
+  }
+
+  .slots {
+    grid-template-columns: 1fr;
+  }
+}
