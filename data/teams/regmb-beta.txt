@@ -1,0 +1,53 @@
+Gyarados
+Ability: Intimidate
+Level: 50
+Adamant Nature
+- Protect
+- Crunch
+- Earthquake
+- Ice Beam
+
+Tyranitar
+Ability: Sand Stream
+Level: 50
+Adamant Nature
+- Protect
+- Crunch
+- Rock Slide
+- Earthquake
+
+Metagross
+Ability: Clear Body
+Level: 50
+Adamant Nature
+- Protect
+- Iron Head
+- Earthquake
+- Psychic
+
+Garchomp
+Ability: Rough Skin
+Level: 50
+Jolly Nature
+- Protect
+- Dragon Claw
+- Earthquake
+- Rock Slide
+
+Dragonite
+Ability: Multiscale
+Level: 50
+Adamant Nature
+- Protect
+- Dragon Claw
+- Ice Beam
+- Hurricane
+
+Milotic
+Ability: Marvel Scale
+Level: 50
+Calm Nature
+- Protect
+- Scald
+- Ice Beam
+- Surf

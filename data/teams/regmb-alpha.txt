@@ -1,0 +1,53 @@
+Incineroar
+Ability: Blaze
+Level: 50
+Adamant Nature
+- Protect
+- Flare Blitz
+- Fire Blast
+- Bulk Up
+
+Aegislash
+Ability: Stance Change
+Level: 50
+Modest Nature
+- Protect
+- Shadow Ball
+- Iron Head
+- Swords Dance
+
+Corviknight
+Ability: Pressure
+Level: 50
+Impish Nature
+- Protect
+- Iron Head
+- U-turn
+- Bulk Up
+
+Clefable
+Ability: Magic Guard
+Level: 50
+Calm Nature
+- Protect
+- Moonblast
+- Moonlight
+- Shadow Ball
+
+Conkeldurr
+Ability: Guts
+Level: 50
+Adamant Nature
+- Protect
+- Drain Punch
+- Stone Edge
+- Bulk Up
+
+Charizard
+Ability: Blaze
+Level: 50
+Modest Nature
+- Protect
+- Flare Blitz
+- Fire Blast
+- Earthquake

@@ -19,9 +19,21 @@ DEFAULT_TRACE_DIR = Path("traces")
 
 
 class Trace:
-    def __init__(self, battle_id: str, trace_dir: Path | str = DEFAULT_TRACE_DIR) -> None:
+    def __init__(
+        self,
+        battle_id: str,
+        trace_dir: Path | str = DEFAULT_TRACE_DIR,
+        name: str | None = None,
+    ) -> None:
+        """One trace file per agent-view of a battle.
+
+        `name` overrides the filename stem, which matters in self-play: two
+        agents in one process share a battle_id, and without distinct names they
+        would append to the same file with independent seq counters. In a live
+        game there is one agent per battle and the default is what you want.
+        """
         self.battle_id = battle_id
-        self.path = Path(trace_dir) / f"{battle_id}.jsonl"
+        self.path = Path(trace_dir) / f"{name or battle_id}.jsonl"
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
         self._seq_counter = itertools.count()
