@@ -1,0 +1,137 @@
+|j|☆Acetronomer
+|j|☆raineyatwork
+|html|<table width="100%"><tr><td align="left">Acetronomer</td><td align="right">raineyatwork</tr><tr><td align="left"><i class="fa fa-circle"></i> <i class="fa fa-circle-o"></i> </td><td align="right"><i class="fa fa-circle-o"></i> <i class="fa fa-circle"></i> </tr></table>
+|uhtml|bestof|<h2><strong>Game 3</strong> of <a href="/game-bestof3-gen9championsvgc2026regmbbo3-2672449913">a best-of-3</a></h2>
+|t:|1788022387
+|gametype|doubles
+|player|p1|Acetronomer|acetrainer-gen4dp|1192
+|player|p2|raineyatwork|169|1115
+|gen|9
+|tier|[Gen 9 Champions] VGC 2026 Reg M-B (Bo3)
+|rated|
+|rule|Species Clause: Limit one of each Pokémon
+|rule|Item Clause: Limit 1 of each item
+|clearpoke
+|poke|p1|Sneasler, L50, F|
+|poke|p1|Kingambit, L50, F|
+|poke|p1|Delphox, L50, M|
+|poke|p1|Sinistcha, L50|
+|poke|p1|Incineroar, L50, F|
+|poke|p1|Blastoise, L50, F|
+|poke|p2|Metagross, L50|
+|poke|p2|Blaziken, L50, F|
+|poke|p2|Tsareena, L50, F|
+|poke|p2|Kingambit, L50, F|
+|poke|p2|Swampert, L50, M|
+|poke|p2|Pelipper, L50, F|
+|teampreview|4
+|showteam|p1|Sneasler||FocusSash|PoisonTouch|PoisonJab,CloseCombat,FakeOut,QuickGuard|Jolly||F|||50|]Kingambit||LifeOrb|Defiant|KowtowCleave,SuckerPunch,SwordsDance,Protect|Adamant||F|||50|]Delphox||Delphoxite|Blaze|HeatWave,NastyPlot,Psyshock,Protect|Timid||M|||50|]Sinistcha||KasibBerry|Hospitality|MatchaGotcha,RagePowder,TrickRoom,Protect|Bold|||||50|]Incineroar||SitrusBerry|Intimidate|FlareBlitz,FakeOut,PartingShot,HelpingHand|Careful||F|||50|]Blastoise||Blastoisinite|RainDish|WaterSpout,DarkPulse,ShellSmash,Protect|Modest||F|||50|
+|showteam|p2|Metagross||Metagrossite|ClearBody|PsychicFangs,BulletPunch,BodyPress,Protect|Jolly|||||50|]Blaziken||FocusSash|SpeedBoost|Overheat,AuraSphere,Coaching,Detect|Modest||F|||50|]Tsareena||ChoiceScarf|QueenlyMajesty|TropKick,TripleAxel,LowKick,Uturn|Jolly||F|||50|]Kingambit||LifeOrb|Defiant|KowtowCleave,SuckerPunch,SwordsDance,Protect|Adamant||F|||50|]Swampert||Swampertite|Damp|WaveCrash,HighHorsepower,IcePunch,Protect|Adamant||M|||50|]Pelipper||SitrusBerry|Drizzle|Hurricane,WeatherBall,WideGuard,Tailwind|Calm||F|||50|
+|
+|t:|1788022423
+|teamsize|p1|4
+|teamsize|p2|4
+|start
+|switch|p1a: Sinistcha|Sinistcha, L50|100/100
+|switch|p1b: Delphox|Delphox, L50, M|100/100
+|switch|p2a: Tsareena|Tsareena, L50, F|100/100
+|switch|p2b: Swampert|Swampert, L50, M|100/100
+|turn|1
+|
+|t:|1788022452
+|detailschange|p1b: Delphox|Delphox-Mega, L50, M
+|-mega|p1b: Delphox|Delphox|Delphoxite
+|detailschange|p2b: Swampert|Swampert-Mega, L50, M
+|-mega|p2b: Swampert|Swampert|Swampertite
+|move|p1b: Delphox|Protect|p1b: Delphox
+|-singleturn|p1b: Delphox|Protect
+|move|p2a: Tsareena|U-turn|p1a: Sinistcha
+|-damage|p1a: Sinistcha|81/100
+|
+|t:|1788022459
+|switch|p2a: Blaziken|Blaziken, L50, F|100/100|[from] U-turn
+|move|p2b: Swampert|Ice Punch|p1a: Sinistcha
+|-supereffective|p1a: Sinistcha|1
+|-damage|p1a: Sinistcha|26/100
+|move|p1a: Sinistcha|Trick Room|p1a: Sinistcha
+|-fieldstart|move: Trick Room|[of] p1a: Sinistcha
+|
+|upkeep
+|turn|2
+|
+|t:|1788022501
+|move|p1a: Sinistcha|Matcha Gotcha|p2b: Swampert|[spread] p2a,p2b
+|-resisted|p2a: Blaziken|1
+|-supereffective|p2b: Swampert|2
+|-damage|p2a: Blaziken|80/100
+|-heal|p1a: Sinistcha|35/100|[from] drain|[of] p2a: Blaziken
+|-damage|p2b: Swampert|17/100
+|-heal|p1a: Sinistcha|79/100|[from] drain|[of] p2b: Swampert
+|-status|p2b: Swampert|brn
+|move|p2b: Swampert|Wave Crash|p1b: Delphox
+|-supereffective|p1b: Delphox|1
+|-damage|p1b: Delphox|12/100
+|-damage|p2b: Swampert|0 fnt|[from] Recoil
+|faint|p2b: Swampert
+|move|p2a: Blaziken|Coaching|p2: Swampert|[notarget]
+|-fail|p2a: Blaziken
+|move|p1b: Delphox|Nasty Plot|p1b: Delphox
+|-boost|p1b: Delphox|spa|2
+|
+|-ability|p2a: Blaziken|Speed Boost|boost
+|-boost|p2a: Blaziken|spe|1
+|upkeep
+|
+|t:|1788022517
+|switch|p2b: Kingambit|Kingambit, L50, F|100/100
+|turn|3
+|
+|t:|1788022526
+|move|p2b: Kingambit|Protect|p2b: Kingambit
+|-singleturn|p2b: Kingambit|Protect
+|move|p1a: Sinistcha|Rage Powder|p1a: Sinistcha
+|-singleturn|p1a: Sinistcha|move: Rage Powder
+|move|p2a: Blaziken|Overheat|p1a: Sinistcha
+|-supereffective|p1a: Sinistcha|1
+|-damage|p1a: Sinistcha|0 fnt
+|-unboost|p2a: Blaziken|spa|2
+|faint|p1a: Sinistcha
+|move|p1b: Delphox|Psyshock|p2a: Blaziken
+|-supereffective|p2a: Blaziken|1
+|-damage|p2a: Blaziken|0 fnt
+|faint|p2a: Blaziken
+|
+|upkeep
+|
+|t:|1788022540
+|switch|p1a: Sneasler|Sneasler, L50, F|100/100
+|switch|p2a: Tsareena|Tsareena, L50, F|100/100
+|turn|4
+|
+|t:|1788022567
+|move|p2b: Kingambit|Protect||[still]
+|-fail|p2b: Kingambit
+|move|p1b: Delphox|Protect|p1b: Delphox
+|-singleturn|p1b: Delphox|Protect
+|move|p1a: Sneasler|Close Combat|p2b: Kingambit
+|-supereffective|p2b: Kingambit|2
+|-damage|p2b: Kingambit|0 fnt
+|-unboost|p1a: Sneasler|def|1
+|-unboost|p1a: Sneasler|spd|1
+|faint|p2b: Kingambit
+|move|p2a: Tsareena|Trop Kick|p1b: Delphox
+|-activate|p1b: Delphox|move: Protect
+|
+|upkeep
+|turn|5
+|
+|t:|1788022581
+|move|p1a: Sneasler|Poison Jab|p2a: Tsareena
+|-supereffective|p2a: Tsareena|1
+|-crit|p2a: Tsareena
+|-damage|p2a: Tsareena|0 fnt
+|faint|p2a: Tsareena
+|
+|win|Acetronomer
+|raw|Acetronomer's rating: 1192 &rarr; <strong>1212</strong><br />(+20 for winning)
+|raw|raineyatwork's rating: 1115 &rarr; <strong>1095</strong><br />(-20 for losing)

@@ -10,9 +10,12 @@ FORMAT_ID := gen9championsvgc2026regmb
 PORT ?= 8090
 GAMES ?= 50
 SEED ?= 0
+TRACES ?= traces
+VIEWER_PORT ?= 8100
 
 .PHONY: help venv install vendor dex test lint format typecheck check \
-        server play selfplay ladder bench differential trace clean-traces
+        server play selfplay ladder bench differential trace viewer clean-traces \
+        scrape scrape-full corpus
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -25,6 +28,8 @@ help:
 	@echo "make typecheck     mypy"
 	@echo "make check         lint + typecheck + test"
 	@echo ""
+	@echo "make viewer        open the viewer; it starts the simulator and runs everything"
+	@echo ""
 	@echo "make server        start the local Showdown server (PORT=$(PORT))"
 	@echo "make play          run a bot that waits for a human challenge (AGENT=greedy|random)"
 	@echo "make selfplay      run self-play games (GAMES=$(GAMES))"
@@ -32,6 +37,10 @@ help:
 	@echo "make bench         benchmark the simulator, writes docs/benchmarks.md"
 	@echo "make differential  check simulator determinism over random positions (GAMES=1000)"
 	@echo "make trace         show the most recent trace (TRACE=path to pick one)"
+	@echo ""
+	@echo "make scrape        fetch new replays for both formats (incremental)"
+	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
+	@echo "make corpus        report what the corpus currently holds"
 	@echo ""
 	@echo "make clean-traces  remove traces/ and runs/"
 
@@ -87,7 +96,19 @@ differential:
 trace:
 	$(PYTHON) scripts/show_trace.py $(TRACE)
 
+viewer:
+	$(PYTHON) scripts/viewer.py $(TRACES) --port $(VIEWER_PORT)
+
 # -- cleanup -----------------------------------------------------------------
 
 clean-traces:
 	rm -rf traces runs
+
+scrape:
+	$(PYTHON) scripts/scrape_replays.py
+
+scrape-full:
+	$(PYTHON) scripts/scrape_replays.py --format $(FORMAT_ID)bo3 --full
+
+corpus:
+	$(PYTHON) scripts/scrape_replays.py --stats

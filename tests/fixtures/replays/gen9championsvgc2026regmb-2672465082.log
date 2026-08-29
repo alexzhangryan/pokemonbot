@@ -1,0 +1,204 @@
+|j|☆hk4160402
+|j|☆SlNGULARlTY
+|t:|1788024099
+|gametype|doubles
+|player|p1|hk4160402|ghetsis-gen5bw|
+|player|p2|SlNGULARlTY|koga|
+|gen|9
+|tier|[Gen 9 Champions] VGC 2026 Reg M-B
+|rule|Species Clause: Limit one of each Pokémon
+|rule|Item Clause: Limit 1 of each item
+|clearpoke
+|poke|p1|Meowscarada, L50, F|
+|poke|p1|Greninja, L50, F, shiny|
+|poke|p1|Lopunny, L50, F, shiny|
+|poke|p1|Blaziken, L50, F|
+|poke|p1|Whimsicott, L50, F|
+|poke|p1|Dragonite, L50, F|
+|poke|p2|Gengar, L50, F|
+|poke|p2|Palafin, L50, F|
+|poke|p2|Incineroar, L50, M|
+|poke|p2|Farigiraf, L50, M|
+|poke|p2|Samurott-Hisui, L50, M|
+|poke|p2|Kingambit, L50, M|
+|teampreview|4
+|inactive|Battle timer is ON: inactive players will automatically lose when time's up. (requested by SlNGULARlTY)
+|
+|t:|1788024127
+|teamsize|p1|4
+|teamsize|p2|4
+|start
+|switch|p1a: ophis-Mega|Dragonite, L50, F|100/100
+|switch|p1b: red|Greninja, L50, F, shiny|100/100
+|switch|p2a: Samurott|Samurott-Hisui, L50, M|100/100
+|switch|p2b: Incineroar|Incineroar, L50, M|100/100
+|-ability|p2b: Incineroar|Intimidate|boost
+|-unboost|p1a: ophis-Mega|atk|1
+|-unboost|p1b: red|atk|1
+|turn|1
+|inactive|hk4160402 has 30 seconds left.
+|inactive|hk4160402 has 20 seconds left.
+|inactive|hk4160402 has 15 seconds left.
+|inactive|hk4160402 has 10 seconds left.
+|
+|t:|1788024173
+|move|p2b: Incineroar|Fake Out|p1a: ophis-Mega
+|-damage|p1a: ophis-Mega|94/100
+|cant|p1a: ophis-Mega|flinch
+|move|p1b: red|Water Shuriken|p2b: Incineroar
+|-start|p1b: red|typechange|Water|[from] ability: Protean
+|-supereffective|p2b: Incineroar|1
+|-damage|p2b: Incineroar|87/100
+|-supereffective|p2b: Incineroar|1
+|-damage|p2b: Incineroar|75/100
+|-supereffective|p2b: Incineroar|1
+|-damage|p2b: Incineroar|62/100
+|-hitcount|p2b: Incineroar|3
+|move|p2a: Samurott|Ceaseless Edge|p1a: ophis-Mega
+|-damage|p1a: ophis-Mega|57/100
+|-sidestart|p1: hk4160402|Spikes
+|
+|upkeep
+|turn|2
+|inactive|hk4160402 has 30 seconds left.
+|
+|t:|1788024204
+|switch|p2b: Farigiraf|Farigiraf, L50, M|100/100
+|move|p1b: red|Surf|p2a: Samurott|[spread] p1a,p2a,p2b
+|-resisted|p1a: ophis-Mega|1
+|-resisted|p2a: Samurott|1
+|-damage|p1a: ophis-Mega|43/100
+|-damage|p2a: Samurott|86/100
+|-damage|p2b: Farigiraf|74/100
+|move|p2a: Samurott|Ceaseless Edge|p1b: red
+|-damage|p1b: red|36/100
+|-sidestart|p1: hk4160402|Spikes
+|move|p1a: ophis-Mega|Draco Meteor|p2a: Samurott
+|-damage|p2a: Samurott|21/100
+|-unboost|p1a: ophis-Mega|spa|2
+|
+|upkeep
+|turn|3
+|
+|t:|1788024229
+|detailschange|p1b: red|Greninja-Mega, L50, F, shiny
+|-mega|p1b: red|Greninja|Greninjite
+|move|p1b: red|Dark Pulse|p2b: Farigiraf
+|-start|p1b: red|typechange|Dark|[from] ability: Protean
+|-supereffective|p2b: Farigiraf|1
+|-enditem|p2b: Farigiraf|Colbur Berry|[eat]
+|-enditem|p2b: Farigiraf|Colbur Berry|[weaken]
+|-damage|p2b: Farigiraf|38/100
+|move|p2a: Samurott|Ceaseless Edge|p1a: ophis-Mega
+|-damage|p1a: ophis-Mega|7/100
+|-sidestart|p1: hk4160402|Spikes
+|move|p1a: ophis-Mega|Air Slash|p2a: Samurott
+|-damage|p2a: Samurott|1/100
+|move|p2b: Farigiraf|Trick Room|p2b: Farigiraf
+|-fieldstart|move: Trick Room|[of] p2b: Farigiraf
+|
+|upkeep
+|turn|4
+|inactive|hk4160402 has 30 seconds left.
+|c|☆SlNGULARlTY|(chat redacted)
+|c|☆SlNGULARlTY|(chat redacted)
+|inactive|hk4160402 has 20 seconds left.
+|
+|t:|1788024268
+|move|p2b: Farigiraf|Dazzling Gleam|p1a: ophis-Mega|[spread] p1a,p1b
+|-supereffective|p1a: ophis-Mega|1
+|-supereffective|p1b: red|1
+|-damage|p1a: ophis-Mega|0 fnt
+|-damage|p1b: red|0 fnt
+|faint|p1a: ophis-Mega
+|faint|p1b: red
+|move|p2a: Samurott|Flip Turn|p1: ophis-Mega|[notarget]
+|-fail|p2a: Samurott
+|
+|upkeep
+|
+|t:|1788024276
+|switch|p1a: maki|Blaziken, L50, F|100/100
+|switch|p1b: rumba|Meowscarada, L50, F|100/100
+|-damage|p1a: maki|75/100|[from] Spikes
+|-damage|p1b: rumba|75/100|[from] Spikes
+|turn|5
+|c|☆SlNGULARlTY|(chat redacted)
+|
+|t:|1788024292
+|move|p1b: rumba|Sucker Punch||[still]
+|cant|p2b: Farigiraf|ability: Armor Tail|Sucker Punch|[of] p1b: rumba
+|move|p2b: Farigiraf|Dazzling Gleam|p1b: rumba|[spread] p1a,p1b
+|-supereffective|p1b: rumba|1
+|-damage|p1a: maki|50/100g
+|-damage|p1b: rumba|24/100
+|move|p2a: Samurott|Flip Turn|p1a: maki
+|-supereffective|p1a: maki|1
+|-damage|p1a: maki|0 fnt
+|faint|p1a: maki
+|c|☆SlNGULARlTY|(chat redacted)
+|c|☆SlNGULARlTY|(chat redacted)
+|
+|t:|1788024311
+|switch|p2a: Kingambit|Kingambit, L50, M|100/100|[from] Flip Turn
+|
+|upkeep
+|turn|6
+|c|☆SlNGULARlTY|(chat redacted)
+|
+|t:|1788024328
+|move|p1b: rumba|Protect|p1b: rumba
+|-start|p1b: rumba|typechange|Normal|[from] ability: Protean
+|-singleturn|p1b: rumba|Protect
+|move|p2a: Kingambit|Iron Head|p1b: rumba
+|-activate|p1b: rumba|move: Protect
+|move|p2b: Farigiraf|Dazzling Gleam|p1b: rumba
+|-activate|p1b: rumba|move: Protect
+|
+|upkeep
+|turn|7
+|
+|t:|1788024349
+|move|p2b: Farigiraf|Protect|p2b: Farigiraf
+|-singleturn|p2b: Farigiraf|Protect
+|move|p1b: rumba|Protect||[still]
+|-fail|p1b: rumba
+|move|p2a: Kingambit|Sucker Punch||[still]
+|-fail|p2a: Kingambit
+|
+|-fieldend|move: Trick Room
+|upkeep
+|turn|8
+|
+|t:|1788024368
+|switch|p2b: Incineroar|Incineroar, L50, M|62/100
+|-ability|p2b: Incineroar|Intimidate|boost
+|-unboost|p1b: rumba|atk|1
+|move|p1b: rumba|Protect|p1b: rumba
+|-singleturn|p1b: rumba|Protect
+|move|p2a: Kingambit|Sucker Punch||[still]
+|-fail|p2a: Kingambit
+|
+|upkeep
+|turn|9
+|c|☆SlNGULARlTY|(chat redacted)
+|
+|t:|1788024387
+|switch|p2b: Farigiraf|Farigiraf, L50, M|38/100
+|move|p1b: rumba|Sucker Punch||[still]
+|cant|p2b: Farigiraf|ability: Armor Tail|Sucker Punch|[of] p1b: rumba
+|move|p2a: Kingambit|Sucker Punch||[still]
+|-fail|p2a: Kingambit
+|
+|upkeep
+|turn|10
+|
+|t:|1788024402
+|move|p1b: rumba|Flower Trick|p2b: Farigiraf
+|-crit|p2b: Farigiraf
+|-damage|p2b: Farigiraf|8/100
+|move|p2a: Kingambit|Iron Head|p1b: rumba
+|-damage|p1b: rumba|0 fnt
+|faint|p1b: rumba
+|
+|win|SlNGULARlTY
