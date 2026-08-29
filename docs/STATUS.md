@@ -8,7 +8,7 @@ Last updated: 2026-08-28, by Claude Code.
 
 ## Current milestone
 
-M0. In progress: T0.1 through T0.3 done. See `docs/09-m0-tasks.md`.
+M0. In progress: T0.1 through T0.5 done. See `docs/09-m0-tasks.md`.
 
 ## Done
 
@@ -20,10 +20,12 @@ M0. In progress: T0.1 through T0.3 done. See `docs/09-m0-tasks.md`.
 - T0.1: git initialized, package skeleton created under `champions/`, `scripts/`, `js/`, `tests/` per the implementation blueprint. Venv with dev extras installed. `ruff check .` and `pytest` (one smoke test) both pass.
 - T0.2: `smogon/pokemon-showdown` vendored at commit `bb179fbf8449e3c31632bd56f671ffb4404fa6e7` (recorded in `vendor/SHOWDOWN_COMMIT`), built. Confirmed both `champions` and `championsregma` mods and both Reg M-B format IDs exist in this checkout.
 - T0.3: `js/dump_dex.js` (format dump + a `--mod` raw-comparison mode) and `scripts/build_dex.py` (hash + write `data/dex/`, `--delta` for the mainline diff) written and working. For `gen9championsvgc2026regmb`: 355 legal species, 148 non-nonstandard items — matches `docs/02-mechanics-deltas.md`'s figures (its "347" was an approximation; 148 items and 75 legal Mega Stones match exactly). `docs/dex-delta.md` committed: 303 modified moves, 256 modified items, 8 modified abilities vs mainline gen9, 0 added/removed in any category. The ability diff independently confirms the six newly legalized abilities and the Healer/Unseen Fist text changes already documented by hand. Both the dex dump hash and the delta doc reproduce byte-for-byte on a second run against the same vendor build.
+- T0.4: `champions/trace/schema.py` (`TraceEvent` envelope: schema_version, battle_id, seq, t, type, payload; `type` is a plain str and the envelope allows extra fields, so unrecognized event types/fields from another agent version don't crash a reader) and `champions/trace/writer.py` (`Trace.emit()` is synchronous and only enqueues; a background asyncio task drains to `<battle_id>.jsonl`). `tests/test_trace.py`: synthetic battle round-trips, unknown fields/types tolerated, `emit()` measured at well under 1 ms/call (mean over 1000 calls).
+- T0.5: `scripts/run_local_server.py` starts the vendored build with `--no-security` (bare `/trn USERNAME` login, no signed assertion needed) and blocks until ready via a bounded reader-thread/queue wait. `tests/conftest.py` wraps it in a session-scoped fixture; `tests/support_showdown.py` holds a hand-built, format-validated team (the format rejects challenges with no team set — this was the non-obvious part). `tests/test_local_server.py` confirms a websocket connection and a challenge in `gen9championsvgc2026regmb` are both accepted. Along the way, found and fixed a real bug: `docs/dex-delta.md` was written without `encoding="utf-8"`, so Windows silently mojibake'd non-ASCII move text — caught by `ruff format --check`, not by any test.
 
 ## In flight
 
-Nothing. Stopped after T0.3 at the user's request, to review the delta before continuing.
+Nothing.
 
 ## Blocked
 
@@ -31,7 +33,7 @@ Nothing.
 
 ## Next action
 
-T0.4 (trace schema and writer) or T0.5 (local Showdown server) — both independent of T0.3 and of each other per the dependency order in `docs/09-m0-tasks.md`. T0.4 is next by task number and nothing else needs it yet, but it blocks less the earlier it's done.
+T0.6 (random agent completing games, via poke-env) is next by task number and depends on T0.5, now done. T0.7 (deadline watchdog) is independent and can be done anytime before it wraps T0.6's decision path.
 
 ## Open questions
 
