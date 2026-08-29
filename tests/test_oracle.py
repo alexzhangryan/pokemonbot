@@ -4,6 +4,7 @@ JSON-RPC on stdio."""
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -93,6 +94,22 @@ def test_same_seed_produces_the_same_battle(sim: SimServer) -> None:
     assert logs[0] == logs[1]
 
 
+def _advance(sim: SimServer, handle: int, decision_points: int) -> dict[str, Any]:
+    """Drive a battle forward N decision points with default choices.
+
+    A decision point is not a turn: a KO produces a forced-switch request that
+    consumes a step without incrementing `turn`, and which turns those are is a
+    property of the teams. Tests that need "the battle moved" must not assume
+    one step equals one turn.
+    """
+    state: dict[str, Any] = {}
+    for _ in range(decision_points):
+        state = sim.step(handle, "default", "default")
+        if state["ended"]:
+            break
+    return state
+
+
 def test_cloning_does_not_corrupt_the_parent_battle(sim: SimServer) -> None:
     """Regression: State.serializeBattle assigns state.log by reference, so a
     revived clone shared its parent's log array and every clone's step appended
@@ -100,31 +117,40 @@ def test_cloning_does_not_corrupt_the_parent_battle(sim: SimServer) -> None:
     past sentLogPos, which surfaced as clone ~44 failing for no visible reason."""
     handle = _fresh_battle(sim)
     sim.step(handle, "team 1234", "team 1234")
-    sim.step(handle, "default", "default")
+    before = sim.step(handle, "default", "default")
 
     for _ in range(60):
         cloned = sim.clone(handle)["handle"]
         sim.step(cloned, "default", "default")
         sim.destroy(cloned)
 
-    # The parent must still be usable after all that cloning.
-    state = sim.step(handle, "default", "default")
-    assert state["turn"] == 3
+    # Cloning is a read of the parent. Nothing about it may have moved.
+    after = sim.request(handle)
+    assert after["p1"] == sim.request(handle)["p1"]
+    still = sim.step(handle, "default", "default")
+    assert still["log"][: len(before["log"])] == before["log"]
+    assert len(still["log"]) > len(before["log"])
+    assert not still["ended"]
 
 
 def test_clone_is_independent_of_its_parent(sim: SimServer) -> None:
     handle = _fresh_battle(sim)
     sim.step(handle, "team 1234", "team 1234")
-    before = sim.step(handle, "default", "default")["turn"]
+    before = sim.step(handle, "default", "default")
 
     cloned = sim.clone(handle)["handle"]
-    sim.step(cloned, "default", "default")
-    sim.step(cloned, "default", "default")
+    advanced = _advance(sim, cloned, 10)
+
+    # The clone moved a long way; the parent must be exactly where it was.
+    assert advanced["turn"] > before["turn"]
+    assert len(advanced["log"]) > len(before["log"])
 
     parent = sim.request(handle)
     assert parent["p1"]["side"]["name"] == "p1"
-    # Advancing the clone must not advance the parent.
-    assert sim.step(handle, "default", "default")["turn"] == before + 1
+    resumed = sim.step(handle, "default", "default")
+    assert resumed["log"][: len(before["log"])] == before["log"]
+    # One step off the parent is one step, not eleven.
+    assert len(resumed["log"]) < len(advanced["log"])
 
 
 def test_unknown_method_reports_an_error(sim: SimServer) -> None:
