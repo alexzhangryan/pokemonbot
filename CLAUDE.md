@@ -47,7 +47,12 @@ Protocol:
 4. When implementation contradicts the design, do not silently work around it. Add an entry under Open Questions in `STATUS.md` describing what the design assumed and what turned out to be true. Cowork revises the design document and clears the entry.
 5. `docs/` in this repository is canonical. A mirror exists in a claude.ai Project for Cowork's benefit, but it is a mirror. On any conflict, the repository wins.
 
-Cowork can read this repository and write files into it through a device bridge, but it cannot run git. So changes arriving from that direction appear as uncommitted modifications in the working tree, usually under `docs/`. Review and commit them like any other diff.
+Channels between the two:
+
+- Cowork reads this repository from GitHub (`https://github.com/alexzhangryan/pokemonbot`, public), so it sees whatever has been pushed, regardless of whether the development machine is online. Push at the end of every session or the other surface is working from stale state.
+- Cowork writes through a device bridge and cannot run git, so its changes arrive as uncommitted files in the working tree, usually under `docs/`. Review and commit them like any other diff.
+
+The repository is public. Never commit credentials or API keys. Showdown login details and any model provider key belong in `.env`, which is gitignored. See `docs/10-workflow.md`.
 
 ## Conventions
 
@@ -83,3 +88,4 @@ tests/
 | What am I doing right now | `docs/09-m0-tasks.md` |
 | Where did we leave off | `docs/STATUS.md` |
 | Why is it built this way | `docs/DECISIONS.md` |
+| How do we work day to day | `docs/10-workflow.md` |
