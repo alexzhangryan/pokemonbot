@@ -25,6 +25,7 @@ const SHOWDOWN = path.join(__dirname, "..", "vendor", "showdown", "dist", "sim")
 const { Battle } = require(path.join(SHOWDOWN, "battle"));
 const { State } = require(path.join(SHOWDOWN, "state"));
 const { Teams } = require(path.join(SHOWDOWN, "teams"));
+const { RandomPlayerAI } = require(path.join(SHOWDOWN, "tools", "random-player-ai"));
 
 const battles = new Map();
 let nextHandle = 1;
@@ -122,6 +123,31 @@ const methods = {
     // this is the cost the search budget is actually built on.
     const battle = revive(snapshot(getBattle(handle)));
     return summarize(newHandle(battle), battle);
+  },
+
+  // Legal random choices for whichever sides currently have a request, using
+  // Showdown's own RandomPlayerAI rather than a reimplementation of legality
+  // (Choice locks, Encore, disabled moves, target legality, forced switches).
+  randomChoice({ handle, seed }) {
+    const battle = getBattle(handle);
+    const choices = {};
+    for (const [index, side] of ["p1", "p2"].entries()) {
+      const request = battle.sides[index].activeRequest;
+      if (!request || request.wait) continue;
+
+      let captured = null;
+      const sink = {
+        write(choice) {
+          captured = choice;
+        },
+      };
+      const ai = new RandomPlayerAI(sink, {
+        seed: seed ? [seed[0], seed[1], seed[2], seed[3] + index] : undefined,
+      });
+      ai.receiveRequest(request);
+      if (captured !== null) choices[side] = captured;
+    }
+    return { choices };
   },
 
   request({ handle }) {
