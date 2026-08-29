@@ -65,6 +65,38 @@ function dumpDex(formatId) {
     }
   }
 
+  // Natures carry the stat multiplier in the Champions stat formula, so they are
+  // a numeric input to the damage layer and are resolved from the simulator like
+  // everything else rather than transcribed from memory. The champions mod does
+  // not override them today; dumping them means that stops being an assumption.
+  const natures = {};
+  for (const nature of dex.natures.all()) {
+    if (nature.exists) natures[nature.id] = toPlainObject(nature);
+  }
+
+  // The type chart drives the effectiveness multiplier in the damage layer, so
+  // it is dumped for the same reason as natures: a mod may change it, and this
+  // makes that a diff rather than a surprise.
+  const types = {};
+  for (const type of dex.types.all()) {
+    if (type.exists) types[type.id] = toPlainObject(type);
+  }
+
+  // The resolved rule table's numbers, not its rule names. `pickedTeamSize` is
+  // the one everything downstream needs: the evaluation function cannot count
+  // the opponent's surviving Pokemon without it, because only the revealed ones
+  // are visible and the rest are alive by default. Regulations change these, so
+  // reading them beats hardcoding 4 (CLAUDE.md: nothing hardcodes the pool).
+  const rules = {
+    gameType: format.gameType ?? null,
+    pickedTeamSize: ruleTable.pickedTeamSize ?? null,
+    maxTeamSize: ruleTable.maxTeamSize ?? null,
+    minTeamSize: ruleTable.minTeamSize ?? null,
+    adjustLevel: ruleTable.adjustLevel ?? null,
+    teamPreview: ruleTable.has("teampreview"),
+    names: [...ruleTable.keys()].filter((k) => !k.startsWith("-") && !k.startsWith("+")).sort(),
+  };
+
   return {
     formatId,
     mod: format.mod,
@@ -74,12 +106,17 @@ function dumpDex(formatId) {
       items: Object.keys(items).length,
       moves: Object.keys(moves).length,
       abilities: Object.keys(abilities).length,
+      natures: Object.keys(natures).length,
+      types: Object.keys(types).length,
     },
     species,
     learnsets,
     items,
     moves,
     abilities,
+    natures,
+    types,
+    rules,
   };
 }
 
