@@ -1,0 +1,62 @@
+# CLAUDE.md
+
+Project context for Claude Code. Read `docs/` for the full design. This file is the short version plus the things that are easy to get wrong.
+
+## What this is
+
+An agent and coach for Pokemon Champions doubles, Regulation Set M-B.
+
+The target is the game Pokemon Champions. Pokemon Showdown is a proxy for execution and evaluation only. Where the two differ, follow Champions.
+
+Current milestone: M0. See `docs/09-m0-tasks.md` for the task list and acceptance criteria.
+
+## Non-obvious constraints
+
+These are the ones that silently corrupt everything downstream if missed.
+
+1. Champions is not mechanically Generation 9. The stat formula at level 50 is linear: `HP = base + points + 75` and `stat = (base + points + 20) * nature`. Roughly 250 moves and 250 items carry overrides in the `champions` mod. Terastallization is disabled, Mega Evolution is back, PP is capped at 20 base and always maxed, and paralysis, sleep, and freeze are rebalanced. Never use `@smogon/calc` or any mainline damage formula. See `docs/02-mechanics-deltas.md`.
+
+2. Always decline Open Team Sheets. Showdown's Reg M-B prompts for it at team preview. Champions has no such mechanism, so accepting produces an agent that does not transfer. The prompt must be handled explicitly or the agent stalls at preview.
+
+3. Reg M-A and Reg M-B use different Showdown mods (`championsregma` and `champions`). Key everything by format ID, never by a global constant. Regulation M-B expires 2026-09-09, so nothing hardcodes the legal pool.
+
+4. Pin the Showdown commit hash. The mod is under active development and an unpinned dependency turns a mechanics change into an unexplained regression.
+
+5. Opponent HP arrives quantized to percent. Damage-based inference carries about plus or minus 0.5 percent of max HP of error. Treat derived bounds as soft or the belief filter will eliminate the true hypothesis.
+
+6. Every component emits to the decision trace. The schema is defined at M0 and is how the agent is debugged, since a stochastic agent sampling a mixed strategy over a sampled belief cannot be debugged from its output.
+
+7. The search is anytime from the start. Showdown's `VGC Timer` rule auto-loses inactive players, so a live game is clock enforced regardless of whether we are optimizing for it yet. Return the best action found so far when the deadline arrives.
+
+## Conventions
+
+- Python 3.12, type hints required, `ruff` for lint and format, `pytest` for tests.
+- Node is used only for the Showdown simulator: the dex dumper and the JSON-RPC sim server. No application logic in JavaScript.
+- Deterministic by default. Seed everything. Any test or evaluation that cannot be reproduced from a seed is a bug.
+- Common random numbers across compared alternatives. Payoff cells are compared as differences, so shared seeds remove most of the variance for free.
+- No claims without measurement. Win rates come with confidence intervals, and clock compliance is reported beside win rate in the same table.
+
+## Layout
+
+```
+docs/            design documents, read 01 through 09 in order
+vendor/showdown/ pinned Showdown checkout, built, gitignored
+js/              dex dumper and sim server
+champions/       the Python package
+scripts/         entry points
+tests/
+```
+
+## Where to look
+
+| Question | Document |
+| --- | --- |
+| What are we building and why | `docs/01-plan.md` |
+| What does Champions actually do mechanically | `docs/02-mechanics-deltas.md` |
+| How do we model the opponent | `docs/03-belief-filter.md` |
+| How does the agent decide | `docs/04-decision-engine.md` |
+| Where does data come from | `docs/05-data-pipeline.md` |
+| How is the coach specified, how is anything measured | `docs/06-coach-and-evaluation.md` |
+| What gets logged and how is it displayed | `docs/07-observability.md` |
+| Stack, interfaces, milestones | `docs/08-implementation-blueprint.md` |
+| What am I doing right now | `docs/09-m0-tasks.md` |

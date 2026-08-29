@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+vendor/showdown/
+
+# Data artifacts
+data/corpus.sqlite
+data/corpus.sqlite-*
+data/replays/
+data/dex/*.json
+!data/dex/.gitkeep
+
+# Traces and runs
+runs/
+traces/
+*.trace.jsonl
+
+# Models
+*.pt
+*.pth
+checkpoints/
+
+# Secrets
+.env
+config/local.*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
