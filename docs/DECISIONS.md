@@ -105,3 +105,33 @@ Decision: categorical attributes (item, ability, moves) as a particle set over c
 Rationale: derived stats are affine in the points and the only coupling is a single resource constraint, so interval tightening is exact in closed form and costs nothing. A distribution over spreads is both intractable and unnecessary, since the spread itself is never needed, only the stats it implies.
 
 Consequences: two structurally different halves of one filter, evaluated by different metrics. Interval coverage becomes a required metric, since soft bounds are the only defense against percent quantization eliminating the true hypothesis.
+
+## D10. Trace files are per agent-view, not per battle — 2026-08-28, Claude Code
+
+Context: `docs/07-observability.md` specifies "one file per battle". In self-play both agents run in one process and share a battle tag, so both wrote to the same file, interleaving two sides' events under two independent seq counters and producing a trace that fails its own validator.
+
+Decision: the trace file is one agent's view of one battle. `Trace` takes a `name` override and agents use `<battle_tag>.<username>.jsonl`. `battle_id` still carries the battle tag, so the two views of a game remain correlatable.
+
+Rationale: a trace records what one agent knew and decided, and an agent only ever sees its own side. In a live game there is one agent per battle and this is identical to the documented behaviour; the distinction only appears in self-play, which is a harness artifact.
+
+Consequences: a 50 game self-play run produces 100 files. Any consumer aggregating over a run should not assume file count equals battle count.
+
+## D11. The M0 greedy baseline maximizes base power, not damage — 2026-08-28, Claude Code
+
+Context: T0.8's acceptance criterion names "a greedy damage maximizer", while the M0 notes say explicitly not to write a damage calculator, since that is M1 and depends on the T0.3 delta being reviewed.
+
+Decision: the baseline is `MaxBasePowerAgent`, greedy on summed base power, named for what it does rather than what it approximates. A true damage-maximizing baseline arrives with the M1 damage layer.
+
+Rationale: base power ignores types, stats, items, abilities, and spread reduction, so calling it a damage maximizer would misrepresent both the agent and any win rate measured against it. It reads base power from the resolved Champions dex rather than poke-env, whose mainline numbers are wrong for 303 moves.
+
+Consequences: the frozen opponent pool gets a stronger member at M1 and every win rate measured against the M0 pool is against a weaker opponent than the name suggests. Comparisons across that boundary are not paired.
+
+## D12. Differential comparison ignores wall-clock lines in the protocol log — 2026-08-28, Claude Code
+
+Context: T0.10's first real run reported 8 of 1000 positions diverging, with identical turn, ended, and winner. Showdown emits a `|t:|<unix seconds>` line at the start of each turn, so two replays of one position that straddle a second boundary differ by wall time alone.
+
+Decision: the log digest excludes `|t:|` lines. Everything else in the protocol stream is compared.
+
+Rationale: left in, this is a permanent 0.5 to 0.8 percent background rate of false divergences in every future engine comparison, which is how a differential harness becomes something people ignore. The excluded lines carry no battle state.
+
+Consequences: a divergence that consists only of timing differences is invisible to the harness. That is intended; no correctness property depends on wall time. Any future non-deterministic-but-meaningful protocol line has to be handled explicitly rather than inherited by this filter.

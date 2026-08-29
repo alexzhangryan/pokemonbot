@@ -89,3 +89,6 @@ tests/
 | Where did we leave off | `docs/STATUS.md` |
 | Why is it built this way | `docs/DECISIONS.md` |
 | How do we work day to day | `docs/10-workflow.md` |
+| How do I set it up and run it | `docs/QUICKSTART.md` |
+| What actually differs from mainline | `docs/dex-delta.md` |
+| How fast is the simulator here | `docs/benchmarks.md` |

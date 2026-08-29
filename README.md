@@ -19,7 +19,14 @@ Showdown format IDs: `gen9championsvgc2026regmb`, `gen9championsvgc2026regmbbo3`
 
 ## Status
 
-Design complete. Implementation begins at M0.
+M0 complete: pinned Showdown build, resolved dex dump and mainline delta, trace
+schema and writer, local server, random and base-power agents playing to
+completion, evaluation harness with clock compliance, JSON-RPC simulator oracle
+with local benchmarks, and the differential harness skeleton.
+
+Next is M1, the Champions stat and damage layer.
+
+To set it up and run it, see `docs/QUICKSTART.md`.
 
 ## Documentation
 
@@ -35,6 +42,8 @@ Read in order.
 | `docs/06-coach-and-evaluation.md` | Coach specification and evaluation methodology. |
 | `docs/07-observability.md` | Decision trace schema, live view, and the game review client. |
 | `docs/08-implementation-blueprint.md` | Stack, repo layout, interfaces, dependency order, first week. |
+| `docs/QUICKSTART.md` | Setup, and how to manually exercise everything M0 built. |
+| `docs/dex-delta.md` | Every move, item, and ability where Champions differs from mainline Gen 9. |
 
 ## Quick facts
 
