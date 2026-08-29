@@ -28,6 +28,27 @@ These are the ones that silently corrupt everything downstream if missed.
 
 7. The search is anytime from the start. Showdown's `VGC Timer` rule auto-loses inactive players, so a live game is clock enforced regardless of whether we are optimizing for it yet. Return the best action found so far when the deadline arrives.
 
+## Two surfaces work on this project
+
+This project is worked on from Claude Code (implementation) and from a Cowork session (design, research, analysis). They share no memory and no context. The repository filesystem is the only channel between them, so the protocol below is what keeps them coherent.
+
+Ownership, to avoid collisions:
+
+- Claude Code owns everything under `champions/`, `js/`, `scripts/`, and `tests/`. Cowork does not write code.
+- Either surface may write `docs/`. Cowork writes there most often, since design is its job.
+- `docs/STATUS.md` is written by whoever finishes a session.
+- `docs/DECISIONS.md` is append only, written by whoever makes a decision.
+
+Protocol:
+
+1. Start of session, read `docs/STATUS.md` first. It states the current milestone, what is done, what is in flight, what is blocked, and the next action.
+2. End of session, update `docs/STATUS.md` before stopping. This is not optional. It is the only thing the other surface will see.
+3. Any decision that changes the design, contradicts a document, or would surprise someone later gets an entry appended to `docs/DECISIONS.md`. Never edit or delete an existing entry. Reversals are appended with a reference to what they supersede.
+4. When implementation contradicts the design, do not silently work around it. Add an entry under Open Questions in `STATUS.md` describing what the design assumed and what turned out to be true. Cowork revises the design document and clears the entry.
+5. `docs/` in this repository is canonical. A mirror exists in a claude.ai Project for Cowork's benefit, but it is a mirror. On any conflict, the repository wins.
+
+Cowork can read this repository and write files into it through a device bridge, but it cannot run git. So changes arriving from that direction appear as uncommitted modifications in the working tree, usually under `docs/`. Review and commit them like any other diff.
+
 ## Conventions
 
 - Python 3.12, type hints required, `ruff` for lint and format, `pytest` for tests.
@@ -60,3 +81,5 @@ tests/
 | What gets logged and how is it displayed | `docs/07-observability.md` |
 | Stack, interfaces, milestones | `docs/08-implementation-blueprint.md` |
 | What am I doing right now | `docs/09-m0-tasks.md` |
+| Where did we leave off | `docs/STATUS.md` |
+| Why is it built this way | `docs/DECISIONS.md` |
