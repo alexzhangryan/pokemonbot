@@ -17,12 +17,17 @@ halves validated against the simulator rather than against the transcription),
 game by LP and samples the equilibrium; it beats max-base-power 82.0% [69.2%,
 90.2%] over 50 games on a shared team and 56.0% [42.3%, 68.8%] on a different
 shared team, and the gap between those two numbers is the most useful thing M2
-measured), and **M3 is done**: the shared protocol parser, the replay scraper,
-and the SQLite corpus, with the Bo3 backfill running.
+measured), **M3 is done** (the shared protocol parser, the replay scraper and
+the SQLite corpus, with the Bo3 backfill still running), and **M4 is done**: the
+bring-4 and lead predictors and the exact preview equilibrium.
 
-M4, the bring-4 and lead predictors and the preview equilibrium, is next. It is
-the first milestone that consumes the corpus, and the corpus keeps growing
-underneath it, which is why M3 was the piece with the longest lead time.
+M4's headline is a negative result that is worth more than the code. Leads
+predict well and transfer to unseen players; the bring-4 does not predict at all
+from species, and the preview value model is worse than a coin flip out of
+sample. The control says why -- skill dominates these ladder outcomes -- and the
+same boundary showed up in M2 from the other direction. Details below.
+
+M5, the belief filter, is next.
 
 M0's definition of done, checked: `pytest` green (56 tests, ~31s), a 50 game self-play run completes and produces valid traces, and the local benchmark numbers are recorded in `docs/benchmarks.md`.
 
@@ -365,6 +370,85 @@ both are unrated, so open sheets are probably not forced outside rated play, and
 table records outcomes, not submitted choices: a move chosen and then prevented
 appears as the prevention. That is a ceiling on the table, not a bug in it.
 
+### M4: bring-4, leads, and the preview equilibrium
+
+`docs/04-decision-engine.md` section 6 calls this likely the highest ratio of win
+rate to engineering effort in the project, on the grounds that the preview game
+is small enough to solve exactly. The machinery is built and exact. What M4
+found is that exactness is not the binding constraint -- the value of a cell is.
+
+- `champions/preview/dataset.py` -- preview examples from the corpus, both
+  sides, with a split grouped by series. A best-of-three is two or three games
+  played by the same two teams, so splitting by replay would put game 1 in
+  training and game 3 in test and call memorisation generalisation. Player-level
+  leakage survives that, so the split also marks `unseen_players`, the subset
+  where neither player appeared in training at all, and every headline number is
+  reported on both.
+- `champions/preview/features.py` -- species one-hot over a vocabulary built
+  from training data only, plus six dense matchup features from the dex. Nothing
+  reads an item, ability, move or nature (D36).
+- `champions/preview/model.py` -- a conditional logit over subsets, fitted by
+  L-BFGS with an analytic gradient. Bring-4 is one choice of exactly four from
+  six, not six coin flips, so the constraint lives in the likelihood rather than
+  being restored by renormalising afterwards. Its output is already the
+  distribution over the fifteen that the equilibrium consumes, and its per
+  Pokemon marginals are derived from that rather than fitted separately.
+- `champions/preview/value.py` -- `P(win | our four, their four)`, antisymmetric
+  by construction because the features are `g(a) - g(b)` with no intercept
+  (D37).
+- `champions/preview/equilibrium.py` -- the exact 15 x 15 solve and the nested
+  6 x 6 lead subgame, reusing `search/matrix.solve_both`. The value function is
+  an argument, not an import. `best_response` is offered alongside for use with
+  the bring predictor, since a best response and an equilibrium answer different
+  questions and the trade between them is the caller's.
+- `scripts/train_bring4.py` and `tests/test_preview.py` (22).
+
+Measured on held-out series, about 2,300 replays:
+
+| model | top-1 | uniform | log loss | uniform | unseen players |
+| --- | --- | --- | --- | --- | --- |
+| leads, 2 of 4 | 38.5% [35.1%, 41.9%] | 16.7% | 1.616 | 1.792 | 33.1% |
+| bring-4, 4 of 6 | 9.4% [7.5%, 11.6%] | 6.7% | 2.660 | 2.708 | 6.1% |
+
+The preview value model reaches 61.0% accuracy in training and 46.2% on held-out
+games, with a log loss of 0.727 against a coin flip's 0.693. It is not wired
+into anything.
+
+**Leads are predictable and the bring-4 is not.** That asymmetry is the finding,
+and the control explains it: over 1,808 rated games the higher-rated player won
+57.4%, so these outcomes are predictable, by skill, which preview features do
+not observe. Leads are species-intrinsic -- a Fake Out user, a weather setter
+and a Trick Room setter each have a role that barely depends on the opponent --
+so a species main effect captures them, and it transfers to players never seen
+in training. The bring-4 is a matchup decision that turns on what those four
+will actually do, which means items and abilities, which preview never reveals.
+That is the same boundary M2 hit from the other side when the agent's advantage
+fell from 82% to 56% on a team whose items and abilities its model did not
+represent. Two milestones, two methods, one conclusion (D39).
+
+**A separable value function makes the preview an argmax, not a game** (D38).
+The first value model was `sigmoid(g(ours) - g(theirs))`, which is a perfectly
+good antisymmetric payoff and has no game in it whatever: the same bring-4 is
+best against all fifteen of the opponent's options, so the equilibrium is pure
+and the exact solve buys nothing over sorting. Measured, then fixed by adding
+interaction features that enter as `h(a, b) - h(b, a)` so antisymmetry survives.
+The test suite now requires a separable value to yield one best response and an
+interacting one to yield several, in both directions, because this is the kind
+of premise failure that is silent rather than loud.
+
+**`search/evaluate.py` cannot supply preview cells** (D37), which `docs/04`
+section 6 assumes it can. It reads a state snapshot and at preview there is no
+state, so every feature is identical for both sides and it returns 0.5 for all
+225 cells. A constant matrix has every strategy as an equilibrium.
+
+What M4 leaves for M6: the value function is the whole problem, and the corpus
+cannot answer it at this scale because skill dominates. Self-play can, and the
+arithmetic is favourable -- the local simulator runs 27 battles a second, so all
+225 cells at 20 games each is roughly 4,500 battles, single-digit minutes, with
+no skill confound at all because both sides are the same agent. That is the
+recommended source for preview cell values, and it is a change to `docs/04`
+section 6 rather than a gap in it.
+
 ## In flight
 
 The Bo3 backfill. `make scrape-full` is walking `gen9championsvgc2026regmbbo3`
@@ -396,11 +480,15 @@ was replaced in the working tree, which moved a KO onto turn 2 and broke the
 assumption. Both tests now assert what they actually meant (the parent's log is
 an unchanged prefix, and the clone's is far ahead) and are team independent.
 
-M0 through M3 are now committed, in four commits split by area (M1, the
-observability surface, M2, M3). None of the four is individually runnable: the
-work arrived as one uncommitted mass and `champions/agents/baseline.py` carries
-all four milestones in a single diff, so the split is for readable history
-rather than for bisecting. Nothing is pushed -- Alex pushes.
+M0 through M4 are committed and pushed. M1 through M3 landed as four commits
+split by area; none of the four is individually runnable, because the work
+arrived as one uncommitted mass and `champions/agents/baseline.py` carries all
+of it in a single diff, so the split is for readable history rather than for
+bisecting.
+
+Commits in this repository carry no `Co-Authored-By` trailer. Five that did were
+rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
+byte-identical before and after, only the messages changed.
 
 Still uncommitted and not mine: `data/teams/regmb-beta.txt` has been replaced
 with a different six, and `.gitignore` has three added lines. Also uncommitted
@@ -410,26 +498,34 @@ commit unasked.
 
 ## Next action
 
-M4: the bring-4 and lead predictors, evaluated in isolation, then the exact
-15 x 15 preview equilibrium. `docs/04-decision-engine.md` section 1 is the spec.
-It is the first milestone that reads the corpus, and the labels are already
-there: `previews` carries all six per side with `appeared` and `lead` flags, and
-`replays.bring_fully_observed` selects the games whose bring-4 is a complete
-label rather than a truncated one (D34). Train on the flagged subset.
+M5: the belief filter. Spread interval propagation first, then categorical
+particles from the learned prior. `docs/03-belief-filter.md` is the spec, and
+three things from M3 and M4 change how it should be built.
 
-Do the nature prior at the same time, or at least decide where it lives. D33
-moved nature out of the in-battle inference half and into the learnable half,
-and there are 4,392 labelled sets sitting in `sets` with a nature on every one
-of them. It is the cheapest predictive win currently available and M5 is the
-consumer.
+Nature is a learnable label now, not an inference target (D33), and there are
+27,600 labelled sets in the corpus with a nature on every one of them. The
+categorical half of the filter should predict it alongside item, ability and
+moves, and interval propagation is left with stat points alone.
 
-Still worth doing alongside, cheaply, and now carried for a second session
-because M2 made them concrete rather than hypothetical: re-run T0.8's acceptance
-table on a single team so its numbers mean what they say (D30), and run
-`policy.discard_rate` over a batch of real positions to find out how much
-equilibrium mass the heuristic's pruning is actually throwing away. The second is
-the guard `docs/04` section 3 requires and it is implemented but has never been
-run against real positions.
+The observation stream it needs already exists and is already ordered.
+`champions/protocol/parser.py` emits it live as `turn_result` and offline into
+`reveals`, both keyed on a monotonic `seq`, because the order moves resolve in
+is the only Speed evidence the protocol gives (D32). M5 consumes that rather
+than re-parsing anything.
+
+And M4 says what the prior is worth. A species-only prior over the opponent's
+*bring* carries almost no information (9.4% against a uniform 6.7%), so the
+belief filter should not expect much from team composition alone; what it needs
+is the set-level prior over items and abilities, which is where both M2 and M4
+independently located the missing information.
+
+Worth doing alongside, and now carried for a third session, which is long
+enough that it should either be done or dropped: re-run T0.8's acceptance table
+on a single team so its numbers mean what they say (D30), and run
+`policy.discard_rate` over a batch of real positions to measure how much
+equilibrium mass the heuristic's pruning throws away. The second is the guard
+`docs/04` section 3 requires; it is implemented and has never been run against
+a real position.
 
 ## Open questions
 
@@ -478,6 +574,26 @@ Questions raised by implementation that the design has not answered. Cowork pick
   weaker population but at far greater scale and with no scraping-terms
   question attached. Worth deciding whether section 3 is still wanted before
   anyone builds it.
+
+- `docs/04-decision-engine.md` section 6 says the trained evaluation function
+  supplies each cell of the preview matrix. It cannot: `search/evaluate.py`
+  reads a state snapshot and there is no state at preview, so it returns 0.5 for
+  all 225 cells (D37). The section needs a different source for cell values, and
+  the recommendation from M4 is self-play rather than the corpus -- roughly
+  4,500 battles for a full 15 x 15 at 20 games a cell, single-digit minutes
+  locally, and no skill confound because both sides are the same agent.
+- `docs/04-decision-engine.md` section 6 also calls the preview "likely the
+  highest ratio of win rate to engineering effort in the entire project". That
+  rests on the preview being a game, which requires the payoff to have an
+  interaction term; a separable payoff makes it an argmax (D38). Worth saying so
+  in the document, because the failure is silent -- the solve returns a
+  confident pure strategy either way.
+- M4 could not fit a preview value function from replay outcomes: skill
+  dominates at this sample size, with the higher-rated player winning 57.4% of
+  1,808 rated games (D39). M6 plans to fit the in-battle evaluation on the same
+  corpus and will meet the same confound. Whether M6 controls for rating,
+  restricts to a rating band, or moves to self-play labels is a design question
+  that should be settled before it starts rather than after.
 
 - poke-env's battle state is built from mainline Gen 9 data, and Champions differs in 303 moves, 256 items, and 8 abilities. Answered as far as the numbers go: nothing numeric comes from poke-env. Stats, base power, PP, natures, the type chart and the format's own rule table are read from the resolved dump through `Dex`, and the search layer works on the trace snapshot and plain numbers rather than on poke-env objects. The structural half is now effectively decided too -- `evaluate`, `payoff` and `policy` all read the snapshot dict, so poke-env is confined to transport and legality. Worth confirming in `docs/08` that this is the intended shape rather than an accident.
 - `docs/02-mechanics-deltas.md` says "roughly 347 species"; the measured legal pool is 355 (264 excluding battle-only formes, 74 of which are Mega formes). Worth reconciling so the number in the doc is the one the code agrees with, and so it is clear which of the three counts the doc meant.

@@ -371,3 +371,49 @@ Context: `docs/05-data-pipeline.md` section 2 requires preserving the raw log al
 Decision: logs are written to `data/replays/<format_id>/<replay_id>.log` and never re-fetched once present. Every derived table is deleted and rewritten per replay on upsert, so parsing is idempotent, and `scripts/scrape_replays.py --reparse` rebuilds the entire corpus from disk with no network access. `replays.parser_version` records which parser produced the rows.
 
 Rationale: this makes being wrong about the parser cost nothing but CPU, which is the correct price given we should assume we are. It also decouples the two failure modes completely: a scrape can be interrupted at any point and a parse can be wrong at any point, and neither can damage the other. The scraper's resumability is a consequence rather than a feature — state lives in the store, so a killed run loses at most one replay.
+
+## D36. Preview models use species only, even though the corpus knows more — 2026-08-29, Claude Code
+
+Context: the Bo3 open-sheet corpus carries items, abilities, moves and natures for every Pokemon (D33). The bring-4 and lead predictors could use all of it.
+
+Decision: every feature is a function of the twelve species names and the resolved dex. Nothing reads an item, an ability, a move or a nature.
+
+Rationale: Champions has no open team sheets, so at preview the agent knows six names per side and nothing else. A model fitted on set information would score well offline and be unusable in the game it was built for -- the exact failure mode `CLAUDE.md` names when it says Showdown is a proxy and Champions is the target. The open-sheet corpus is a source of *labels*, never of inputs, and the separation is the same one D2 draws for play.
+
+Consequences: `tests/test_preview.py` checks that a feature row is a pure function of the names it is given. The constraint is also why the predictors are weaker than they would otherwise be, which is the correct trade.
+
+## D37. The preview needs its own value model, not `search/evaluate.py` — 2026-08-29, Claude Code
+
+Context: `docs/04-decision-engine.md` section 6 says the trained evaluation function supplies each cell of the 15 x 15 preview matrix at negligible cost.
+
+Finding: it cannot. `champions/search/evaluate.py` is a function of a state snapshot, and at team preview there is no state. Every feature it reads -- HP fractions, survivors, speed control, field conditions -- is identical for both sides before the first turn, so it returns 0.5 for every pairing. A constant payoff matrix has every strategy as an equilibrium, which is a polite way of saying it has no answer.
+
+Decision: `champions/preview/value.py` is a separate model, fitted on the corpus to `P(win | our four, their four)`. `solve_preview` takes the value function as an argument rather than importing one, so a better one drops in without touching the solver.
+
+Rationale: the two questions are different. Mid-battle evaluation asks what a position is worth; preview evaluation asks what a matchup is worth before anything has happened. Sharing an interface between them would have forced one of the two to be wrong.
+
+## D38. A separable preview value makes the equilibrium an argmax — 2026-08-29, Claude Code
+
+Context: the first preview value model was `sigmoid(g(ours) - g(theirs))`, which is antisymmetric and therefore a legitimate zero sum payoff.
+
+Finding: it is also separable, and a separable payoff has no game in it. The best bring-4 is the same against every column, the 15 x 15 has a dominant row, and the exact solve returns a pure strategy that sorting would have found for free. Measured: one distinct best response across all fifteen of the opponent's options.
+
+Decision: the value model carries interaction features -- our four's type coverage into their four, and the fraction of their four we outspeed -- entering as `h(a, b) - h(b, a)` so antisymmetry survives. With those, the payoff depends on the pairing and the equilibrium can mix.
+
+Rationale: `docs/04` section 6 argues the preview is worth solving exactly *because* it is a game. If the payoff has no interaction term then it is not one, and the whole section's premise fails quietly rather than loudly. A test now pins this down in both directions: a separable value must produce a single best response, an interacting one must produce several.
+
+## D39. M4's models are reported as measured, including the one that does not work — 2026-08-29, Claude Code
+
+Context: M4 produces three models. Two are useful and one is not.
+
+Measured on held-out series, corpus of about 2,300 replays:
+
+- Leads: top-1 38.5% [35.1%, 41.9%] against a uniform 16.7%, log loss 1.616 against 1.792. It survives restriction to games where neither player was seen in training (33.1%), so it is a fact about species rather than about players.
+- Bring-4: top-1 9.4% [7.5%, 11.6%] against a uniform 6.7%, and on unseen players 6.1% [3.2%, 11.2%] with a log loss slightly *worse* than uniform. Training top-1 is 10.5%, so this is not overfitting -- the signal is not in species-only features.
+- Preview value: held-out accuracy 46.2% and log loss 0.727 against a coin flip's 0.693. It is worse than useless out of sample while reaching 61% in training.
+
+Decision: all three are reported with intervals and baselines, the value model is not wired into anything, and the equilibrium keeps its value function as a parameter.
+
+Rationale: the control settles the interpretation. Over 1,808 rated games the higher-rated player won 57.4%, so these outcomes *are* predictable -- by skill, which the preview features do not observe and cannot. The honest conclusion is not "the model is weak" but "at this sample size, on this ladder, bring-4 composition does not determine the game, and player strength does". Publishing 46.2% as a result would be worse than publishing nothing; suppressing it would be worse still, because M6 is going to ask the same question with the same corpus and deserves to know the answer already found.
+
+The asymmetry between leads and bring is itself the finding. Leads are species-intrinsic -- a Fake Out user, a weather setter and a Trick Room setter each have a role that does not depend much on the opponent -- so a species main effect captures them. The bring-4 is a matchup decision that depends on what the four will actually do, which means items and abilities, which preview never reveals. That is the same boundary M2 found from the other side, where the agent's advantage collapsed from 82% to 56% on a team whose items and abilities its model did not represent.
