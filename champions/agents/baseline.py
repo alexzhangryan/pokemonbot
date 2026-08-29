@@ -14,6 +14,7 @@ from poke_env.concurrency import handle_threaded_coroutines
 from poke_env.player import Player
 from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, DoubleBattleOrder
 
+from champions.dex.loader import Dex
 from champions.search.watchdog import AnytimeDecision, decide_with_deadline
 from champions.trace.schema import EventType
 from champions.trace.writer import Trace
@@ -203,6 +204,103 @@ class TracingPlayer(Player):
 
 class RandomAgent(TracingPlayer):
     """Uniform random over legal joint actions. The floor of the opponent pool."""
+
+
+class MaxBasePowerAgent(TracingPlayer):
+    """Greedy on base power, summed across both slots. Switching scores zero.
+
+    Named for what it does. This is not a damage maximizer: damage depends on
+    stats, types, items, abilities, and spread reduction, and the Champions
+    damage layer is M1 work that the M0 task list explicitly defers. Base power
+    is a crude proxy that makes a stronger-than-random opponent available now.
+
+    It does read base power from the Champions dex rather than from poke-env,
+    whose mainline Gen 9 numbers are wrong for this format (T0.3 found 303
+    modified moves, base power among the changed fields).
+    """
+
+    def __init__(self, *args: Any, dex: Dex | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._dex = dex if dex is not None else Dex.load(self.format)
+
+    def _score(self, order: BattleOrder) -> float:
+        """Summed base power, disqualifying orders that attack our own side.
+
+        In doubles, negative move targets are our own slots (-1, -2) and
+        positive ones are the opponent's. Scoring base power alone makes an
+        ally-targeted attack tie with the same move aimed at a foe, and the
+        first such order wins the argmax, so the agent spends the game hitting
+        its own partner. Disqualify rather than merely penalize: there is no
+        base-power reason to ever aim a damaging move at our own side.
+        """
+        total = 0.0
+        for single in _single_orders(order):
+            move = getattr(single, "order", None)
+            move_id = getattr(move, "id", None)
+            if move_id is None:
+                continue
+            power = self._dex.base_power(move_id)
+            if power > 0 and getattr(single, "move_target", 0) < 0:
+                return float("-inf")
+            total += power
+        return total
+
+    async def choose_move(self, battle: AbstractBattle) -> BattleOrder:
+        self._emit_battle_start_once(battle)
+        trace = self.trace_for(battle)
+
+        trace.emit(
+            EventType.TURN_START,
+            {
+                "turn": battle.turn,
+                "active": [p.species if p else None for p in _active_of(battle)],
+                "opponent_active": [p.species if p else None for p in _opponent_active_of(battle)],
+                "our_remaining": sum(1 for p in battle.team.values() if not p.fainted),
+                "opponent_remaining": sum(
+                    1 for p in battle.opponent_team.values() if not p.fainted
+                ),
+            },
+        )
+
+        orders = self._legal_orders(battle)
+        fallback: BattleOrder = orders[0] if orders else DefaultBattleOrder()
+
+        async def search(decision: AnytimeDecision[BattleOrder]) -> None:
+            best_score = float("-inf")
+            for order in orders:
+                score = self._score(order)
+                if score > best_score:
+                    best_score = score
+                    decision.propose(order, value=score)
+                # Yield so the watchdog can interrupt a long enumeration.
+                await asyncio.sleep(0)
+
+        result = await decide_with_deadline(
+            search,
+            fallback=fallback,
+            deadline_s=self._decision_deadline_s,
+            trace=trace,
+            trace_payload={"turn": battle.turn, "phase": "choose_move"},
+        )
+
+        trace.emit(
+            EventType.EQUILIBRIUM,
+            {
+                "turn": battle.turn,
+                "chosen": result.action.message,
+                "n_legal_joint_actions": len(orders),
+                "strategy": "argmax_base_power",
+                "value": result.value,
+                "watchdog_fired": result.watchdog_fired,
+            },
+        )
+        return result.action
+
+
+def _single_orders(order: BattleOrder) -> list[Any]:
+    if isinstance(order, DoubleBattleOrder):
+        return [order.first_order, order.second_order]
+    return [order]
 
 
 def _active_of(battle: AbstractBattle) -> list[Any]:
