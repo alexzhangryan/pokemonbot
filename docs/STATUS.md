@@ -396,8 +396,17 @@ was replaced in the working tree, which moved a KO onto turn 2 and broke the
 assumption. Both tests now assert what they actually meant (the parent's log is
 an unchanged prefix, and the clone's is far ahead) and are team independent.
 
+M0 through M3 are now committed, in four commits split by area (M1, the
+observability surface, M2, M3). None of the four is individually runnable: the
+work arrived as one uncommitted mass and `champions/agents/baseline.py` carries
+all four milestones in a single diff, so the split is for readable history
+rather than for bisecting. Nothing is pushed -- Alex pushes.
+
 Still uncommitted and not mine: `data/teams/regmb-beta.txt` has been replaced
-with a different six, and `.gitignore` has three added lines.
+with a different six, and `.gitignore` has three added lines. Also uncommitted
+and deliberately so: `.claude/`, `.agents/` and `skills-lock.json`, which are
+tooling configuration rather than project work and are not Claude Code's to
+commit unasked.
 
 ## Next action
 
