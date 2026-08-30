@@ -12,13 +12,20 @@ browser.
 
 ## Current milestone
 
-**M0 through M6 are done. M7, the policy provider benchmark, is in progress.**
-The thing D55 said to do first — build the implementation A
-`docs/04-decision-engine.md` section 3 actually specifies — is done and measured
-(D61). Implementation B is specified in
-`docs/specs/2026-08-29-learned-policy-provider.md` and its first two steps are
-built: the corpus-side state reconstruction, and the feature function that
-serves both the trainer and the live agent. See **Next action**.
+**M0 through M7 are done. M8, the deeper payoff model, is next.**
+M7 was the policy provider benchmark: build the three candidate providers
+`docs/04-decision-engine.md` section 3 specifies and measure them identically.
+A is the implementation that section actually specifies, built and measured at
+D55/D61. B, the learned prior, is specified in
+`docs/specs/2026-08-29-learned-policy-provider.md`, and all four of its steps
+are now built and measured — **and it lost.** A discards 0.174 of the
+equilibrium's mass at `k = 10` and B discards 0.415, so A stays and the agent's
+provider does not change (D67). C is still blocked on a model API key.
+
+The result that outlasts the rejection: B *recalls strong humans better* than A
+and *prunes worse*, both with intervals apart. Imitation accuracy is not a proxy
+for what pruning costs, and that is now measured rather than argued.
+See **Next action**.
 
 | | what it delivered | where it is measured |
 | --- | --- | --- |
@@ -32,9 +39,9 @@ serves both the trainer and the live agent. See **Next action**.
 | M6 | the fitted, calibrated evaluation function | `docs/eval-calibration.md` |
 | — | the pruning guard, run against real positions | `docs/pruning-guard.md` |
 | — | the specified implementation A, built and measured against the old one (D61) | `docs/pruning-guard.md` |
-| M7 | in progress: implementation B's state reconstruction and feature path (D63, D64) | `tests/test_replay_state.py`, `tests/test_policy_features.py` |
+| M7 | implementation B, built and rejected: it recalls humans better and prunes worse (D63-D67) | `docs/policy-prior.md`, `docs/pruning-guard.md` |
 
-Three milestones in a row have produced negative results worth more than their
+Four milestones in a row have produced negative results worth more than their
 code, and they compose into one reading.
 
 - **M4.** Leads predict well and transfer to unseen players; the bring-4 does
@@ -47,13 +54,19 @@ code, and they compose into one reading.
 - **M6.** The evaluation is now calibrated, and the way it got there was by
   refusing to believe its own weight table: three of its four findings are bugs
   a naive fit would have absorbed into a coefficient.
+- **M7.** A model fit to 84,321 human decisions recalls what strong humans
+  played far better than the hand-written heuristic does, and prunes the
+  equilibrium far worse. Imitating good players and keeping the equilibrium's
+  mass are different objectives, and the corpus can only supply the first.
 
 The binding constraint has moved from what the search *knows* to what its
 one-turn payoff model can *do* with what it knows. The pruning guard briefly
 added a second constraint — whether the candidate set even contains the answer —
 and rebuilding implementation A to section 3's specification has largely removed
 it: discarded mass at the agent's own `k` fell from 0.639 to 0.174 and the win
-probability given up fell from 0.061 to 0.008.
+probability given up fell from 0.061 to 0.008. M7 then tried to remove the rest
+with a learned prior and could not, which leaves the one-turn payoff model as
+the binding constraint and nothing else competing for the title.
 
 The next four sections are the milestone record and are long. The operational
 ones a session actually needs are **In flight**, **Blocked**, **Tests**,
@@ -768,6 +781,133 @@ columns are all the ones `heuristic-base-power` produced while playing: the
 guard asks "what would this have kept here?", which is the right question for a
 guard and is not the same as playing the games again with the new policy.
 
+## M7, implementation B: the learned candidate prior
+
+`docs/specs/2026-08-29-learned-policy-provider.md` orders the work in four
+steps. All four are built. Steps 1 and 2 were the previous session's
+(`cafb64d`, `4b946d7`, D63, D64); this one is steps 3 and 4.
+
+**The training set is the part the spec understated.** The corpus has states
+(step 1) and it has labels (the `actions` table). What it does not have is the
+choice *set*, and a discrete choice model is fit to a set. A protocol log shows
+outcomes and never shows a request, so the legal option set has to be rebuilt,
+and rebuilding it is where the information rules bite. D65 records the rule that
+came out of it: the choice set may use anything the acting player knew and
+nothing else. Their own four moves and their own bring-4 are theirs and are both
+in the log; the opponent's sheet is not, and `replay_state` already drops it.
+
+`champions/search/policy_data.py`, 23 tests. **81.2% of slots produce a row**,
+and counting that is what found every bug in this half. The residual is 13.3%
+with no recorded choice at all (a flinched or slept or Taunted move produces no
+`|move|` line), 4.4% with nothing in the slot, and 1.1% genuinely unresolvable
+— almost all of it a Sucker Punch that failed, which prints `[still]` and
+`|-fail|` and never says what it was aimed at.
+
+**Three bugs, none of which a test written from the specification would have
+asked about** (D65, D66). Each is either a row that quietly disappears or a row
+with a wrong label, and both look like nothing from the outside.
+
+- A Mega that switches back in is announced with its own details, so the field
+  said `Charizard-Mega-Y` and the sheet said `Charizard`. The lookup missed and
+  every decision that Pokemon made from then on was dropped — 170 of 3,900
+  slots in a sample, all of them Megas, in a format with 75 legal stones. Fixed
+  as exact-name-then-base rather than normalise-to-base: Rotom-Wash and
+  Ninetales-Alola are on sheets under their own names and both have a different
+  `baseSpecies`.
+- The release turn of a two-turn move was being counted as a choice. Showdown
+  tags it `[from] lockedmove` and the parser already carries that through, so
+  the row claimed the player picked, out of four moves and every legal switch,
+  the one move they had no choice about.
+- The charge turn of a two-turn move was being dropped, because its `|move|`
+  line prints no target. It is not unresolvable: the target is on `|-anim|`
+  when the move fired the same turn (Electro Shot in rain, Solar Beam in sun)
+  and on the release turn's own line when it did not.
+
+That is now three reconstruction bugs found by comparing against something —
+D64's by the vector-equality check, these by a coverage count — and none by
+reading the code. Worth keeping as a habit rather than as three fixes.
+
+**The model** is `champions/search/learned.py`: standardise, one tanh layer of
+16 units, one output, scoring a single (state, option) pair to a scalar. The
+softmax over a slot's legal set is the distribution; the loss is cross entropy
+against what the human played. Scoring one option at a time rather than a padded
+fixed action space is what lets the same weights serve a slot with three legal
+options and one with fourteen. numpy and full-batch L-BFGS, like
+`champions/search/fit.py`, which makes the fit a deterministic function of its
+seed with nothing further to arrange.
+
+**Step 3, corpus recall.** `make fit-policy`, about four minutes, reads the
+corpus and nothing else. 3,282 eligible replays — rated, both players at or
+above the 75th percentile of the corpus's own rating distribution recomputed at
+fit time, and `bring_fully_observed` — 84,321 decisions, 9.5 options each. Split
+by player, never by replay, per spec section 3.4 and M4's finding.
+
+Top-`k` recall of the human's action, per slot, on held-out players and 12,690
+decisions. Both providers scored on the same reconstructed choice sets in the
+same pass, so the rows differ by provider and by nothing else. `uniform` is a
+provider that scores every option identically, which is what a budget of `k`
+recovers with no ordering at all:
+
+| provider | k = 1 | k = 3 | k = 5 |
+| --- | --- | --- | --- |
+| `uniform` | 0.000 | 0.000 | 0.045 |
+| `heuristic-position` | 0.274 | 0.582 | 0.740 |
+| `learned-prior` | **0.347** | **0.705** | **0.895** |
+
+Intervals are in `docs/policy-prior.md` and none of them overlap. The closed-
+sheet slice — the battles where the humans chose under our own information state
+— puts B further ahead, not less, which is the opposite of what the label-noise
+hypothesis predicts. Read that slice's *gap* and not its level: without
+`|showteam|` a player's own move set can only be rebuilt from what they
+revealed, so every choice set there is smaller than the one the human faced.
+
+The corpus is still growing under the backfill, so these are the reading at
+28,227 rated replays and will move. What will not move is the ordering.
+
+**Step 4, the pruning guard, and the answer is no.** `docs/pruning-guard.md`
+now has four providers measured against one solve of each of 6,745 positions
+over 750 battles. Discarded mass on the set that is eligible at every budget,
+which is the only table whose rows compare to each other:
+
+| provider | k = 5 | k = 10 | k = 15 | k = 20 |
+| --- | --- | --- | --- | --- |
+| `heuristic-position` (A) | 0.3208 | **0.1743** | 0.1339 | 0.1012 |
+| `learned-prior` (B) | 0.6309 | 0.4153 | 0.2711 | 0.1721 |
+| `union-heuristic-learned` | 0.3379 | 0.1793 | **0.0978** | **0.0576** |
+
+**B loses to A at every budget, and not narrowly** — 0.4153 against 0.1743 at
+`k = 10`, intervals nowhere near each other, and B at `k = 20` is still worse
+than A at `k = 10`. Spec section 1 fixed the rule before the numbers arrived:
+the intervals decide and A is the incumbent. A stays. The default provider does
+not change.
+
+**This is the spec's own section 6 arriving on schedule, not a bug.** B recalls
+what strong humans played better than A does — 0.895 against 0.740 at `k = 5`,
+intervals apart — and keeps the one-turn equilibrium's mass worse. Both are
+true, they are measurements of different things, and the guard is the shipping
+criterion precisely because the equilibrium and a strong human differ. What is
+new is the size of the gap: imitation recall is not a proxy for the guard here,
+and any future provider should be read on the guard before its recall is
+believed.
+
+**The union is the result worth keeping, and it depends on `k`.** It beats A at
+15 and 20 with intervals apart (0.0978 against 0.1339, 0.0576 against 0.1012),
+ties A at 10 (0.1793 [0.1694, 0.1899] against 0.1743 [0.1656, 0.1846], and an
+overlap is not a difference by the same rule that keeps A), and *loses* at 5.
+The shape follows from interleaving: half the budget goes to B's ordering, which
+costs while the budget is small and pays once A's ordering has saturated and
+what is left to add is coverage. So B is not worthless — it is worth something
+only where the budget is large enough to afford it, which is the opposite of
+what a candidate prior is usually wanted for. D67.
+
+Two limits carried over unchanged, because neither is fixed by these numbers.
+The positions and the opponent columns are all the ones `heuristic-base-power`
+produced while playing, so every row answers "what would this have kept here?"
+rather than "what would this have played?"; and value loss is loss under the
+one-turn model and the current weights, which is what the search optimises and
+is not a win-rate claim.
+
+
 ## In flight
 
 **The Bo3 backfill, still.** `scrape_replays.py --format
@@ -811,17 +951,27 @@ Nothing.
 
 ## Tests
 
-**401 pass in about 165s**, whole suite, as of 2026-08-30. One is known flaky.
+**444 pass in about 205s**, whole suite, as of 2026-08-30, with M7's 61 new
+tests in it. The known flaky one passed this run; see below for why that is not
+evidence of anything.
 
 `make lint` and `ruff format --check` are clean. **`make typecheck` is not**:
-`mypy .` reports 45 errors across 11 files, and `make check` therefore fails on
-its second step. None are in the newer modules — the concentrations are
-`scripts/run_ladder.py` (7), `champions/preview/model.py` (5), and `value.py`,
-`search/fit.py` and `search/matrix.py` (4 each), mostly poke-env kwargs and
-numpy/scipy stub friction. Long-standing, nobody's this session, and worth a
-pass of its own rather than a line here. The count is unchanged by this
-session's work and by the one before it: every module either has touched
-typechecks clean.
+`mypy .` reports 46 errors across 12 files, and `make check` therefore fails on
+its second step. The concentrations are `scripts/run_ladder.py` (7),
+`champions/preview/model.py` (5), and `value.py`, `search/fit.py`,
+`search/matrix.py` and `search/learned.py` (4 each), mostly poke-env kwargs and
+numpy/scipy stub friction. Long-standing, and worth a pass of its own rather
+than a line here.
+
+**The count moved by one, and the one is `learned.py`.** It is
+`error: Library stubs not installed for "scipy.optimize"` at line 49 —
+character for character the error `search/fit.py:49` and `search/matrix.py:28`
+already carry, because it imports the same optimiser the same way. Fixing it is
+`pip install scipy-stubs` and belongs to that pass, not to this feature. Nothing
+else this session added: `tests/test_learned.py` and `tests/test_policy_data.py`
+arrived with 13 missing annotations between them and were annotated rather than
+left, since `CLAUDE.md` requires type hints and a new file is the wrong place to
+start an exception.
 
 `tests/test_oneply.py::test_the_agent_beats_max_base_power_on_the_same_team`
 asserts the one ply agent wins more than 5 of 10 games; D48 measures that agent
@@ -842,8 +992,7 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing of Claude Code's.** Everything through implementation B's feature path
-is committed, on `main`, as of `4b946d7`:
+**Nothing of Claude Code's.** M7 is complete and committed on `main`:
 
 | commit | what is in it |
 | --- | --- |
@@ -856,23 +1005,8 @@ is committed, on `main`, as of `4b946d7`:
 | `8a9c00d` | the implementation B spec |
 | `cafb64d` | M7 step 1: the corpus-side state reconstruction |
 | `4b946d7` | M7 step 2: the shared feature path (D63, D64) |
-
-Four commits of work rather than the five the earlier plan named, and the
-reason is worth recording so nobody goes looking for the fifth. The guard and
-the specified A could not be separated: this session rewrote
-`discard.py`, `policy.py`, `discard_rate.py`, `test_discard.py` and
-`pruning-guard.md` — every file the guard commit would have contained — so
-splitting them would have meant reconstructing an intermediate state that had
-never existed on disk. `Makefile` and `CLAUDE.md` *were* split, because each
-commit's version of them could be derived exactly by removing later
-milestones' lines, and staging the final version everywhere would have put
-`make discard` in the M5 commit.
-
-None of the first three is individually runnable, for the same reason M1
-through M3 were not: the work arrived as one mass and
-`champions/agents/baseline.py` carries much of it in a single diff. The split
-is for readable history rather than for bisecting. The whole suite passes at
-`298db52`: 377 tests.
+| `2f22336` | this file, at the end of that session |
+| `f66832c` | M7 steps 3 and 4: the training set, the model, and the four-way guard (D65-D67) |
 
 Commits in this repository carry no `Co-Authored-By` trailer. Five that did
 were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
@@ -882,78 +1016,87 @@ byte-identical before and after, only the messages changed.
 been replaced with a different six. Left alone deliberately — it is a change to
 the evaluation's inputs and whether it lands is Alex's call, not a loose end.
 
-**Not pushed yet.** `origin/main` is still at `53a9e15`. It has neither M7 step,
-nor the spec they implement, nor this file's update.
+**Not pushed.** Claude Code does not run `git push` here, so `origin/main` is
+behind by everything from `298db52` on. Check `git log` against
+`git log origin/main` rather than assuming they match.
+
+**A duplicate process, worth knowing about rather than acting on.** Two
+identical `scripts/discard_rate.py` runs were alive at once on 2026-08-30,
+started eleven minutes apart, both writing `docs/pruning-guard.md` and
+`data/eval/discard.gen9championsvgc2026regmb.json`. Only one was launched by
+this session and the other is unaccounted for. It did no harm, and the reason is worth stating
+exactly: the run is deterministic from its seed and its inputs, and the two
+reports were diffed rather than assumed to match — `docs/pruning-guard.md` is
+byte-identical between them, and the eleven minutes between the runs is far
+more than the gap between their final writes. The
+JSON is *not* byte-identical, because it records `elapsed_s`, which is wall
+clock and is the one field in either artefact that a rerun changes. So a
+`git diff` on `data/eval/discard.*.json` showing nothing but a moved
+`elapsed_s` is a rerun and not a result. Recorded because a second unexplained
+writer to a generated file is the kind of thing that looks like a mystery diff
+later, and because `discard_rate.py` takes no lock and would not notice one.
+
 
 ## Next action
 
-**M7, implementation B, step 3: the training set and the fit.**
-`docs/specs/2026-08-29-learned-policy-provider.md` section 4 orders the work in
-four steps and the first two are done and committed:
+**M7 is done. Implementation B was built, measured and rejected (D67); the
+choice for the next session is what to do with the union, and the honest answer
+is nothing yet.**
+
+The spec's four steps are all built, measured and committed. What is left is not
+more of M7:
 
 | step | what it is | state |
 | --- | --- | --- |
 | 1 | `champions/corpus/replay_state.py`, each player's view rebuilt from a log | done, `cafb64d` |
 | 2 | `champions/search/policy_features.py`, one feature path for both callers | done, `4b946d7` |
-| 3 | `scripts/fit_policy.py` and the model. First number: top-`k` recall against A | **next** |
-| 4 | `LearnedPolicy`, then `make discard` for the three-way table | after 3 |
+| 3 | `scripts/fit_policy.py` and the model, `docs/policy-prior.md` | done |
+| 4 | `LearnedPolicy`, `UnionPolicy`, the four-way `make discard` | done |
 
-Step 3 is a checkpoint rather than a stage on the way to step 4. If recall on
-held-out players is at or below A's, that is the result and it is reportable on
-its own; step 4 then confirms it cheaply rather than hoping for a different
-answer. Section 3.4 fixes the parts that are decisions rather than code — split
-by *player* and not by replay, rated replays with both players at or above the
-75th percentile recomputed at fit time, intervals bootstrapped over battles, and
-the 621 closed-sheet replays held back as a separate line.
+**M8, the deeper payoff model, is the next milestone**, and three of the things
+this session leaves behind are arguments for going there rather than back:
 
-What step 2 leaves for step 3 to be careful about:
+- The union beats A at `k = 15` and `k = 20` and not at `k = 10`, so the open
+  question is the *budget*, not the provider. `k` trades candidate quality
+  against search cost, and M8 changes the cost of a column. Settling `k` now
+  settles it against a payoff model that is about to be replaced.
+- B's four cheap extensions — the assumed-spread handicap (one flag, D63),
+  switch options carrying one feature, slot interaction, the belief — are all
+  changes to a provider feeding the one-turn model. Same argument.
+- `docs/04-decision-engine.md` section 3 still reads as though B were
+  unbuilt. It needs a paragraph saying B was built, measured and rejected, and
+  what the union's `k` dependence means. **This is the one thing above that is
+  worth doing before anything else, because it is the document a future session
+  will read to decide whether to build B again.** It is a Cowork edit by the
+  ownership rule; the measurement it needs is in `docs/pruning-guard.md` and
+  `docs/policy-prior.md` already.
 
-- **The features are computed on the assumed spread, not the real one (D63).**
-  This is the whole reason the two paths agree, and it means B is handed
-  approximate damage on our own side where A is handed exact damage. If B loses,
-  re-measuring A with `exact_stats=False` separates "the model is worse" from
-  "the model was blindfolded", and it is one flag.
-- **Switch options carry one number about the Pokemon coming in.** Its health,
-  and nothing else. Every switch out of a slot otherwise has an identical
-  vector, which is A's defect too (`policy.SWITCH` is a constant). First thing
-  to extend if B loses to A on positions that wanted a switch.
-- **The corpus half of the label is noisy by construction** and no amount of it
-  helps. Spec section 2: the corpus is open-sheet play, the agent declines open
-  sheets, so a human who switched because they could see a Choice Scarf made a
-  choice the features cannot explain.
-
-The harness step 4 lands in is finished rather than half-finished.
-`discard.measure_many` takes a mapping of provider name to `keep` callable and
-measures every one of them against a single solve of each position, so adding B
-is a dict entry in `scripts/discard_rate.py`'s `PROVIDERS` and adding C is
-another. Section 3 asks for the providers to be benchmarked *identically*, and
-that is what the harness does rather than what a reader has to assume about two
-separate runs.
-
-C, the language model provider, is still blocked on a model API key and is not
-in the B spec's scope.
+C, the language model provider, is still blocked on a model API key. What this
+session changes about C: read it on the guard, not on its accuracy. B recalled
+strong humans far better than A and pruned far worse, so an LLM provider that
+looks convincing on transcripts has demonstrated nothing until it has a
+discarded-mass number beside A's.
 
 Read before starting, in this order:
 
-1. `docs/pruning-guard.md`. The numbers to beat are 0.174 discarded mass and
-   0.008 value loss at `k = 10`, not the 0.639 and 0.061 D61 replaced. The old
-   policy is still in the table as
-   `heuristic-base-power`, which is what a benchmark against a weak baseline
-   would have looked like.
-2. M6's discipline. It moved the evaluation from "the ordering is
-   uncontroversial" to "here is the reliability diagram" by refusing to believe
-   its own weight table. Three providers producing three numbers is not a result
-   until the numbers come with intervals over *battles*;
-   `fit.bootstrap_weights` and `discard.summarise` are both that pattern.
+1. `docs/pruning-guard.md`. The number to beat is still A's — 0.174 discarded
+   mass and 0.008 value loss at `k = 10` — and there are now three other
+   providers in the table showing what missing it looks like at three different
+   distances.
+2. D67, for the rule that decided it. The intervals were fixed as the criterion
+   before the numbers arrived, which is the only reason the result is readable
+   as a result rather than as a preference.
 3. The two limits in the section above. The guard scores what a provider *would*
    have kept on positions another provider played, and the threat model sees
    only revealed moves. Neither is fixed by more games, and both bound what any
-   of the three numbers can mean.
+   of the four numbers can mean.
 
-Two smaller decisions from the same triage land inside M7 rather than beside it
-(D57, D58): traces get gzipped per battle before the three-provider runs multiply
-them, and the `belief` against `oneply` head-to-head is deferred until after M8,
-so it is not a prerequisite for anything here.
+One smaller decision from the earlier triage is still open and now lands in M8
+rather than M7 (D57, D58): traces are still not gzipped per battle, which the
+four-provider run made less urgent rather than more — it multiplies rows in one
+report, not trace files on disk. The `belief` against `oneply` head-to-head
+stays deferred until after M8.
+
 
 Two things the specified A leaves behind, both cheap and neither blocking:
 
