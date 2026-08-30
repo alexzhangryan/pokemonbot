@@ -76,9 +76,13 @@ class OnePlyAgent(TracingPlayer):
                 f"would be silently wrong rather than absent. Build it with:\n"
                 f"    python scripts/build_dex.py {self.format}"
             )
+        # Narrowed once here rather than at every use. The constructor has
+        # just refused to build without it, so `self._dex` is not optional from
+        # this point on and the type checker should know it.
+        self.dex: Dex = self._dex
         self._k = k
-        self._policy = HeuristicPolicy(self._dex)
-        self._model = TurnModel(self._dex, hypothesis)
+        self._policy = HeuristicPolicy(self.dex)
+        self._model = TurnModel(self.dex, hypothesis)
 
     async def _search(
         self,
@@ -93,10 +97,17 @@ class OnePlyAgent(TracingPlayer):
         timings: dict[str, float] = {}
 
         # -- prune ------------------------------------------------------
+        #
+        # The snapshot is taken before pruning rather than after it, because the
+        # policy needs it. Section 3's heuristic is four questions about the
+        # position -- does this knock a target out, is this slot threatened,
+        # does this flip a race, is this the turn Fake Out works -- and none of
+        # them can be answered from the action list alone.
         started = time.perf_counter()
+        snapshot = state_snapshot.snapshot(battle, self._dex)
         described = [action_describe.describe(order, self._dex) for order in orders]
         by_message = {d["message"]: order for d, order in zip(described, orders, strict=True)}
-        scored = self._policy.scored(described, self._k)
+        scored = self._policy.scored(described, self._k, snapshot)
         timings["candidates_s"] = time.perf_counter() - started
 
         if not scored:
@@ -113,10 +124,9 @@ class OnePlyAgent(TracingPlayer):
 
         # -- estimate ---------------------------------------------------
         started = time.perf_counter()
-        snapshot = state_snapshot.snapshot(battle, self._dex)
-        theirs = opponent_candidates(snapshot, self._dex, self._k)
+        theirs = self._opponent_candidates(battle, snapshot)
         ours = [s.action for s in scored]
-        matrix = payoff_matrix(snapshot, ours, theirs, self._model)
+        matrix = payoff_matrix(snapshot, ours, theirs, self._turn_model(battle))
         timings["payoff_s"] = time.perf_counter() - started
         await asyncio.sleep(0)
 
@@ -142,7 +152,7 @@ class OnePlyAgent(TracingPlayer):
                         **s.action,
                         "policy_score": s.score,
                         "policy_reasons": list(s.reasons),
-                        "policy_provider": "heuristic",
+                        "policy_provider": self._policy.name,
                         "equilibrium_probability": float(equilibrium.row[i]),
                     }
                     for i, s in enumerate(scored)
@@ -158,9 +168,30 @@ class OnePlyAgent(TracingPlayer):
                 # What the matrix is actually built on, so a reader never
                 # mistakes this for a simulator-backed number.
                 "model": "analytic-one-turn",
-                "opponent_model": "revealed-moves-only",
+                "opponent_model": self.opponent_model,
             },
         )
+
+    # -- the two seams a belief plugs into -------------------------------
+    #
+    # Overridden by `champions.agents.belief_agent.BeliefAgent` and by nothing
+    # else. Kept as methods rather than as constructor arguments because a
+    # belief is per battle and this agent is per run: the ladder plays several
+    # games concurrently through one player object.
+
+    #: Recorded on the trace so a reader can tell which of the two produced a
+    #: matrix without inferring it from the column count.
+    opponent_model = "revealed-moves-only"
+
+    def _turn_model(self, battle: AbstractBattle) -> TurnModel:
+        return self._model
+
+    def _opponent_candidates(
+        self,
+        battle: AbstractBattle,
+        snapshot: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        return opponent_candidates(snapshot, self.dex, self._k)
 
     def _sample(self, strategy: np.ndarray, battle: AbstractBattle) -> int:
         """Draw an action index from the mixed strategy.

@@ -16,7 +16,7 @@ EVAL_TRACES ?= runs/m6-selfplay
 
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
-        scrape scrape-full corpus priors eval-belief eval-games fit-eval
+        scrape scrape-full corpus priors eval-belief eval-games fit-eval discard
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -41,6 +41,7 @@ help:
 	@echo ""
 	@echo "make eval-games    generate self-play for the M6 fit (EVAL_GAMES=750; hours)"
 	@echo "make fit-eval      fit the evaluation function, write its reliability diagram"
+	@echo "make discard       measure what candidate pruning throws away"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -136,3 +137,10 @@ eval-games:
 
 fit-eval:
 	$(PYTHON) scripts/fit_eval.py --traces $(EVAL_TRACES)
+
+# The pruning guard `docs/04-decision-engine.md` section 3 requires. Reads the
+# same self-play traces the fit does and rebuilds the unpruned game at every
+# decision, so it is minutes rather than seconds. Run it after `fit-eval`: the
+# payoffs it measures come from the shipping evaluation weights.
+discard:
+	$(PYTHON) scripts/discard_rate.py --traces $(EVAL_TRACES) --json data/eval/discard.$(FORMAT_ID).json

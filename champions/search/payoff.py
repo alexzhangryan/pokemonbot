@@ -40,11 +40,17 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 import numpy as np
 
-from champions.dex.damage import DamageContext, TypeChart, boosted, damage_roll_distribution
+from champions.dex.damage import (
+    DamageContext,
+    TypeChart,
+    boosted,
+    damage_roll_distribution,
+    modify,
+)
 from champions.dex.loader import Dex
 from champions.dex.stats import STAT_IDS
 from champions.search.evaluate import win_prob
@@ -72,7 +78,9 @@ class OpponentHypothesis:
     """What we assume about stats we cannot see.
 
     The seam M5 replaces. A belief particle is a hypothesis with real numbers in
-    it; this default is the same shape carrying a constant.
+    it; this default is the same shape carrying a constant. M5 supplies
+    `champions.belief.hypothesis.BeliefHypothesis`, which reads the same
+    interface off the particle filter, so the search around it does not change.
     """
 
     points: int = ASSUMED_POINTS
@@ -85,6 +93,69 @@ class OpponentHypothesis:
         # the already-pessimistic point assumption into a Pokemon that is
         # simultaneously fast, strong and bulky beyond anything legal.
         return base + self.points + 20
+
+    def stats_for(self, view: dict[str, Any]) -> dict[str, int]:
+        """All six stats for one unrevealed Pokemon.
+
+        Per Pokemon rather than per stat, because a belief hypothesis knows
+        which *species* it is reasoning about and a constant does not. The
+        default ignores the extra information, which is exactly what makes
+        swapping the seam a no-op for M2's numbers.
+        """
+        return {stat_id: self.stat(view["base_stats"], stat_id) for stat_id in STAT_IDS}
+
+
+class EffectsProvider(Protocol):
+    """Where the item and ability multipliers for one hit come from.
+
+    M2 modelled neither, and that absence was measured: the agent's edge fell
+    from 82% to 56% on a team built on items and abilities its model did not
+    represent (D30). Supplying them is the point of M5, so this is the second
+    seam the belief plugs into, alongside `OpponentHypothesis`.
+
+    Structurally typed on purpose. The concrete implementation lives in
+    `champions.belief`, and the search layer having a hard import of the belief
+    layer would make the M2 agent depend on a corpus it does not use.
+    """
+
+    def attacker(
+        self,
+        view: dict[str, Any],
+        move: dict[str, Any],
+        defender_types: list[str],
+        chart: TypeChart,
+    ) -> Any: ...  # pragma: no cover
+
+    def defender(
+        self,
+        view: dict[str, Any],
+        move: dict[str, Any],
+        defender_types: list[str],
+        chart: TypeChart,
+    ) -> Any: ...  # pragma: no cover
+
+
+@dataclass(frozen=True)
+class _NoEffect:
+    base_power_modifiers: tuple[float, ...] = ()
+    attack_modifiers: tuple[float, ...] = ()
+    final_modifiers: tuple[float, ...] = ()
+    stab_override: float | None = None
+    ignore_burn: bool = False
+    immune: bool = False
+
+
+_NO_EFFECT = _NoEffect()
+
+
+class NoEffects:
+    """The default: nothing multiplies anything. Preserves M2's arithmetic exactly."""
+
+    def attacker(self, view: Any, move: Any, defender_types: Any, chart: Any) -> _NoEffect:
+        return _NO_EFFECT
+
+    def defender(self, view: Any, move: Any, defender_types: Any, chart: Any) -> _NoEffect:
+        return _NO_EFFECT
 
 
 @dataclass(frozen=True)
@@ -114,7 +185,6 @@ def combatant(view: dict[str, Any], hypothesis: OpponentHypothesis) -> Combatant
     hypothesis. Their maximum HP is reconstructed from base stats so that a
     percentage can be turned into points and back.
     """
-    base_stats = view["base_stats"]
     known = bool(view.get("known"))
 
     if known and view.get("stats"):
@@ -123,7 +193,7 @@ def combatant(view: dict[str, Any], hypothesis: OpponentHypothesis) -> Combatant
         max_hp = int(view["max_hp"])
         hp = int(view["hp"])
     else:
-        stats = {stat_id: hypothesis.stat(base_stats, stat_id) for stat_id in STAT_IDS}
+        stats = hypothesis.stats_for(view)
         max_hp = stats["hp"]
         hp = round(max_hp * view["hp_pct"] / 100.0)
 
@@ -197,11 +267,13 @@ class TurnModel:
         dex: Dex,
         hypothesis: OpponentHypothesis | None = None,
         picked_team_size: int | None = None,
+        effects: EffectsProvider | None = None,
     ) -> None:
         self._dex = dex
         self._chart = TypeChart.from_dex(dex)
         self._hypothesis = hypothesis or OpponentHypothesis()
         self._picked_team_size = picked_team_size or dex.picked_team_size
+        self._effects = effects or NoEffects()
 
     # -- public ---------------------------------------------------------
 
@@ -376,10 +448,31 @@ class TurnModel:
                     expanded.append((branch_probability, branch_state))
                     continue
                 target = combatant(target_view, self._hypothesis)
+                attacker_view = branch_state[action.side]["active"][action.slot] or {}
+
+                # The held item and the ability, from whichever source knows
+                # them: our own snapshot for our side, the belief filter's
+                # posterior for theirs. The default provider returns nothing,
+                # so M2's numbers are unchanged when no belief is supplied.
+                offence = self._effects.attacker(
+                    attacker_view, move, list(target.types), self._chart
+                )
+                defence = self._effects.defender(target_view, move, list(target.types), self._chart)
+                if offence.immune or defence.immune:
+                    expanded.append((branch_probability, branch_state))
+                    continue
+
+                base_power = int(move["basePower"])
+                for multiplier in offence.base_power_modifiers:
+                    base_power = modify(base_power, multiplier)
+                attack = action.unit.stat("atk" if physical else "spa")
+                for multiplier in offence.attack_modifiers:
+                    attack = modify(attack, multiplier)
+
                 rolls = damage_roll_distribution(
                     DamageContext(
-                        base_power=int(move["basePower"]),
-                        attack=action.unit.stat("atk" if physical else "spa"),
+                        base_power=base_power,
+                        attack=attack,
                         defense=target.stat("def" if physical else "spd"),
                         move_type=move["type"],
                         attacker_types=list(action.unit.types),
@@ -387,6 +480,9 @@ class TurnModel:
                         level=self._dex.level,
                         is_spread=spread,
                         attacker_burned=action.unit.status == "BRN",
+                        ignore_burn=offence.ignore_burn,
+                        stab_override=offence.stab_override,
+                        final_modifiers=(*offence.final_modifiers, *defence.final_modifiers),
                     ),
                     self._chart,
                 )
@@ -403,39 +499,54 @@ class TurnModel:
     def _targets(
         self, state: dict[str, Any], action: _Action, move: dict[str, Any]
     ) -> list[tuple[str, int]]:
-        """Which slots this move hits, as (side, slot) pairs.
+        return targets_of(
+            {side: state[side]["active"] for side in ("ours", "theirs")},
+            side=action.side,
+            slot=action.slot,
+            described_target=int(action.described.get("target", 0) or 0),
+            move_target=str(move["target"]),
+        )
 
-        Spread moves hit every adjacent slot including our own partner, which is
-        the friendly-fire case the damage layer already handles and which a
-        search that ignored it would happily walk into.
-        """
-        opponent = "theirs" if action.side == "ours" else "ours"
 
-        if move["target"] in SPREAD_TARGETS:
-            hits = [(opponent, i) for i in range(len(state[opponent]["active"]))]
-            if move["target"] == "allAdjacent":
-                hits += [(action.side, i) for i in range(len(state[action.side]["active"]))]
-                hits = [(s, i) for s, i in hits if not (s == action.side and i == action.slot)]
-            return [(s, i) for s, i in hits if state[s]["active"][i] is not None]
+def targets_of(
+    active: dict[str, list[Any]],
+    side: str,
+    slot: int,
+    described_target: int,
+    move_target: str,
+) -> list[tuple[str, int]]:
+    """Which slots a move hits, as (side, slot) pairs.
 
-        target = int(action.described.get("target", 0) or 0)
-        if target > 0:
-            slot = target - 1
-            side = opponent
-        elif target < 0:
-            slot = -target - 1
-            side = action.side
-        else:
-            # No target choice on a single-target move: the request had only one
-            # legal target, so take the first living opposing slot.
-            side = opponent
-            slot = next(
-                (i for i, p in enumerate(state[side]["active"]) if p is not None),
-                -1,
-            )
-        if slot < 0 or slot >= len(state[side]["active"]) or state[side]["active"][slot] is None:
-            return []
-        return [(side, slot)]
+    Spread moves hit every adjacent slot including our own partner, which is the
+    friendly-fire case the damage layer already handles and which a search that
+    ignored it would happily walk into.
+
+    Module level and taking the two active lists rather than a whole snapshot,
+    because the candidate policy has to answer the same question about the same
+    move -- and answering it twice, in two places, is how the two quietly stop
+    agreeing about what Earthquake hits.
+    """
+    opponent = "theirs" if side == "ours" else "ours"
+
+    if move_target in SPREAD_TARGETS:
+        hits = [(opponent, i) for i in range(len(active[opponent]))]
+        if move_target == "allAdjacent":
+            hits += [(side, i) for i in range(len(active[side]))]
+            hits = [(s, i) for s, i in hits if not (s == side and i == slot)]
+        return [(s, i) for s, i in hits if active[s][i] is not None]
+
+    if described_target > 0:
+        hit_slot, hit_side = described_target - 1, opponent
+    elif described_target < 0:
+        hit_slot, hit_side = -described_target - 1, side
+    else:
+        # No target choice on a single-target move: the request had only one
+        # legal target, so take the first living opposing slot.
+        hit_side = opponent
+        hit_slot = next((i for i, p in enumerate(active[hit_side]) if p is not None), -1)
+    if hit_slot < 0 or hit_slot >= len(active[hit_side]) or active[hit_side][hit_slot] is None:
+        return []
+    return [(hit_side, hit_slot)]
 
 
 #: Moves whose Protect effect the model honours. Not every protecting move --

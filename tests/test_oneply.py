@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from champions.harness.ladder import run_matchup
+from champions.search.policy import HeuristicPolicy
 from champions.teams import ALPHA
 from scripts.run_ladder import build_arm
 
@@ -124,6 +125,66 @@ async def test_pruning_actually_prunes(showdown_server: int, tmp_path: Path) -> 
                 pruned_from_many += 1
 
     assert pruned_from_many > 0, "never saw a turn with more legal actions than k"
+
+
+async def test_the_pruned_candidates_carry_reasons_only_the_position_can_give(
+    showdown_server: int, tmp_path: Path
+) -> None:
+    """The policy is state aware or it is not, and the trace is where that shows.
+
+    `docs/04-decision-engine.md` section 3 specifies a heuristic that reads the
+    board -- knockouts on an average roll, threatened slots, flipped speed races
+    -- and the one that shipped through M6 read nothing but base power. Every
+    reason below is one `BasePowerPolicy` cannot produce, so this fails if the
+    agent ever goes back to pruning without the snapshot.
+    """
+    await run_matchup(
+        build_arm("oneply", showdown_server, ALPHA),
+        build_arm("greedy", showdown_server, ALPHA),
+        2,
+        tmp_path,
+        seed=21,
+    )
+
+    reasons = set()
+    for path in sorted(tmp_path.glob("*.oneply21.jsonl")):
+        for line in path.open(encoding="utf-8"):
+            event = json.loads(line)
+            payload = event.get("payload", {})
+            if event["type"] != "candidates" or payload.get("phase") != "pruned":
+                continue
+            for candidate in payload["joint"]:
+                reasons.update(candidate["policy_reasons"])
+
+    assert reasons & {"knockout", "protect idle", "speed control idle", "fake out unavailable"}, (
+        f"no reason that needs the position: {sorted(reasons)}"
+    )
+
+
+async def test_the_trace_names_which_policy_produced_the_candidate_set(
+    showdown_server: int, tmp_path: Path
+) -> None:
+    """There is more than one implementation A now and M7 adds B and C. A trace
+    that says only "heuristic" cannot be read back against the benchmark, so the
+    provider names itself and the agent emits what it was given rather than a
+    literal."""
+    await run_matchup(
+        build_arm("oneply", showdown_server, ALPHA),
+        build_arm("greedy", showdown_server, ALPHA),
+        1,
+        tmp_path,
+        seed=22,
+    )
+
+    providers: set[str] = set()
+    for path in sorted(tmp_path.glob("*.oneply22.jsonl")):
+        for line in path.open(encoding="utf-8"):
+            event = json.loads(line)
+            payload = event.get("payload", {})
+            if event["type"] == "candidates" and payload.get("phase") == "pruned":
+                providers.update(c["policy_provider"] for c in payload["joint"])
+
+    assert providers == {HeuristicPolicy.name}
 
 
 async def test_the_agent_never_aims_a_damaging_move_at_its_own_ally(

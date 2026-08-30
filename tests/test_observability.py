@@ -76,6 +76,21 @@ def test_our_side_is_fully_known_and_the_opponents_is_not(trace: list[dict]) -> 
             assert "revealed_moves" in mon
 
 
+def test_the_turn_a_pokemon_came_in_is_recorded(trace: list[dict]) -> None:
+    """Fake Out works only on the turn its user switched in, and the candidate
+    policy has to rank it on exactly that. Deriving it from the turn number is
+    right on turn 1 and wrong after every switch, so it comes off poke-env
+    rather than being inferred (`champions.search.policy`)."""
+    turns = of_type(trace, "turn_start")
+    for payload in turns:
+        for mon in [m for m in payload["state"]["ours"]["active"] if m]:
+            assert isinstance(mon["first_turn"], bool)
+
+    assert any(
+        mon["first_turn"] for payload in turns for mon in payload["state"]["ours"]["active"] if mon
+    ), "no Pokemon was ever recorded as having just come in"
+
+
 def test_state_carries_names_rather_than_stringified_python_objects(trace: list[dict]) -> None:
     """poke-env's enums stringify as "FLYING (pokemon type) object" and
     "Status.PAR". Baking either into the schema pushes a parsing problem onto

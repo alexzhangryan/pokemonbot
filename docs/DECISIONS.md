@@ -417,3 +417,285 @@ Decision: all three are reported with intervals and baselines, the value model i
 Rationale: the control settles the interpretation. Over 1,808 rated games the higher-rated player won 57.4%, so these outcomes *are* predictable -- by skill, which the preview features do not observe and cannot. The honest conclusion is not "the model is weak" but "at this sample size, on this ladder, bring-4 composition does not determine the game, and player strength does". Publishing 46.2% as a result would be worse than publishing nothing; suppressing it would be worse still, because M6 is going to ask the same question with the same corpus and deserves to know the answer already found.
 
 The asymmetry between leads and bring is itself the finding. Leads are species-intrinsic -- a Fake Out user, a weather setter and a Trick Room setter each have a role that does not depend much on the opponent -- so a species main effect captures them. The bring-4 is a matchup decision that depends on what the four will actually do, which means items and abilities, which preview never reveals. That is the same boundary M2 found from the other side, where the agent's advantage collapsed from 82% to 56% on a team whose items and abilities its model did not represent.
+
+## D40. Nature is drawn from the prior; interval propagation carries stat points alone — 2026-08-29, Claude Code
+
+Context: `docs/03-belief-filter.md` section 2 proposes keeping the 25 natures as discrete hypotheses per Pokemon, each carrying its own interval set, because `docs/05-data-pipeline.md` section 5 says stat points *and* natures appear in no public dataset.
+
+Finding: the second half of that premise is wrong, and D33 already recorded why — every set in a forced-open-sheet Bo3 replay carries its nature, measured at 4,392 of 4,392 when D33 was written and at 50,352 of 50,352 now.
+
+Decision: a nature is drawn with the set, from the learned prior, alongside item, ability and moves. Each particle therefore fixes one nature and carries one `SpreadBelief` per species conditioned on it, and the interval layer's only remaining unknown is the six point values.
+
+Rationale: the two designs cost the same to run and differ in what they can learn. Twenty-five interval sets per Pokemon can only be pruned by observation; one nature drawn from 50,000 labelled sets starts at the right answer most of the time and is *then* pruned by observation. The nature posterior comes out of the particle weights for free, so nothing is lost.
+
+Consequences: the categorical and interval halves are no longer independent — a particle's spread box is only meaningful given its nature — which is why a resample redraws the sets and replays the soft evidence onto the new ones rather than carrying the old boxes across.
+
+## D41. Reveals are hard, inference is soft, and a particle is never deleted by a damage figure — 2026-08-29, Claude Code
+
+Context: `CLAUDE.md` constraint 5 says opponent HP arrives quantized to percent, that damage-based inference carries about plus or minus 0.5% of maximum HP of error, and that treating derived bounds as hard will eliminate the true hypothesis. `docs/03` section 5 makes interval coverage the metric that catches it.
+
+Decision: a revealed move, item or ability is a hard filter — particles that contradict it are dead. A Speed ordering or a damage figure is a likelihood: a particle it cannot explain has its weight multiplied by 0.05 and keeps its place in the population.
+
+Rationale: the two kinds of evidence have different epistemic status. "Greninja used Blizzard" is a fact about the protocol. "Their Special Attack must be at least 130" is a conclusion from a quantized reading, a partial effects table, and an assumption that nothing unmodelled intervened — and any of the three can be wrong. A factor of 0.05 drives a genuinely wrong hypothesis to irrelevance in two observations while leaving one bad reading survivable.
+
+Consequences: measured over 12 self-play traces against a known team, the maintained interval contains the true point value 97.8% of the time for the box the search reads and 99.3% for the union over particles. Both are below the nominal level, and both are reported as measured rather than tuned until they looked right. The honest reading is that the residual is unmodelled effects rather than quantization, so the fix is a larger effects table rather than a wider tolerance.
+
+## D42. Champions changes which items are legal, not what they do — 2026-08-29, Claude Code
+
+Context: `CLAUDE.md` constraint 1 says roughly 250 moves and 250 items carry overrides in the `champions` mod, and D26 found that the *moves* half is exactly as dangerous as it sounds — the damage formula is unchanged and every input to it is different.
+
+Finding: the items half is the opposite shape. `data/mods/champions/items.ts` is 1,046 lines and every entry but one is `inherit: true` plus an `isNonstandard` toggle; the sole mechanical change in the file is White Herb's Parting Shot desync fix, which is not a damage effect. `abilities.ts` is the same: Anger Shell, Berserk, Disguise, Healer, Natural Cure, Regenerator and Unseen Fist have handler changes and none of them is a damage multiplier.
+
+Decision: `champions/belief/effects.py` applies mainline multipliers — Life Orb at 5324/4096, type-boosting items at 4915/4096, resist berries at 0.5, Choice Scarf at 1.5x Speed — to the surviving pool, and `tests/test_belief.py` re-derives every table from the pinned vendored source and fails if they disagree.
+
+Rationale: what Champions changed about items is the *pool*, and the pool change is large: 148 items survive, and Choice Band, Choice Specs and Assault Vest are not among them. Reading "256 modified items" as "modified mechanics" would have made this table impossible to write; reading it correctly makes it a transcription a test can check.
+
+Consequences: a Showdown bump that changes an item's multiplier is a failing test rather than a quietly different damage number. D26's warning about mainline calculators still stands for moves and stats, where the real risk always was.
+
+## D43. An ability is only "unmodelled" if it could change a number the protocol does not announce — 2026-08-29, Claude Code
+
+Context: the belief filter widens its damage tolerance when a hypothesised item or ability falls outside `effects.py`'s tables, because an unmodelled multiplier is a real possibility rather than a rounding error.
+
+Finding: treating every unrecognised ability that way made almost every particle carry the wide tolerance, and the spread layer narrowed no interval at all across a whole battle — measured at a mean width of 32.0 of 32 points, which is the prior. The cause is that most abilities do not multiply damage at all, and the ones that change the game most visibly — Intimidate, Protean, Competitive, Snow Warning — announce themselves in the protocol as a boost, a type change or a weather message.
+
+Decision: `DAMAGE_AFFECTING_ABILITIES` and `DAMAGE_AFFECTING_ITEMS` are derived from the pinned Showdown source by which damage handlers each definition touches — 139 of 320 abilities and 109 items — and only a hypothesis that is outside our tables *and* inside those sets widens the tolerance. Both sets are re-derived and compared in the test suite.
+
+Rationale: this is the same distinction the trace draws everywhere else between "not known" and "not emitted". An ability the protocol tells us about is not an unknown, and treating it as one throws the announcement away.
+
+Consequences: mean interval width fell from 32.0 to 30.2 of 32 points at 97.8% coverage. Narrowing further is a matter of modelling more of the 139, and each one modelled shows up in exactly this measurement.
+
+## D44. Priority-modifying abilities make an ordering unusable, so it is skipped rather than widened — 2026-08-29, Claude Code
+
+Context: the only Speed evidence the protocol gives is the order `|move|` lines resolve in (D32), and the inference reads a same-priority ordering as an inequality between two effective Speeds.
+
+Finding: Prankster raises a status move's priority by one, Gale Wings does the same for a Flying move at full HP, and Quick Draw does it at random. Reading any of those as a Speed inequality bounds the wrong quantity, and no tolerance is wide enough to make a whole priority bracket safe. Measured: adding the guard moved interval coverage from 95.9% to 97.8%.
+
+Decision: when a particle hypothesises a priority-modifying ability and the move used is one that ability affects, that particle draws no bound from the ordering. Skipped, not down-weighted — nothing was contradicted, there is simply no inequality available.
+
+Rationale: down-weighting would punish a hypothesis for being consistent with the evidence, which is backwards. The distinction between "this hypothesis is unlikely" and "this observation is uninformative about this hypothesis" is one a particle filter exists to keep straight.
+
+## D45. Mega Evolution is a base-stat change, and the belief has to follow it — 2026-08-29, Claude Code
+
+Context: Mega Evolution is back in Champions and 75 Mega Stones are legal (`docs/02-mechanics-deltas.md`), so a mega-evolved Pokemon is the common case rather than an exotic one.
+
+Finding: three separate things break if the belief keys everything on the base species. Greninja-Mega has 142 base Speed against Greninja's 122 and 133 Special Attack against 103, so every damage and Speed bound drawn about it is wrong in the same direction. Gengar-Mega's ability is Shadow Tag whatever Gengar was registered with, so attributing it to the base species makes every particle inconsistent at once. And poke-env keeps reporting the base forme's base stats in the state snapshot, so the payoff model has the same problem independently.
+
+Decision: the belief keys particles on the base species — one Pokemon is one entry, and its stat points do not change when its forme does — and reads base stats from whichever forme is currently on the field. `SpreadBelief.stat_at` takes an optional base-stat override for exactly this. A revealed ability is accepted as a constraint only if it is one the base species can legally have.
+
+Rationale: points belong to the set and base stats belong to the forme, and conflating them is what made the filter confidently wrong. Keeping one interval box per Pokemon rather than one per forme is what lets evidence from before and after the Mega Evolution accumulate on the same hypothesis.
+
+Consequences: the snapshot's `base_stats` being the base forme's is a separate and still-open problem that predates M5 and affects the M2 agent too. It is recorded as an open question rather than worked around here.
+
+## D46. Six independent midpoints are not a spread — 2026-08-29, Claude Code
+
+Context: the search needs one number per stat, and the belief maintains an interval per stat.
+
+Finding: taking the midpoint of each interval independently produces an allocation that is usually illegal. Unconstrained, each midpoint is 16 and the six sum to 96 against a budget of 66 — an opponent half again bulkier, faster and stronger than any legal set, which is the same failure `ASSUMED_POINTS = 32` chose deliberately and which this whole layer exists to replace. A test caught it; nothing in the output would have.
+
+Decision: `SpreadBelief.allocation()` starts at the lower bounds — which the resource constraint guarantees are affordable together — and distributes the remaining budget in proportion to each stat's slack. Unconstrained that is 11 in every stat, which is the mean of a uniform allocation; as evidence narrows one stat, the budget it frees moves to the others.
+
+Rationale: the point of the interval layer is that `sum(p) <= 66` couples the six. An estimator that ignores the coupling has discarded the only thing that made the representation worth maintaining.
+
+## D47. The belief filter lives in the base agent; consuming it is a separate agent — 2026-08-29, Claude Code
+
+Context: `TracingPlayer` owns the whole observability surface so that a new agent gets it without opting in (D13). The belief is the most useful debugging surface in the system, and it is also a decision input.
+
+Decision: `TracingPlayer` runs the filter and emits the `belief` event for every agent, degrading to no belief when the dex or the prior is missing. `OnePlyAgent` does not read it: its `_turn_model` and `_opponent_candidates` are the M2 ones, so its measured numbers still mean what they said. `BeliefAgent` overrides exactly those two and nothing else.
+
+Rationale: the two agents have to be runnable against each other on the same team, on the same seed, in the same process, because that head-to-head is the only measurement that says whether M5 bought anything. A flag on one class would have made "the same agent with the belief off" and "the M2 agent" two things that were hard to keep identical.
+
+Consequences: `champions/search/payoff.py` and `champions/search/policy.py` have no import of `champions.belief` in either direction. `EffectsProvider` is structurally typed and defaults to a no-op that preserves M2's arithmetic exactly, which `tests/test_payoff.py` and `tests/test_oneply.py` still check by continuing to pass unchanged.
+
+## D48. M5's win rate result is reported as measured, including the interaction that costs — 2026-08-29, Claude Code
+
+Context: M5 supplies exactly what M2 identified as the missing piece. D30 measured the one ply agent at 82% against max-base-power on a team with no items, no stat points and inert abilities, and 56% on a team built on Intimidate, Protean, Focus Sash, Sitrus Berry, Leftovers, Rough Skin, Competitive and a Mega, and concluded that items and abilities were worth more than search depth. D39 reached the same boundary from the corpus side.
+
+Measured on `regmb-beta`, both arms on the same team, 50 games, seed 1:
+
+| agent | vs max-base-power | 95% CI |
+| --- | --- | --- |
+| one-ply (M2) | 58.0% | [44.2%, 70.6%] |
+| belief, stats and effects only | 58.0% | [44.2%, 70.6%] |
+| belief, believed action columns only | 58.0% | [44.2%, 70.6%] |
+| belief, both | 44.0% / 46.0% | [31.2%, 57.7%] / [33.0%, 59.6%] |
+
+and `belief` against `oneply` directly: 52.0% [38.5%, 65.2%].
+
+Decision: the ablation arms stay in `scripts/run_ladder.py` as first-class entries, the numbers go in `docs/STATUS.md` unrounded and with intervals, and no knob is tuned to make the combined arm look better.
+
+Rationale: a single head-to-head could not have said which half moved the number, and the answer turns out to be neither. Each half alone is exactly neutral; the two together are worse. The combined arm was run twice, on two separate local Showdown servers, and produced 44.0% and 46.0%, so it reproduces. The intervals all overlap at 50 games, so this is a direction rather than a fact -- and the direct head-to-head being a dead heat says the effect is real and small rather than large.
+
+The mechanism is a hypothesis, not a finding. With one "no action" column the M2 agent was effectively an argmax, and an opponent model cannot mislead an argmax. With believed columns it hedges, and with believed stats it hedges against a *specific* wrong opponent -- and hedging against a confidently wrong model can be worse than not hedging. The common factor is the payoff: one analytic turn that models no secondary effects, no status, no healing and no accuracy. A more precise opponent inside a coarse model is not obviously an improvement.
+
+Consequences: this reverses the reading of D30. The binding constraint is no longer the information the search has about the opponent -- M5 supplies it and the win rate did not move -- so the next candidate is the payoff model itself, which is what M6 fits and what M8 was going to weigh depth against. The belief filter is also precisely what makes the simulator-backed alternative available: stepping `js/sim_server.js` requires a complete opponent team, and a particle is one. The thing built here to raise the win rate may turn out to earn its keep as the input to the thing that does.
+
+## D49. Forfeiting is the one thing the viewer may say to a running agent — 2026-08-29, Claude Code
+
+Context: `champions/viewer/server.py` opens by claiming the viewer cannot perturb play, and that this is a property of the architecture rather than a rule: the server tails trace files, holds no `Player`, and has no path to Showdown. The supervisor in `champions/viewer/control.py` sits beside that and can start and kill runs. Until now killing was the only way out of a game that had gone long or gone nowhere, and it takes every remaining game in the run with it.
+
+Decision: a run is spawned with a stdin pipe and `--control-stdin`, and the supervisor can write exactly one word to it. `champions/agents/commands.py` reads it on a daemon thread and schedules `TracingPlayer.forfeit_active()` onto poke-env's loop. `POST /api/run/forfeit` exposes it; the page shows **forfeit game** beside **stop run** while a run is going.
+
+Rationale: conceding does not compromise the property the module claims. The viewer still cannot influence *how* the agent plays — the channel carries one verb, that verb ends a battle rather than choosing inside one, and the supervisor could already kill the process outright, which is strictly blunter. A wider protocol would be a different decision and is deliberately not taken.
+
+Consequences: `--control-stdin` is opt in, so a run started by hand behaves as before. "Play the bot" now defaults to three games rather than one, because with a single game the forfeit and the end of the run are the same event. A forfeit is no longer counted as a protocol failure by `scripts/selfplay.py`: nothing in the agent concedes by accident, so `forfeited` is collected separately from `[Invalid choice]` and the inactivity timeout.
+
+## D50. A finished battle is never decided — 2026-08-29, Claude Code
+
+Context: found by forfeiting. Showdown can hand out a request and then end the battle underneath it — we concede, the other side concedes, or an inactivity timer fires — and poke-env dispatches the request it already had.
+
+Finding: the agent answered it. A conceded battle's trace carried `battle_end` at seq 32 followed by a full turn of `turn_start`, `belief`, `candidates`, `timing` and `equilibrium`, which is invalid by `champions/trace/validate.py`'s own rule that the last event is `battle_end`, and which the viewer renders as a turn that never happened. The agent then sent `/choose` into a room it had left, and Showdown answered with a popup.
+
+Decision: `TracingPlayer.choose_move` returns poke-env's `_EmptyBattleOrder` before emitting anything when `battle.finished`. An empty message is the one poke-env declines to send at all, so the popup goes with it.
+
+Rationale: this is not a forfeit bug. Forfeiting only made it easy to hit, because it ends a battle at an arbitrary moment rather than at a turn boundary. The same race exists whenever a game ends while a decision is in flight, and M6 was about to read these traces as training data.
+
+## D51. The evaluation counted our six against their four — 2026-08-29, Claude Code
+
+Context: M6 began by fitting `champions/search/evaluate.py`'s features to outcomes. Before fitting anything, the features were scored on a real turn-1 position.
+
+Finding: **it returned 0.996 on a dead-even opening position.** Reg M-B registers six Pokemon and brings four, poke-env keeps all six in `battle.team` for the entire game, and `_alive` read `side["remaining"]` for our side — six — against an opponent derived as the bring minus observed faints — four. Every material feature carried a constant two-Pokemon offset in our favour.
+
+Decision: `champions/protocol/state.py` records `selected` on each of our Pokemon, `evaluate._in_play` filters both sides to the Pokemon that can actually take part, and `champions/search/positions.py` refuses a trace written before that field existed rather than fitting it.
+
+Rationale: the interesting part is that fitting would have hidden it. A logistic regression with a free intercept absorbs a constant offset into the intercept and reports a perfectly reasonable-looking log loss, and the bug would have survived M6 as a coefficient. It is caught instead by fitting *without* an intercept and reporting one as a diagnostic: on the corpus the diagnostic intercept is +0.0000, which is the check that the features are the antisymmetric differences they claim to be.
+
+Consequences: `IS_CALIBRATED` is no longer a constant. It is True exactly when `data/eval/weights.<format>.json` exists, which is written by the same run that writes `docs/eval-calibration.md`, so there is no way to assert calibration without having measured it.
+
+## D52. A weight is kept only when its source settled the sign — 2026-08-29, Claude Code
+
+Context: M6 fits two sources. Self-play is preferred because ladder outcomes are skill dominated (D39), and the corpus is kept as the check.
+
+Finding, in three parts, all measured:
+
+1. The first self-play fit, over 150 battles, ranked positions *better* than the corpus fit (AUC 0.793 against 0.760) and scored a worse held-out log loss than a coin flip — 0.7175 against 0.6931 — because 150 battles leaves 23 in the test split and the Platt scaling was fit on 23 more. Ranking and calibration are different claims.
+2. At 750 battles that reversed: 0.5301 against 0.6931, ECE 0.0207, AUC 0.8043.
+3. Even at 750, self-play settled only three of the seven weights. Neither checked-in team carries Tailwind or a hazard move, so two features are constant across the entire source. `status_advantage` varies on 291 rows out of 11,774, because burn is the only status that matchup inflicts, and came out at **-1.34** — the sign that says being burned is good — with a bootstrap interval of [-3.35, +0.83]. `boost_advantage` came out confidently negative, [-0.95, -0.11], against the corpus's [+0.098, +0.137] over 17,500 battles; the mechanism is Competitive on Milotic, which makes a large positive boost total on our side usually the *consequence* of the opponent landing Intimidate or Icy Wind.
+
+Decision: `fit.bootstrap_weights` resamples **battles** with replacement and reports a 95% interval per weight. A weight whose interval spans zero is one the source did not settle, and is taken from a source that did. A weight both sources settle *with opposite signs* goes to the source with at least ten times the battles. The blend is then re-calibrated and re-measured, so the reliability diagram describes the model that ships.
+
+Rationale: the alternative is a threshold on how often a feature is nonzero, which is a number with no defence. The interval is a measurement, it subsumes the constant-column case as the degenerate one, and it turns "this weight is not trustworthy" from a judgement into an output. Resampling battles rather than rows is the whole point: positions inside a game are near duplicates and a row-resampler reports an interval roughly twenty times too narrow.
+
+Consequences: the shipped model takes `hp_advantage`, `pokemon_advantage` and `active_hp_advantage` from self-play and `status_advantage`, `speed_control` and `boost_advantage` from the corpus, and beats either source alone on the self-play test split (log loss 0.5264 against 0.5305 and 0.5894, AUC 0.8061). `hazard_advantage` ships at zero, undetermined by 750 self-play battles and by 25,000 corpus ones alike, which is itself the finding: entry hazards do not measurably predict the outcome of a Reg M-B doubles game.
+
+## D53. The calibration gets a slope and no offset — 2026-08-29, Claude Code
+
+Context: the fit deliberately has no intercept, because every feature is a difference between the two sides, so a dead-even position is the zero vector and must score 0.5 — which is what lets the matrix game treat the payoff as zero sum.
+
+Finding: textbook Platt scaling is `a * x + b`, and fitting the `b` put the intercept straight back. It came out at +0.074 and an even position scored 0.518. `tests/test_evaluate.py::test_a_symmetric_position_is_a_coin_flip` caught it.
+
+Decision: `fit.calibrate` fits the slope alone. The offset is still computed and stored as `platt_offset_diagnostic`, never applied, for the same reason `free_intercept` is.
+
+Rationale: a slope fixes systematic over- or under-confidence, which is the failure calibration exists to address. An offset encodes "one side wins more often", which is meaningless over antisymmetric features and destroys a structural property the search depends on. The general lesson is that a structural invariant has to be defended at every stage that can reintroduce it, not only at the one that was thinking about it.
+
+## D54. The pruning guard is a harness, not a function, and it says the heuristic is the problem — 2026-08-29, Claude Code
+
+Context: `docs/04-decision-engine.md` section 3 permits candidate pruning on one condition — that it never drops an action that is uniquely correct — and says to check it offline by solving the unpruned game and recording how often its equilibrium places non-trivial mass on a discarded action. `policy.discard_rate` implemented that for one position at M2. It had never been called on a real position, and the entry had been carried in `STATUS.md` for five sessions.
+
+Decision: `champions/search/discard.py` reads decisions out of agent-view traces rather than replaying games. A trace already carries the three inputs the measurement needs, in the form the agent saw them: `turn_start.state` is the snapshot the search evaluated, the unpruned `candidates` event is the full legal joint set enumerated from the request, and the pruned one is the opponent columns and the surviving rows. `scripts/discard_rate.py` (`make discard`) sweeps `k` and writes `docs/pruning-guard.md`, which stands to the policy layer as `docs/eval-calibration.md` stands to the evaluation.
+
+Three choices inside it are load bearing:
+
+- **Intervals over battles**, the same argument `fit.bootstrap_weights` makes (D52). Positions inside one game share a board, a team and a policy. A self-play directory also holds both viewpoints of each game under one battle id, so grouping on it is what stops the two halves of a game counting as independent.
+- **Value loss is reported beside mass.** Mass is all or nothing: a discarded row worth 0.9001 against a kept row worth 0.9000 scores the same 1.0 as a discarded row that wins outright. Section 3's threshold cannot tell those apart and the number is unreadable without something that can.
+- **The kept set is re-derived from the policy, not read off the trace.** Sweeping `k` requires re-deriving it anyway, and the agreement at the trace's own `k` is then a check that the harness is measuring the selection the agent actually ran. It disagreed on 0 of 6,745 positions.
+
+Finding, over 11,774 traced decisions from 750 self-play battles, at the agent's own `k = 10`: the heuristic discards equilibrium mass on **64.2%** of positions, mean discarded mass **0.639** 95% [0.628, 0.650], giving up a mean 0.061 win probability and up to 0.580 in the worst case. On the same positions k=5 discards 0.807, k=15 discards 0.519 and k=20 discards 0.320. Positions with more than one opponent column are worse, not better: 0.811 at two columns against 0.608 at one.
+
+Rationale for reading this as a verdict on the heuristic rather than on pruning: the rows the equilibrium wants and the policy drops are, on a 30-trace sample, 98 of 100 pure move joints, spread across heuristic ranks 10 to 22 and beyond. Base power is not the ordering the payoff model computes. And the implemented `HeuristicPolicy` scores nothing that depends on the position — not the defender, not typing or bulk, not speed, not what is threatened — while section 3 specifies an A that tests all four. The measurement is of a policy weaker than the design's.
+
+Consequences: M7's baseline is now a measured quantity instead of an assumption, and the benchmark it needs is half built — `discard.measure` takes a `keep` callable, so a second provider is one argument. It also reframes M7: the first task is to build the A section 3 actually specifies, because comparing a learned prior and a language model against a policy that misses the answer two thirds of the time would flatter both. The gap between the specified and implemented A is filed as an Open Question rather than closed here, since which one section 3 means is Cowork's to say.
+
+## D55. The specified policy A is the intended A, and gets built before M7 benchmarks anything — 2026-08-29, Claude Code
+
+Context: D54 measured the implemented `HeuristicPolicy` discarding equilibrium mass on 64.2% of positions and filed the gap between it and `docs/04-decision-engine.md` section 3 as an Open Question, since which A section 3 meant was Cowork's to say. Alex answered it directly in a Claude Code session.
+
+Decision: section 3's A stands as written. Implementation A is rebuilt to test the position — a move that knocks out a target on an average roll, Protect when the slot is threatened, speed control when it flips an outspeed, Fake Out on turn 1 — before the M7 provider benchmark runs. `docs/04` section 3 is unchanged; the implementation moves to meet it.
+
+Rationale: the discarded rows are 98 of 100 pure move joints sitting at heuristic ranks 10 through 22, which says base power is not the ordering the payoff model computes — the baseline is broken rather than merely cheap. Benchmarking a learned prior and a language model against a policy that misses the answer two thirds of the time would flatter both by construction, and the benchmark harness (`discard.measure`, which takes a `keep` callable) already exists, so the cost is a day of implementation rather than a day of scaffolding.
+
+Consequences: every discard-rate number on record — `docs/pruning-guard.md` in full — describes the old policy and becomes the *before* half of a pair rather than the baseline M7 reports against. The guard has to be re-run on the rebuilt A before the provider comparison means anything.
+
+## D56. The preview gets a separability test before it gets 4,500 battles — 2026-08-29, Claude Code
+
+Context: `docs/04-decision-engine.md` section 6 says the trained evaluation supplies each preview cell; D37 established it cannot, because there is no state at preview. The replacement source recommended out of M4 was self-play, roughly 4,500 battles for a full 15 x 15 at 20 games a cell. Section 6 also calls the preview the highest ratio of win rate to engineering effort in the project, which D38 showed rests on the payoff having an interaction term.
+
+Decision: measure separability first, on a coarse grid, before committing to the full matrix. If the payoff is separable the preview is an argmax rather than a game and section 6 collapses to the lead predictor, which already works and transfers.
+
+Rationale: separability is the precondition for section 6 being true at all, and it is far cheaper to test than to assume. The failure mode is silent — the solve returns a confident pure strategy whether or not there is a game to solve — so nothing downstream will report that the 4,500 battles bought an argmax.
+
+Consequences: the full self-play matrix is not scheduled. If the coarse grid shows an interaction term, it is; if it does not, section 6 is rewritten around the lead predictor and the preview stops being treated as cheap upside.
+
+## D57. Traces are compressed per battle, and the joint list is never thinned — 2026-08-29, Claude Code
+
+Context: traces run 363 KB per battle for the one-ply agent against 289 KB for max-base-power, because both the unpruned and pruned `candidates` events are emitted in full. `docs/07-observability.md` section 5 specifies rotation and compression per battle; nothing implemented it, on the expectation that M2's pruning would remove the volume. It added to it.
+
+Decision: gzip each trace when its battle closes. The reader path accepts plain and gzipped alike so live tailing and replay stay one code path. The unpruned `joint` list is not truncated, sampled or dropped.
+
+Rationale: compression is now worth doing on its own merits rather than waiting for a reduction that is not coming, and M7's three-provider benchmark is about to multiply the run count. The constraint on *how* is the load-bearing half: `champions/search/discard.py` reconstructs the unpruned game from the `joint` list, so thinning the event to save space would silently disable the pruning guard. The harness refuses a trace already marked `truncated`, but it cannot refuse one whose list was never written. Compress the file; do not thin the event.
+
+Consequences: `docs/07` section 5 is satisfied. Any future volume work has to come from compression or retention, not from emitting less.
+
+## D58. The belief head-to-head is deferred until the payoff model improves — 2026-08-29, Claude Code
+
+Context: M5 left `belief` against `oneply` at 52.0% [38.5%, 65.2%] over 50 games — a dead heat with an interval too wide to read. The open entry proposed several hundred paired games to settle it.
+
+Decision: not now. The belief stays available and stays off by default. The head-to-head is re-run after M7 and M8, on whatever payoff model those leave behind.
+
+Rationale: the hypothesis M5 raised is that hedging against a detailed opponent model *inside a coarse payoff model* is worse than not hedging. If that is right, the quantity being measured is a property of the payoff model, and measuring it now dates the answer to a model about to be replaced. The binding constraint has already moved from what the search knows to what its one-turn payoff can do with what it knows.
+
+Consequences: M5's numbers stay as they are, and stay unresolved, which is the honest state. The `run_ladder.py` and `selfplay.py` username-collision fix is no longer on the critical path for this, though it remains a defect worth fixing before any high-n run.
+
+## D59. Tournament team lists are cut from the data pipeline — 2026-08-29, Claude Code
+
+Context: `docs/05-data-pipeline.md` section 3 specifies scraping tournament team lists from RK9 and Victory Road. M3 delivered sections 1, 2 and 6 and left it unbuilt. The case for it was joint distributions over set composition at tournament level.
+
+Decision: cut section 3. The Bo3 forced-open-sheet corpus supplies joint distributions over whole registered sets already.
+
+Rationale: the corpus population is weaker than a tournament field, but it is far larger, it is already built and parsed, and it carries no scraping-terms question. The remaining argument for section 3 was population quality alone, which is not worth a second scraper and a second legal question at this stage.
+
+Consequences: `docs/05` loses a section. Reversible at any point if the corpus population turns out to matter — nothing depends on section 3 having been cut.
+
+## D60. The Showdown client is not vendored; the entry is closed rather than carried — 2026-08-29, Claude Code
+
+Context: D16 decided against vendoring `smogon/pokemon-showdown-client` so a real client could be embedded in the viewer rather than opened beside it. The Open Question carried it as "worth revisiting only if the rendered stage turns out to be insufficient in practice."
+
+Decision: close it. The condition for revisiting has not been met and the entry is not a question anyone is waiting on.
+
+Rationale: the viewer renders its own stage and embeds Showdown's published renderer against the protocol log, which has been sufficient through six milestones and browser QA. The costs D16 named — a second pinned repository and a Node build step, against two `CLAUDE.md` conventions — have not fallen.
+
+Consequences: none, beyond a shorter Open Questions list. If the stage does turn out insufficient, that is a new entry with a real trigger behind it rather than a standing invitation.
+
+## D61. Implementation A is rebuilt against the position, and the old one is kept as the baseline — 2026-08-29, Claude Code
+
+Context: D55 decided that `docs/04-decision-engine.md` section 3 stands as written and that implementation A is rebuilt to meet it before M7 benchmarks anything. The shipped A ranked joint actions by base power and never read the board; `docs/pruning-guard.md` measured it discarding equilibrium mass on 64.2% of positions at the agent's own `k`.
+
+Decision: `HeuristicPolicy` now reads the snapshot and computes damage with the M1 layer — a move that knocks a target out on the average of the sixteen rolls, Protect when a revealed opponent move threatens half the slot's remaining HP, speed control when it flips a race we are currently losing, Fake Out on the turn its user came in, plus the switches unconditionally. The old policy is kept as `BasePowerPolicy` rather than deleted, and both are measured in the same run.
+
+Rationale: keeping the old one costs a hundred lines and buys two things that are hard to get any other way. Every number written before this change describes it, so `docs/pruning-guard.md` reports a comparison rather than an unexplained improvement; and the 1,500 self-play traces the guard reads were produced by it, which makes it the only policy whose re-derived candidate set can be expected to agree with what those traces recorded — the guard's own validity check.
+
+Measured, over the same 6,745 positions and 750 battles, at the agent's own `k = 10`:
+
+| | discarded mass | 95% | nonzero | mean value loss | worst |
+| --- | --- | --- | --- | --- | --- |
+| `heuristic-base-power` | 0.6391 | [0.6283, 0.6499] | 64.2% | 0.0607 | 0.5799 |
+| `heuristic-position` | 0.1743 | [0.1656, 0.1846] | 18.1% | 0.0078 | 0.3888 |
+
+The specified A at `k = 10` discards less than the old one at `k = 20` (0.320), so this buys more than doubling the budget would have. Cost is 0.67 ms against 0.11 ms per decision on the widest positions in the corpus, on a decision M2 measured at about 11 ms against a 45 second budget.
+
+Three readings of section 3 are decisions rather than transcription, and are recorded here because a later reader would otherwise have to infer them from the code:
+
+- **"Knocks out on an average roll" is the mean of the sixteen rolls**, exact rather than sampled, and damage enters the score as a fraction of the target's *remaining* HP rather than as a raw number. A knockout is a step on top of that fraction, because the difference between 99% and 100% of a target's HP is the whole value of the turn and no continuous function of damage says so.
+- **Icy Wind and Electroweb get the speed-control conditional even though they are Special.** They are the speed control doubles actually plays; scored purely as attacks, the conditional section 3 asks for would never fire on the moves it most obviously means.
+- **Damage to our own slots subtracts.** Earthquake aimed at a foe is not friendly fire and stays legal, but a partner it kills is a real cost the base-power ranking could not see. Friendly fire proper — a single-target damaging move aimed at our own slot — stays disqualified.
+
+Consequences: `champions/protocol/state.py` gains `first_turn` per Pokemon, because Fake Out's condition is derivable from the turn number only on turn 1 and wrong after every switch; traces written before it fall back to the turn number. The threat model is the opponent's *revealed* moves only, so an unrevealed move cannot make a slot look threatened — the same honest gap `opponent_candidates` has, with the same answer available from the belief filter and not yet plumbed through. The one-ply agent now takes its snapshot before pruning rather than after.
+
+## D62. The pruning guard measures every provider against one solve of one position — 2026-08-29, Claude Code
+
+Context: `champions/search/discard.py` took a single `keep` callable of `(actions, k)`. Section 3 requires the guard to be reported per implementation and to be part of the benchmark rather than an afterthought, and M7 puts three providers through it.
+
+Decision: `KeepFn` gains the snapshot, and `measure_many` takes either one callable or a mapping of name to callable. Every policy in that mapping is measured against the same payoff matrix, and `Measurement` and `Summary` carry which policy they describe. `matches_trace` is computed only for the policy the trace names, with the legacy `policy_provider` value `"heuristic"` mapped to `BasePowerPolicy`.
+
+Rationale: the snapshot is not optional any more — the specified A is four questions about the board, so a guard that hands a provider only the action list can measure only a provider that ignores the board, which is the one it was first run against and the one it found wanting. Sharing the solve is not just a saving: the unpruned matrix is the entire cost of a run, and section 3 asks for the providers to be benchmarked *identically*, which two sweeps do not do — they compare them on positions that are only nominally the same.
+
+Consequences: `docs/pruning-guard.md` is now a per-policy table and `data/eval/discard.<format>.json` carries a `policies` list and a `policy` on every row. A two-policy sweep over 11,774 decisions takes about 24 minutes against 11 for one. `Summary` also reports `trace_checked`, because zero mismatches means agreement when the check ran and means nothing when it did not, and the mismatch count alone cannot tell those apart.

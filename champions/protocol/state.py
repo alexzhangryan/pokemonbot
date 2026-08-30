@@ -121,12 +121,23 @@ def _pokemon(pokemon: Pokemon, dex: Dex | None, known: bool) -> dict[str, Any]:
         "must_recharge": pokemon.must_recharge,
         "preparing": bool(pokemon.preparing),
         "protect_counter": pokemon.protect_counter,
+        # Whether this Pokemon came in this turn, which is the condition Fake
+        # Out turns on. Derivable from the turn number only on turn 1 and wrong
+        # after every switch, so the candidate policy reads it rather than
+        # inferring it (`champions.search.policy`).
+        "first_turn": bool(pokemon.first_turn),
     }
 
     if known:
         return {
             **common,
             "known": True,
+            # Whether this Pokemon was brought. Reg M-B registers six and brings
+            # four, and `battle.team` keeps all six for the whole game, so
+            # without this a consumer counting our team gets six against an
+            # opponent it can only ever count as four. `evaluate.py` was doing
+            # exactly that and scoring turn 1 of an even game at 0.996.
+            "selected": bool(pokemon._selected_in_teampreview),
             "hp": pokemon.current_hp,
             "max_hp": pokemon.max_hp,
             "item": _item(pokemon),
