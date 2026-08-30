@@ -83,12 +83,15 @@ const ui = {
   spAgentB: document.getElementById("sp-agent-b"),
   spStart: document.getElementById("sp-start"),
   hostAgent: document.getElementById("host-agent"),
+  hostGames: document.getElementById("host-games"),
   hostStart: document.getElementById("host-start"),
   hostInvite: document.getElementById("host-invite"),
   runLabel: document.getElementById("run-label"),
   runLog: document.getElementById("run-log"),
   runLogToggle: document.getElementById("run-log-toggle"),
+  runForfeit: document.getElementById("run-forfeit"),
   runStop: document.getElementById("run-stop"),
+  evalStrip: document.getElementById("eval-strip"),
   layout: document.getElementById("layout"),
   empty: document.getElementById("empty"),
   turnList: document.getElementById("turn-list"),
@@ -254,6 +257,7 @@ function fold(all) {
         seq: event.seq,
         turn: payload.turn,
         state: payload.state || null,
+        evaluation: payload.evaluation || null,
         log: payload.log || [],
         events: [event],
       };
@@ -266,6 +270,7 @@ function fold(all) {
     if (type === "candidates") current.candidates = payload;
     else if (type === "timing") current.timing = payload;
     else if (type === "equilibrium") current.equilibrium = payload;
+    else if (type === "belief") current.belief = payload;
   }
 
   /* The same turn number can produce several decisions: a fainted slot forces a
@@ -691,47 +696,192 @@ function renderCandidates(point) {
   }
 }
 
-/* What we know about the opponent, split into what was revealed and what has to
- * be inferred. The second half is the belief filter's job (M3) and is the
- * single most useful debugging surface in the system once it exists, so the
- * panel is laid out now around the shape it will take. */
+/* What we know about the opponent, split into what was revealed and what is
+ * inferred. The second half is the belief filter (M5), and it is the single
+ * most useful debugging surface in the system: a stochastic agent sampling a
+ * mixed strategy over a sampled belief cannot be debugged from its output
+ * (CLAUDE.md constraint 6), so the belief has to be legible on its own.
+ *
+ * Two intervals are shown per stat and they mean different things. The wide one
+ * is the union over live particles -- the filter is not more certain than its
+ * least certain surviving hypothesis. The marker is the modal particle's box,
+ * which is what the search actually reads. When the marker sits outside the
+ * union it is a bug; when it is much narrower, the belief is concentrated. */
 function renderBelief(point) {
   ui.belief.replaceChildren();
   const state = point.state;
   if (!state || !state.theirs) return;
 
+  const belief = point.belief || null;
   const head = el("h2", null, "Opponent");
-  head.appendChild(el("span", "hint", "revealed vs inferred"));
+  head.appendChild(
+    el(
+      "span",
+      "hint",
+      belief
+        ? `${belief.alive}/${belief.particles} particles · ESS ${belief.effective_sample_size} · ${
+            belief.resamples
+          } resample${belief.resamples === 1 ? "" : "s"}`
+        : "revealed vs inferred"
+    )
+  );
   ui.belief.appendChild(head);
 
+  const bySpecies = new Map();
+  for (const entry of (belief && belief.team) || []) bySpecies.set(entry.species, entry);
+
   const team = [...(state.theirs.active || []).filter(Boolean), ...(state.theirs.bench || [])];
+  const seen = new Set();
   for (const mon of team) {
-    const box = el("div", "belief-mon");
-    const top = el("div", "top");
-    top.appendChild(el("span", null, mon.species));
-    top.appendChild(el("span", "hint", mon.fainted ? "fainted" : `~${mon.hp_pct}%`));
-    box.appendChild(top);
-
-    const moves = (mon.revealed_moves || []).map((move) => move.name || move.id);
-    const known = el("div", "known");
-    known.append("moves ", el("b", null, moves.length ? moves.join(", ") : "none seen"));
-    box.appendChild(known);
-
-    const traits = el("div", "known");
-    traits.append(
-      "ability ",
-      el("b", null, mon.ability || `one of ${(mon.possible_abilities || []).join(" / ") || "?"}`),
-      " · item ",
-      el("b", null, mon.item || "unknown")
-    );
-    box.appendChild(traits);
-
-    ui.belief.appendChild(box);
+    seen.add(mon.species);
+    ui.belief.appendChild(beliefBox(mon, bySpecies.get(mon.species)));
+  }
+  /* The Pokemon that have not appeared yet. They are the ones the prior is
+   * carrying alone, and leaving them out would hide exactly the half of the
+   * belief that has had no evidence applied to it. */
+  for (const [species, entry] of bySpecies) {
+    if (!seen.has(species)) ui.belief.appendChild(beliefBox({ species, unseen: true }, entry));
   }
 
-  ui.belief.appendChild(
-    pendingBlock(["belief"], "Set hypotheses, stat intervals, nature posterior")
+  if (!belief) {
+    ui.belief.appendChild(
+      pendingBlock(["belief"], "Set hypotheses, stat intervals, nature posterior")
+    );
+  }
+}
+
+function beliefBox(mon, entry) {
+  const box = el("div", "belief-mon");
+  const top = el("div", "top");
+  top.appendChild(el("span", null, mon.species));
+  top.appendChild(
+    el("span", "hint", mon.unseen ? "not seen" : mon.fainted ? "fainted" : `~${mon.hp_pct}%`)
   );
+  box.appendChild(top);
+
+  const moves = (mon.revealed_moves || []).map((move) => move.name || move.id);
+  const known = el("div", "known");
+  known.append("seen ", el("b", null, moves.length ? moves.join(", ") : "no moves yet"));
+  box.appendChild(known);
+
+  const traits = el("div", "known");
+  traits.append(
+    "ability ",
+    el("b", null, mon.ability || `one of ${(mon.possible_abilities || []).join(" / ") || "?"}`),
+    " · item ",
+    el("b", null, mon.item || "unknown")
+  );
+  box.appendChild(traits);
+
+  if (!entry) return box;
+
+  for (const [label, ranked] of [
+    ["item", entry.item],
+    ["ability", entry.ability],
+    ["nature", entry.nature],
+    ["moves", entry.moves],
+  ]) {
+    if (!ranked || !ranked.length) continue;
+    const row = el("div", "belief-row");
+    row.appendChild(el("span", "belief-label", label));
+    const chips = el("div", "chips");
+    for (const item of ranked.slice(0, label === "moves" ? 6 : 3)) {
+      const chip = el("span", "chip", `${item.value} ${Math.round(item.probability * 100)}%`);
+      chip.style.opacity = String(0.45 + 0.55 * Math.min(1, item.probability));
+      chips.appendChild(chip);
+    }
+    row.appendChild(chips);
+    box.appendChild(row);
+  }
+
+  if (entry.points) box.appendChild(spreadBars(entry));
+  return box;
+}
+
+const STAT_LABELS = { hp: "HP", atk: "Atk", def: "Def", spa: "SpA", spd: "SpD", spe: "Spe" };
+
+function spreadBars(entry) {
+  const wrap = el("div", "spread");
+  wrap.appendChild(el("div", "belief-label", "stat points, 0-32"));
+  for (const stat of ["hp", "atk", "def", "spa", "spd", "spe"]) {
+    const union = entry.points[stat];
+    if (!union) continue;
+    const modal = (entry.points_modal || {})[stat] || union;
+    const stats = (entry.stats || {})[stat];
+
+    const row = el("div", "spread-row");
+    row.appendChild(el("span", "spread-stat", STAT_LABELS[stat] || stat));
+
+    const track = el("div", "spread-track");
+    const band = el("span", "spread-band");
+    band.style.left = `${(union[0] / 32) * 100}%`;
+    band.style.width = `${Math.max(1.5, ((union[1] - union[0]) / 32) * 100)}%`;
+    track.appendChild(band);
+
+    const marker = el("span", "spread-modal");
+    marker.style.left = `${(modal[0] / 32) * 100}%`;
+    marker.style.width = `${Math.max(1.5, ((modal[1] - modal[0]) / 32) * 100)}%`;
+    track.appendChild(marker);
+    row.appendChild(track);
+
+    row.appendChild(
+      el("span", "spread-value", stats ? `${stats[0]}–${stats[1]}` : `${union[0]}–${union[1]}`)
+    );
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+/* The eval bar `docs/04-decision-engine.md` section 5 asks for.
+ *
+ * The number is read off the trace, never computed here. The viewer does not
+ * import the agent and must not: an evaluation recomputed at display time would
+ * be a different function from the one the search used, and the whole point of
+ * the bar is to show what the agent thought.
+ *
+ * `calibrated` travels with the number. An uncalibrated evaluation is still
+ * worth showing -- it orders positions correctly long before it is a
+ * probability -- but saying "63%" about it would be a claim the trace does not
+ * support, so it is drawn hatched and labelled in log odds instead. */
+function renderEval(point) {
+  const strip = ui.evalStrip;
+  const evaluation = point && point.evaluation;
+  strip.replaceChildren();
+
+  if (!evaluation) {
+    strip.className = "pending-block";
+    const bar = el("div", "pending-bar");
+    bar.appendChild(el("span"));
+    strip.append(
+      el("div", "pending-label", "Win probability"),
+      bar,
+      el("div", "pending-note", "not computed yet — calibrated evaluation function (M6)")
+    );
+    return;
+  }
+
+  const probability = Number(evaluation.win_prob);
+  const calibrated = Boolean(evaluation.calibrated);
+  strip.className = calibrated ? "eval-block" : "eval-block uncalibrated";
+
+  const head = el("div", "eval-head");
+  head.append(
+    el("span", "eval-label", "Win probability"),
+    el("span", "eval-value", calibrated ? `${(probability * 100).toFixed(0)}%` : "uncalibrated")
+  );
+
+  const bar = el("div", "eval-bar");
+  const fill = el("span");
+  fill.style.width = `${Math.max(0, Math.min(1, probability)) * 100}%`;
+  bar.appendChild(fill);
+
+  const note = el("div", "eval-note");
+  const odds = evaluation.log_odds;
+  note.textContent = calibrated
+    ? `log odds ${odds === null ? "decided" : odds.toFixed(2)} · fit and calibrated (M6)`
+    : `log odds ${odds === null ? "decided" : odds.toFixed(2)} · hand-weighted, not a probability`;
+
+  strip.append(head, bar, note);
 }
 
 // --------------------------------------------------------- Showdown scene
@@ -847,6 +997,7 @@ function select(point) {
   renderSide(ui.theirs, point.state && point.state.theirs, "opponent", "theirs", roles.theirs);
   renderSide(ui.ours, point.state && point.state.ours, "us", "ours", roles.ours);
   renderConditions(point.state);
+  renderEval(point);
   renderLog(point.log);
   renderChosen(point);
   renderTiming(point);
@@ -944,11 +1095,12 @@ function renderStatus(status) {
   const running = Boolean(run && run.state === "running");
   ui.spStart.disabled = running;
   ui.hostStart.disabled = running;
+  ui.runForfeit.hidden = !running;
   ui.runStop.hidden = !running;
   ui.runLogToggle.hidden = !run;
 
   if (!run) {
-    ui.runLabel.textContent = "idle";
+    ui.runLabel.textContent = "no run";
     ui.runLabel.classList.add("dim");
     ui.runLog.textContent = "";
     ui.hostInvite.hidden = true;
@@ -962,12 +1114,19 @@ function renderStatus(status) {
    * echoing the tail of those turns the status line into a fragment of a
    * sentence. The full output is one click away either way. */
   const log = run.log || [];
-  const progress = [...log].reverse().find((line) => line.startsWith("battle "));
+  /* `control:` lines are the agent answering a forfeit. They belong on the
+   * status line for the same reason the battle counter does: it is the only
+   * confirmation that the button did anything, and the alternative is opening
+   * the output panel to find out. */
+  const progress = [...log]
+    .reverse()
+    .find((line) => line.startsWith("battle ") || line.startsWith("control: "));
   ui.runLabel.classList.toggle("dim", !running);
   ui.runLabel.textContent = running
-    ? progress || run.label
+    ? shorten(progress) || run.label
     : `${run.label} — ${run.state}`;
-  ui.runLabel.title = run.label;
+  ui.runLabel.title = progress ? `${run.label}
+${progress}` : run.label;
   ui.runLog.textContent = log.join("\n");
   if (!ui.runLog.hidden) ui.runLog.scrollTop = ui.runLog.scrollHeight;
 
@@ -985,6 +1144,19 @@ function renderStatus(status) {
 
   if (run.kind === "host" && running) renderInvite(run.detail || {});
   else ui.hostInvite.hidden = true;
+}
+
+/* The battle tag is most of the length of a progress line and none of its
+ * meaning: "battle 2/4" and the result are what a glance is after, and the tag
+ * is already in the trace picker, the meta line and this label's tooltip. The
+ * status line is the one place on screen with no room for it. */
+function shorten(line) {
+  if (!line) return line;
+  return line
+    .replace(/battle-[a-z0-9]+-\d+/g, "")
+    .replace(/:\s*->/, ":")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /* The handoff to Showdown, in one line.
@@ -1042,7 +1214,17 @@ function wireControl() {
 
   ui.simStart.addEventListener("click", () => act(ui.simStart, "/api/showdown/start", {}));
   ui.simStop.addEventListener("click", () => act(ui.simStop, "/api/showdown/stop", {}));
-  ui.runStop.addEventListener("click", () => act(ui.runStop, "/api/run/stop", {}));
+
+  /* Conceding is not confirmed and stopping is. A forfeit costs one game out of
+   * a run you can simply run again, which is the whole reason the button
+   * exists; a dialog in front of it would put the friction back. Killing the
+   * run takes every remaining game with it, which is worth a question. */
+  ui.runForfeit.addEventListener("click", () => act(ui.runForfeit, "/api/run/forfeit", {}));
+  ui.runStop.addEventListener("click", () => {
+    if (window.confirm("Stop the run? Any games it has left will not be played.")) {
+      act(ui.runStop, "/api/run/stop", {});
+    }
+  });
 
   ui.runLogToggle.addEventListener("click", () => {
     ui.runLog.hidden = !ui.runLog.hidden;
@@ -1059,7 +1241,10 @@ function wireControl() {
   );
 
   ui.hostStart.addEventListener("click", () =>
-    act(ui.hostStart, "/api/run/host", { agent: ui.hostAgent.value, games: 1 })
+    act(ui.hostStart, "/api/run/host", {
+      agent: ui.hostAgent.value,
+      games: Number(ui.hostGames.value) || 1,
+    })
   );
 }
 

@@ -87,7 +87,10 @@ class SelfPlayRequest(BaseModel):
 
 class HostRequest(BaseModel):
     agent: str = "greedy"
-    games: int = Field(default=1, ge=1, le=50)
+    # More than one by default. A hosted bot that plays a single game and exits
+    # makes conceding pointless -- the forfeit and the end of the run become the
+    # same event -- and putting it up again is a button press either way.
+    games: int = Field(default=3, ge=1, le=50)
     username: str = Field(default="champbot", min_length=1, max_length=18)
 
 
@@ -203,6 +206,22 @@ def create_app(
         except (RuntimeError, ValueError) as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return JSONResponse(started)
+
+    @app.post("/api/run/forfeit")
+    def run_forfeit() -> JSONResponse:
+        """Concede the battle in progress without ending the run.
+
+        This is the one thing the viewer can say to a running agent, and it is
+        worth being precise about why it does not break the read-only property
+        this module opens by claiming. The viewer still cannot influence how the
+        agent plays: it holds no Player, and the channel carries a single verb
+        that ends a battle rather than choosing inside one. The supervisor could
+        already kill the process outright; conceding is strictly gentler.
+        """
+        try:
+            return JSONResponse(boss.forfeit_run())
+        except RuntimeError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.post("/api/run/stop")
     def run_stop() -> JSONResponse:

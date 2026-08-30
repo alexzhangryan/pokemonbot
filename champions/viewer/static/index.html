@@ -20,7 +20,7 @@
       </button>
       <button id="goto-live" class="primary" hidden>Live battle &#8595;</button>
       <button id="follow" class="ghost" hidden>Jump to latest</button>
-      <div id="live-badge" class="badge idle">idle</div>
+      <div id="live-badge" class="badge idle" title="Whether the trace on screen is still being written">no trace</div>
     </header>
 
     <!-- One row, always visible. This replaced a drawer of four cards: setting
@@ -34,26 +34,52 @@
         <button id="sim-stop" class="ghost small">stop</button>
       </div>
 
+      <!-- Every number in here used to be a bare box. "5" and "0" side by side
+           say nothing about which is the game count and which is the seed, and
+           a title attribute is not an answer: it is invisible until you already
+           suspect you have it wrong. -->
       <div class="bar-group">
         <span class="bar-label">self-play</span>
-        <input id="sp-games" type="number" min="1" max="500" value="5" title="Games" />
+        <label class="field"><span>games</span>
+          <input id="sp-games" type="number" min="1" max="500" value="5" />
+        </label>
         <select id="sp-agent-a" title="Side A"></select>
         <span class="bar-sep">vs</span>
         <select id="sp-agent-b" title="Side B"></select>
-        <input id="sp-seed" type="number" min="0" value="0" title="Seed" class="seed" />
+        <label class="field"><span>seed</span>
+          <input id="sp-seed" type="number" min="0" value="0" class="seed" />
+        </label>
         <button id="sp-start" class="primary small">run</button>
       </div>
 
       <div class="bar-group">
         <span class="bar-label">play the bot</span>
         <select id="host-agent" title="Agent"></select>
+        <label class="field"><span>games</span>
+          <input id="host-games" type="number" min="1" max="50" value="3" />
+        </label>
         <button id="host-start" class="primary small">put up</button>
       </div>
 
+      <!-- The run, and the two ways out of one. `forfeit` concedes the battle
+           on the board and lets the run carry on to the next game; `stop` kills
+           the whole run. They were one button for a while, and it was the wrong
+           one: wanting out of a game is common and wanting out of a run is not.
+      -->
       <div class="bar-group grow" id="run-group">
-        <span id="run-label" class="bar-state dim">idle</span>
+        <span id="run-label" class="bar-state dim">no run</span>
+        <button
+          id="run-forfeit"
+          class="ghost small"
+          hidden
+          title="Concede the battle in progress; the run goes on to the next game"
+        >
+          forfeit game
+        </button>
         <button id="run-log-toggle" class="ghost small" hidden>output</button>
-        <button id="run-stop" class="ghost small" hidden>stop</button>
+        <button id="run-stop" class="ghost small danger-hover" hidden title="End the whole run">
+          stop run
+        </button>
       </div>
     </section>
 

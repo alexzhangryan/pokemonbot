@@ -302,6 +302,23 @@ button.ghost:hover {
   min-width: 0;
 }
 
+/* A number box with its name attached. The bar had three bare inputs whose
+   meaning came only from a title attribute, which is to say from nowhere: you
+   cannot see a tooltip you have no reason to go looking for. */
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.field > span {
+  font: 10px var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 #bar input[type="number"] {
   width: 52px;
 }
@@ -319,6 +336,19 @@ button.ghost:hover {
 button.small {
   font: 10px var(--sans);
   padding: 3px var(--s2);
+}
+
+/* A two-word label on a control-bar button wraps to two lines and makes the
+   whole row taller for one control. The bar wraps; its buttons do not. */
+#bar button {
+  white-space: nowrap;
+}
+
+/* Only on hover, and only for the one button that throws work away. A control
+   that is permanently red reads as broken rather than as dangerous. */
+button.danger-hover:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 button.primary {
@@ -1148,6 +1178,87 @@ td.na {
   font-weight: 500;
 }
 
+/* ------------------------------------------------------- the belief panel
+ *
+ * Two intervals per stat, drawn on one track. The wide translucent band is the
+ * union over live particles; the solid marker inside it is the modal
+ * particle's box, which is what the search actually reads. Seeing both at once
+ * is the point: a marker much narrower than the band means the belief is
+ * concentrated on one hypothesis, and a band that never shrinks means the
+ * filter is learning nothing about the spread.
+ */
+
+.belief-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  margin-top: 5px;
+}
+
+.belief-label {
+  flex: 0 0 46px;
+  font: 10px var(--mono);
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.belief-row .chips {
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.spread {
+  margin-top: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px dashed var(--line);
+}
+
+.spread-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: 3px;
+}
+
+.spread-stat {
+  flex: 0 0 28px;
+  font: 10px var(--mono);
+  color: var(--ink-dim);
+}
+
+.spread-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.spread-band,
+.spread-modal {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+}
+
+.spread-band {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.spread-modal {
+  background: var(--accent);
+}
+
+.spread-value {
+  flex: 0 0 74px;
+  text-align: right;
+  font: 10px var(--mono);
+  color: var(--ink-dim);
+}
+
 /* -------------------------------------------------- the unimplemented UI
  *
  * Hatching, not emptiness. A panel that is dim and striped reads as "nothing
@@ -1178,6 +1289,76 @@ td.na {
   font: 10px var(--sans);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The eval bar, once there is a number to draw. Deliberately close in weight to
+   the pending block it replaces: the strip is context for the board below it,
+   not the headline. */
+.eval-block {
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.eval-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.eval-label {
+  font: 10px var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.eval-value {
+  font: 15px var(--mono);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.eval-bar {
+  height: 8px;
+  margin: 6px 0 5px;
+  background: var(--line-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.eval-bar span {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  transition: width 120ms linear;
+}
+
+/* Hatched, the same way every other unbuilt number in this page is hatched. An
+   uncalibrated evaluation orders positions long before it is a probability, so
+   it is worth drawing -- but drawing it as a solid percentage would assert
+   something the trace does not support. */
+.eval-block.uncalibrated .eval-bar span {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--ink-faint),
+    var(--ink-faint) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.eval-block.uncalibrated .eval-value {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.eval-note {
+  font: 10px var(--mono);
   color: var(--ink-faint);
 }
 

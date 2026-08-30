@@ -9,6 +9,7 @@ so a live battle produced a viewer showing nothing and no error anywhere.
 
 from __future__ import annotations
 
+import io
 import shutil
 import subprocess
 from pathlib import Path
@@ -195,13 +196,87 @@ def test_the_battle_frames_inline_script_parses(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
+# -- conceding a game without ending the run ---------------------------------
+
+
+def test_every_run_is_spawned_able_to_hear_a_forfeit(
+    monkeypatch: pytest.MonkeyPatch, supervisor: Supervisor
+) -> None:
+    """Both spawners pass `--control-stdin`, or the run reads nobody's commands
+    and the forfeit button silently does nothing."""
+    spawned: dict[str, object] = {}
+
+    def fake_popen(argv: list[str], **kwargs: object) -> object:
+        spawned["argv"] = argv
+        spawned["stdin"] = kwargs.get("stdin")
+        raise _Stop
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    for start in (
+        lambda: supervisor.start_selfplay(games=1, agent_a="random", agent_b="random", seed=0),
+        lambda: supervisor.start_host(agent="greedy", games=1, username="champbot"),
+    ):
+        with pytest.raises(_Stop):
+            _run(start())
+        assert "--control-stdin" in spawned["argv"]
+        # Without a pipe the child inherits the viewer's own stdin and the
+        # command would go somewhere else entirely.
+        assert spawned["stdin"] is subprocess.PIPE
+
+
+def test_forfeit_reaches_the_run_without_killing_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, supervisor: Supervisor
+) -> None:
+    """The distinction the button exists for: the battle ends, the run does not."""
+    process = _FakeProcess()
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: process)
+    client = client_for(tmp_path, supervisor)
+
+    client.post("/api/run/selfplay", json={"games": 3})
+    body = client.post("/api/run/forfeit", json={}).json()
+
+    assert process.stdin.getvalue() == "forfeit\n"
+    assert body["state"] == "running"
+    assert body["forfeits_requested"] == 1
+    assert client.get("/api/status").json()["run"]["state"] == "running"
+
+
+def test_forfeiting_with_no_run_is_refused_rather_than_ignored(
+    tmp_path: Path, supervisor: Supervisor
+) -> None:
+    response = client_for(tmp_path, supervisor).post("/api/run/forfeit", json={})
+    assert response.status_code == 409
+    assert "no run" in response.json()["detail"]
+
+
+def test_a_hosted_bot_plays_more_than_one_game_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, supervisor: Supervisor
+) -> None:
+    """Conceding is pointless when the run has one game in it: the forfeit and
+    the end of the run become the same event."""
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: _FakeProcess())
+    detail = client_for(tmp_path, supervisor).post("/api/run/host", json={}).json()["detail"]
+    assert detail["games"] > 1
+
+
 class _Stop(Exception):
     """Raised by a stubbed Popen to stop before a real process is created."""
+
+
+class _FakeStdin(io.StringIO):
+    """A pipe that remembers what was written and never closes underneath us."""
+
+    def close(self) -> None:  # pragma: no cover - defeats StringIO.getvalue()
+        pass
 
 
 class _FakeProcess:
     stdout = None
     pid = -1
+
+    def __init__(self) -> None:
+        self.stdin = _FakeStdin()
 
     def poll(self) -> None:
         return None

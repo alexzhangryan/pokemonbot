@@ -19,6 +19,13 @@ The Showdown server is adopted rather than duplicated. If something is already
 listening on the port, that is someone's `make server` or an earlier viewer, and
 starting a second one would just fail to bind. We attach to it, mark it external,
 and never stop it -- we did not start it, so it is not ours to kill.
+
+A run can be talked to as well as killed. Stopping was the only lever here for a
+while, and it is too blunt for the thing people actually want, which is to
+abandon one bad game and keep the rest of the run. Every run is spawned with a
+stdin pipe and `--control-stdin`, so `forfeit_run` can concede the battle in
+progress and leave the process alive to play the next one. The channel carries
+that one verb and nothing else; see `champions/agents/commands.py` for why.
 """
 
 from __future__ import annotations
@@ -47,6 +54,11 @@ FORMAT_ID = "gen9championsvgc2026regmb"
 # it all in memory.
 LOG_LINES = 200
 
+# The one thing this process ever says to a run. Named rather than inlined so
+# the writer and `champions/agents/commands.py`'s reader are obviously the same
+# word, since nothing checks that they agree.
+FORFEIT_COMMAND = "forfeit\n"
+
 ShowdownState = Literal["off", "starting", "ready", "external", "failed"]
 RunState = Literal["idle", "running", "finished", "failed", "stopped"]
 
@@ -68,6 +80,10 @@ class Run:
     detail: dict[str, Any] = field(default_factory=dict)
     log: deque[str] = field(default_factory=lambda: deque(maxlen=LOG_LINES))
     state: RunState = "running"
+    #: Forfeits asked for, which is not the same as battles conceded: the
+    #: request goes down a pipe and the agent answers on its own log. The page
+    #: uses it only to say that the button was pressed.
+    forfeits_requested: int = 0
 
     def status(self) -> dict[str, Any]:
         return {
@@ -76,6 +92,7 @@ class Run:
             "state": self.state,
             "elapsed_s": round(time.time() - self.started_at, 1),
             "detail": self.detail,
+            "forfeits_requested": self.forfeits_requested,
             "log": list(self.log),
         }
 
@@ -197,6 +214,7 @@ class Supervisor:
                 agent_a,
                 "--agent-b",
                 agent_b,
+                "--control-stdin",
             ],
             detail={"games": games, "agent_a": agent_a, "agent_b": agent_b, "seed": seed},
         )
@@ -221,6 +239,7 @@ class Supervisor:
                 username,
                 "--trace-dir",
                 str(subdir),
+                "--control-stdin",
             ],
             detail={
                 "agent": agent,
@@ -245,6 +264,10 @@ class Supervisor:
             # until it exited.
             [self.python, "-u", *argv],
             cwd=REPO_ROOT,
+            # The control channel. Without a pipe here the child inherits this
+            # process's stdin, and a command written to it would go to whoever
+            # started the viewer rather than to the agent.
+            stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -256,6 +279,30 @@ class Supervisor:
         # A reader thread, because a pipe nobody drains fills and blocks the
         # child. Keeping the tail is a side benefit; draining is the point.
         asyncio.create_task(asyncio.to_thread(_pump, run))
+        return run.status()
+
+    def forfeit_run(self) -> dict[str, Any]:
+        """Concede the battle in progress, leaving the run to play the next one.
+
+        Deliberately not an error when there is no battle on the board: the run
+        may be between games or waiting for a challenge, and the request is
+        harmless there. The agent prints what it did either way, so the run log
+        is the honest account of whether anything was conceded.
+        """
+        self._reap()
+        run = self._run
+        if run is None or run.state != "running":
+            raise RuntimeError("no run is going")
+        stream = run.process.stdin
+        if stream is None:  # pragma: no cover - every run we spawn has a pipe
+            raise RuntimeError("this run has no control channel")
+        try:
+            stream.write(FORFEIT_COMMAND)
+            stream.flush()
+        except (BrokenPipeError, ValueError) as error:
+            # The process died between the reap above and this write.
+            raise RuntimeError(f"the run is not listening: {error}") from error
+        run.forfeits_requested += 1
         return run.status()
 
     def stop_run(self) -> None:
