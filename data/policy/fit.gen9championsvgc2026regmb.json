@@ -1,0 +1,221 @@
+{
+  "format_id": "gen9championsvgc2026regmb",
+  "percentile": 75.0,
+  "floor": 1276.0,
+  "n_rated": 28227,
+  "n_replays": 3282,
+  "n_decisions": 84321,
+  "n_players": 959,
+  "mean_options": 9.513798460644441,
+  "n_train": 59398,
+  "n_validation": 12233,
+  "n_test": 12690,
+  "hidden": 32,
+  "l2": 0.0001,
+  "seed": 0,
+  "trials": [
+    {
+      "hidden": 8,
+      "train_log_likelihood": -1.7096361335232944,
+      "validation_log_likelihood": -1.7209447336144275,
+      "seconds": 41.5
+    },
+    {
+      "hidden": 16,
+      "train_log_likelihood": -1.6802580681515522,
+      "validation_log_likelihood": -1.702999648390673,
+      "seconds": 70.1
+    },
+    {
+      "hidden": 32,
+      "train_log_likelihood": -1.6576364536995036,
+      "validation_log_likelihood": -1.6960467203484573,
+      "seconds": 123.6
+    }
+  ],
+  "test": [
+    {
+      "provider": "uniform",
+      "k": 1,
+      "recall": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "uniform",
+      "k": 3,
+      "recall": 0.0,
+      "low": 0.0,
+      "high": 0.0,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "uniform",
+      "k": 5,
+      "recall": 0.04499605988967691,
+      "low": 0.03903129183618613,
+      "high": 0.05139125053252398,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 1,
+      "recall": 0.27415287628053586,
+      "low": 0.26491828119753796,
+      "high": 0.2829533066092002,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 3,
+      "recall": 0.5820330969267139,
+      "low": 0.5726558479865506,
+      "high": 0.5926181301516824,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 5,
+      "recall": 0.7397163120567376,
+      "low": 0.7306906007574825,
+      "high": 0.7504526606125381,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "learned-prior",
+      "k": 1,
+      "recall": 0.34688731284475965,
+      "low": 0.3379609484777945,
+      "high": 0.3564906927920129,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "learned-prior",
+      "k": 3,
+      "recall": 0.7050433412135539,
+      "low": 0.6964294502426455,
+      "high": 0.7133155177478848,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    },
+    {
+      "provider": "learned-prior",
+      "k": 5,
+      "recall": 0.8954294720252167,
+      "low": 0.8900851607360419,
+      "high": 0.901374370589113,
+      "n_decisions": 12690,
+      "n_battles": 920,
+      "n_players": 144
+    }
+  ],
+  "closed_sheet": [
+    {
+      "provider": "uniform",
+      "k": 1,
+      "recall": 0.011441647597254004,
+      "low": 0.0054809695741523,
+      "high": 0.019221535930682848,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "uniform",
+      "k": 3,
+      "recall": 0.14416475972540047,
+      "low": 0.11653888952929373,
+      "high": 0.17443699188247186,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "uniform",
+      "k": 5,
+      "recall": 0.41132723112128144,
+      "low": 0.3613213916014316,
+      "high": 0.46085929669933345,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 1,
+      "recall": 0.38215102974828374,
+      "low": 0.3490755457986158,
+      "high": 0.4143987307253191,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 3,
+      "recall": 0.7162471395881007,
+      "low": 0.6843279112171567,
+      "high": 0.7486715668479703,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "heuristic-position",
+      "k": 5,
+      "recall": 0.9010297482837528,
+      "low": 0.8842566683126798,
+      "high": 0.9167672451618949,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "learned-prior",
+      "k": 1,
+      "recall": 0.4891304347826087,
+      "low": 0.4559560395879813,
+      "high": 0.5232983340752663,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "learned-prior",
+      "k": 3,
+      "recall": 0.8501144164759725,
+      "low": 0.8272403956972724,
+      "high": 0.8715218465610336,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    },
+    {
+      "provider": "learned-prior",
+      "k": 5,
+      "recall": 0.9725400457665904,
+      "low": 0.9652255069961605,
+      "high": 0.9799552186238051,
+      "n_decisions": 1748,
+      "n_battles": 70,
+      "n_players": 103
+    }
+  ],
+  "verdict": "B beats A at k = 5: 0.8954 against 0.7397, intervals apart"
+}

@@ -21,6 +21,17 @@ Intervals are 95%, bootstrapped over **battles**. Positions inside one game
 share a board and a team, so resampling positions would report an interval far
 narrower than the evidence supports.
 
+## The providers
+
+| name | what it is |
+| --- | --- |
+| `heuristic-position` | Implementation A as `docs/04-decision-engine.md` section 3 specifies it: knockouts, threatened Protect, speed control that flips a race, Fake Out. |
+| `heuristic-base-power` | A as it shipped through M6 -- base power and nothing else. Kept because every number written before D61 describes it. |
+| `learned-prior` | Implementation B, fit to the replay corpus. `docs/policy-prior.md` is where it is fit and what it recalls. |
+| `union-heuristic-learned` | A and B interleaved to the same `k`. The spec asks for it because if neither dominates the union may still beat both. |
+
+C, the language model provider, is blocked on a model API key.
+
 ## Results
 
 Every policy below was measured against the same solve of the same positions,
@@ -36,6 +47,14 @@ so the rows are a comparison between providers rather than between runs.
 | `heuristic-base-power` | 10 | 6,745 | 750 | 0.6391 | [0.6283, 0.6499] | 64.2% | 0.0607 | 0.5799 |
 | `heuristic-base-power` | 15 | 6,745 | 750 | 0.5192 | [0.5088, 0.5302] | 52.3% | 0.0553 | 0.5316 |
 | `heuristic-base-power` | 20 | 6,745 | 750 | 0.3204 | [0.3074, 0.3330] | 32.5% | 0.0291 | 0.5051 |
+| `learned-prior` | 5 | 8,946 | 750 | 0.4793 | [0.4676, 0.4911] | 48.3% | 0.0370 | 0.6282 |
+| `learned-prior` | 10 | 6,745 | 750 | 0.4153 | [0.4031, 0.4280] | 42.0% | 0.0242 | 0.5240 |
+| `learned-prior` | 15 | 6,745 | 750 | 0.2711 | [0.2596, 0.2826] | 27.7% | 0.0128 | 0.3920 |
+| `learned-prior` | 20 | 6,745 | 750 | 0.1721 | [0.1621, 0.1816] | 17.8% | 0.0068 | 0.3768 |
+| `union-heuristic-learned` | 5 | 8,946 | 750 | 0.2573 | [0.2482, 0.2680] | 26.2% | 0.0181 | 0.5241 |
+| `union-heuristic-learned` | 10 | 6,745 | 750 | 0.1793 | [0.1694, 0.1899] | 18.6% | 0.0101 | 0.4974 |
+| `union-heuristic-learned` | 15 | 6,745 | 750 | 0.0978 | [0.0902, 0.1069] | 10.4% | 0.0040 | 0.3900 |
+| `union-heuristic-learned` | 20 | 6,745 | 750 | 0.0576 | [0.0516, 0.0650] | 6.3% | 0.0023 | 0.3722 |
 
 ### The same positions at every budget
 
@@ -53,6 +72,14 @@ comparable to each other. These are.
 | `heuristic-base-power` | 10 | 0.6391 | [0.6283, 0.6499] | 64.2% | 0.0607 |
 | `heuristic-base-power` | 15 | 0.5192 | [0.5088, 0.5302] | 52.3% | 0.0553 |
 | `heuristic-base-power` | 20 | 0.3204 | [0.3074, 0.3330] | 32.5% | 0.0291 |
+| `learned-prior` | 5 | 0.6309 | [0.6189, 0.6434] | 63.5% | 0.0490 |
+| `learned-prior` | 10 | 0.4153 | [0.4031, 0.4280] | 42.0% | 0.0242 |
+| `learned-prior` | 15 | 0.2711 | [0.2596, 0.2826] | 27.7% | 0.0128 |
+| `learned-prior` | 20 | 0.1721 | [0.1621, 0.1816] | 17.8% | 0.0068 |
+| `union-heuristic-learned` | 5 | 0.3379 | [0.3271, 0.3507] | 34.4% | 0.0239 |
+| `union-heuristic-learned` | 10 | 0.1793 | [0.1694, 0.1899] | 18.6% | 0.0101 |
+| `union-heuristic-learned` | 15 | 0.0978 | [0.0902, 0.1069] | 10.4% | 0.0040 |
+| `union-heuristic-learned` | 20 | 0.0576 | [0.0516, 0.0650] | 6.3% | 0.0023 |
 
 ### By opponent column count
 
@@ -94,6 +121,38 @@ predict. Broken out so the easy half does not carry the average.
 | `heuristic-base-power` | 20 | 2 | 948 | 0.5113 | [0.4750, 0.5485] | 0.0398 |
 | `heuristic-base-power` | 20 | 3 | 65 | 0.5952 | [0.4650, 0.7118] | 0.0081 |
 | `heuristic-base-power` | 20 | 4 | 31 | 0.6452 | [0.4666, 0.8000] | 0.0707 |
+| `learned-prior` | 5 | 1 | 6,745 | 0.5331 | [0.5202, 0.5457] | 0.0432 |
+| `learned-prior` | 5 | 2 | 1,963 | 0.3154 | [0.2869, 0.3423] | 0.0190 |
+| `learned-prior` | 5 | 3 | 159 | 0.3298 | [0.2275, 0.4783] | 0.0045 |
+| `learned-prior` | 5 | 4 | 79 | 0.2532 | [0.1494, 0.3714] | 0.0175 |
+| `learned-prior` | 10 | 1 | 5,701 | 0.4178 | [0.4041, 0.4318] | 0.0260 |
+| `learned-prior` | 10 | 2 | 948 | 0.3907 | [0.3548, 0.4283] | 0.0154 |
+| `learned-prior` | 10 | 3 | 65 | 0.5967 | [0.4517, 0.7354] | 0.0076 |
+| `learned-prior` | 10 | 4 | 31 | 0.3226 | [0.1471, 0.5173] | 0.0128 |
+| `learned-prior` | 15 | 1 | 5,701 | 0.2747 | [0.2628, 0.2869] | 0.0142 |
+| `learned-prior` | 15 | 2 | 948 | 0.2436 | [0.2126, 0.2743] | 0.0057 |
+| `learned-prior` | 15 | 3 | 65 | 0.4444 | [0.2951, 0.5939] | 0.0045 |
+| `learned-prior` | 15 | 4 | 31 | 0.0968 | [0.0000, 0.2069] | 0.0006 |
+| `learned-prior` | 20 | 1 | 5,701 | 0.1751 | [0.1643, 0.1853] | 0.0076 |
+| `learned-prior` | 20 | 2 | 948 | 0.1477 | [0.1216, 0.1754] | 0.0023 |
+| `learned-prior` | 20 | 3 | 65 | 0.3256 | [0.1830, 0.4790] | 0.0024 |
+| `learned-prior` | 20 | 4 | 31 | 0.0645 | [0.0000, 0.1613] | 0.0006 |
+| `union-heuristic-learned` | 5 | 1 | 6,745 | 0.2565 | [0.2461, 0.2668] | 0.0200 |
+| `union-heuristic-learned` | 5 | 2 | 1,963 | 0.2594 | [0.2355, 0.2836] | 0.0129 |
+| `union-heuristic-learned` | 5 | 3 | 159 | 0.2801 | [0.1893, 0.4078] | 0.0016 |
+| `union-heuristic-learned` | 5 | 4 | 79 | 0.2278 | [0.1276, 0.3334] | 0.0168 |
+| `union-heuristic-learned` | 10 | 1 | 5,701 | 0.1565 | [0.1468, 0.1668] | 0.0100 |
+| `union-heuristic-learned` | 10 | 2 | 948 | 0.2958 | [0.2612, 0.3325] | 0.0106 |
+| `union-heuristic-learned` | 10 | 3 | 65 | 0.3796 | [0.2621, 0.5092] | 0.0004 |
+| `union-heuristic-learned` | 10 | 4 | 31 | 0.3871 | [0.2120, 0.5864] | 0.0291 |
+| `union-heuristic-learned` | 15 | 1 | 5,701 | 0.0844 | [0.0769, 0.0928] | 0.0041 |
+| `union-heuristic-learned` | 15 | 2 | 948 | 0.1644 | [0.1367, 0.1939] | 0.0036 |
+| `union-heuristic-learned` | 15 | 3 | 65 | 0.3206 | [0.2073, 0.4441] | 0.0004 |
+| `union-heuristic-learned` | 15 | 4 | 31 | 0.0645 | [0.0000, 0.1613] | 0.0015 |
+| `union-heuristic-learned` | 20 | 1 | 5,701 | 0.0491 | [0.0430, 0.0556] | 0.0025 |
+| `union-heuristic-learned` | 20 | 2 | 948 | 0.1031 | [0.0792, 0.1291] | 0.0016 |
+| `union-heuristic-learned` | 20 | 3 | 65 | 0.1679 | [0.0724, 0.2655] | 0.0000 |
+| `union-heuristic-learned` | 20 | 4 | 31 | 0.0000 | [0.0000, 0.0000] | 0.0000 |
 
 ## What it does not cover
 
@@ -121,3 +180,5 @@ count below says so rather than reporting a flattering zero.
 
 - `heuristic-position`: not the policy these traces were written by, so unchecked.
 - `heuristic-base-power`: 0 disagreements over 6,745 positions checked.
+- `learned-prior`: not the policy these traces were written by, so unchecked.
+- `union-heuristic-learned`: not the policy these traces were written by, so unchecked.

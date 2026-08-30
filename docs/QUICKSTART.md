@@ -488,7 +488,39 @@ hand-chosen weights, `IS_CALIBRATED` is False, and the viewer draws the bar
 hatched and labelled "not a probability". That path is the normal state of a
 fresh clone — the agent has to play before the fit has anything to read.
 
-## 15. What is not built yet
+## 15. Fit the learned candidate prior
+
+The candidate policy decides what the equilibrium is even allowed to consider,
+and `docs/04-decision-engine.md` section 3 specifies three providers benchmarked
+identically rather than one. B is the learned one: a model fit to the replay
+corpus that scores each legal option.
+
+```bash
+make fit-policy    # reconstruct, fit, write the recall table (about four minutes)
+make discard       # the pruning guard, now three-way (about half an hour)
+```
+
+`make fit-policy` reads the corpus and nothing else, so it needs `make scrape`
+to have run and no self-play at all. It writes
+`data/policy/prior.<format>.json`, which `champions.search.learned.LearnedPolicy`
+loads, and `docs/policy-prior.md`, which is the measurement.
+
+Two things in that report decide whether to believe it.
+
+- **`uniform` is the bar.** It is a provider that scores every option the same,
+  so its recall is what a budget of `k` recovers with no ordering at all. A
+  recall of 0.7 at `k = 3` means nothing until you know the average slot has
+  nine options and chance would have given you almost none of them.
+- **Recall is not the shipping criterion.** It measures how often the provider
+  would have kept what a strong human played, and the equilibrium and a strong
+  human are not the same thing. `make discard` is the criterion:
+  `docs/pruning-guard.md` reports what each provider throws away against the
+  unpruned equilibrium, all of them measured against one solve of each position.
+
+Without a prior on disk, `make discard` says so and measures the providers that
+do not need one, rather than failing. That is the normal state of a fresh clone.
+
+## 16. What is not built yet
 
 M0 through M6 are done. What that leaves:
 

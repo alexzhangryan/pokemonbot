@@ -58,7 +58,7 @@ that measurement; it is not called during play.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -183,6 +183,22 @@ class BasePowerPolicy:
             key=lambda scored: (-scored.score, scored.action["message"]),
         )
         return ranked[:k]
+
+    def slot_scores(
+        self,
+        options: Sequence[dict[str, Any]],
+        slot_index: int = 0,
+        state: dict[str, Any] | None = None,
+    ) -> list[float]:
+        """One score per option of a single slot.
+
+        Public because the corpus benchmark scores per slot, not per joint
+        action: a replay's label is one slot's choice, so the only comparison
+        against a learned prior that is like for like is at that granularity.
+        The composition is unchanged -- a joint action is still the sum of these
+        -- so this exposes the existing quantity rather than adding one.
+        """
+        return [self._score_slot(option)[0] for option in options]
 
     def _score(self, action: dict[str, Any]) -> ScoredAction:
         total = 0.0
@@ -310,6 +326,22 @@ class HeuristicPolicy:
             key=lambda scored: (-scored.score, scored.action["message"]),
         )
         return ranked[:k]
+
+    def slot_scores(
+        self,
+        options: Sequence[dict[str, Any]],
+        slot_index: int = 0,
+        state: dict[str, Any] | None = None,
+    ) -> list[float]:
+        """One score per option of a single slot. See `BasePowerPolicy.slot_scores`.
+
+        The board is read once for the whole option list, which is the same
+        amortisation `scored` relies on: the damage cache is per (slot, move,
+        target), and rebuilding it per option would compute every roll
+        distribution once per row instead of once per position.
+        """
+        position = Board.read(state, self._dex, self._chart, self._hypothesis)
+        return [self._score_slot(option, slot_index, position)[0] for option in options]
 
     def _score(self, action: dict[str, Any], position: Board) -> ScoredAction:
         total = 0.0

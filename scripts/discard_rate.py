@@ -40,6 +40,7 @@ import numpy as np
 
 from champions.dex.loader import Dex
 from champions.search import discard
+from champions.search.learned import LearnedPolicy, UnionPolicy
 from champions.search.payoff import TurnModel, payoff_matrix
 from champions.search.policy import BasePowerPolicy, HeuristicPolicy
 
@@ -48,14 +49,37 @@ DEFAULT_TRACES = Path("runs/m6-selfplay")
 DEFAULT_KS = (5, 10, 15, 20)
 REPORT_PATH = Path("docs/pruning-guard.md")
 
+#: The name the union of A and B is reported under. Spelled out rather than
+#: derived, because it is a row in a document and a key in a JSON file that
+#: someone will diff against the last run.
+UNION = "union-heuristic-learned"
+
+
+def _union(dex: Dex) -> UnionPolicy:
+    return UnionPolicy(HeuristicPolicy(dex), LearnedPolicy(dex), name=UNION)
+
+
 #: The candidate providers this benchmark knows how to build. Implementation A
-#: as `docs/04-decision-engine.md` section 3 specifies it, and A as it shipped
-#: through M6 -- which is the baseline every number written before this run
-#: describes. B and C join this dict at M7.
+#: as `docs/04-decision-engine.md` section 3 specifies it; A as it shipped
+#: through M6, which is the baseline every number written before D61 describes;
+#: B, the learned prior; and the union of A and B, which the spec asks for
+#: because if neither dominates the union may still beat both and is a
+#: legitimate thing to ship. C, the language model provider, is blocked on a
+#: model API key.
+#:
+#: Every one of them is measured against the same solve of the same position, so
+#: the rows compare providers rather than runs.
 PROVIDERS = {
     HeuristicPolicy.name: HeuristicPolicy,
     BasePowerPolicy.name: BasePowerPolicy,
+    LearnedPolicy.name: LearnedPolicy,
+    UNION: _union,
 }
+
+#: The providers that need `make fit-policy` to have been run. Named so that a
+#: default run can skip them with an explanation rather than failing, while a
+#: run that asked for one by name still fails loudly.
+NEEDS_MODEL = (LearnedPolicy.name, UNION)
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,9 +102,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--policy",
         nargs="+",
-        default=list(PROVIDERS),
+        default=None,
         choices=list(PROVIDERS),
-        help="candidate providers to measure, all against the same solve",
+        help="candidate providers to measure, all against the same solve "
+        "(default: every one that can be built)",
     )
     parser.add_argument("--resamples", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=0)
@@ -90,11 +115,34 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_policies(dex: Dex, names: list[str] | None) -> dict[str, Any]:
+    """Every named provider, or every one that can be built.
+
+    A learned provider needs a fitted prior on disk. Asking for one by name and
+    not having it is an error; a default run that cannot build it says so and
+    measures the rest, because a missing model should not make the guard
+    unrunnable on a fresh checkout.
+    """
+    wanted = names or list(PROVIDERS)
+    out: dict[str, Any] = {}
+    for name in wanted:
+        try:
+            out[name] = PROVIDERS[name](dex)
+        except FileNotFoundError as missing:
+            if names is not None or name not in NEEDS_MODEL:
+                raise SystemExit(str(missing)) from missing
+            print(f"skipping {name}: {missing}")
+    if not out:
+        raise SystemExit("no candidate providers could be built")
+    return out
+
+
 def main() -> None:
     args = parse_args()
     dex = Dex.load(args.format_id)
     model = TurnModel(dex)
-    policies = {name: PROVIDERS[name](dex) for name in args.policy}
+    policies = build_policies(dex, args.policy)
+    args.policy = list(policies)
 
     def matrix_fn(
         snapshot: dict[str, Any],
@@ -221,6 +269,21 @@ def document(payload: dict[str, Any], common: dict[str, Any]) -> str:
         "Intervals are 95%, bootstrapped over **battles**. Positions inside one game",
         "share a board and a team, so resampling positions would report an interval far",
         "narrower than the evidence supports.",
+        "",
+        "## The providers",
+        "",
+        "| name | what it is |",
+        "| --- | --- |",
+        "| `heuristic-position` | Implementation A as `docs/04-decision-engine.md` section 3 "
+        "specifies it: knockouts, threatened Protect, speed control that flips a race, Fake Out. |",
+        "| `heuristic-base-power` | A as it shipped through M6 -- base power and nothing else. "
+        "Kept because every number written before D61 describes it. |",
+        "| `learned-prior` | Implementation B, fit to the replay corpus. "
+        "`docs/policy-prior.md` is where it is fit and what it recalls. |",
+        "| `union-heuristic-learned` | A and B interleaved to the same `k`. The spec asks for it "
+        "because if neither dominates the union may still beat both. |",
+        "",
+        "C, the language model provider, is blocked on a model API key.",
         "",
         "## Results",
         "",

@@ -94,3 +94,4 @@ tests/
 | How fast is the simulator here | `docs/benchmarks.md` |
 | Is the evaluation function actually calibrated | `docs/eval-calibration.md` |
 | What does candidate pruning throw away | `docs/pruning-guard.md` |
+| Did the learned candidate prior learn anything | `docs/policy-prior.md` |
