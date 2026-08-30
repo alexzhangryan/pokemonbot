@@ -87,6 +87,12 @@ class _Mon:
     item: str | None = None
     ability: str | None = None
     protect_counter: int = 0
+    #: The forme currently on the field, when it is not the one that switched
+    #: in. Stance Change and Mega Evolution both change the base stats without
+    #: changing what the Pokemon is called, so this is kept beside `species`
+    #: rather than replacing it -- `state.snapshot()` reports poke-env's
+    #: `pokemon.species`, which stays on the base name through a forme change.
+    forme: str | None = None
     #: Set when this Pokemon switches in, read and cleared at the next `|turn|`.
     just_switched: bool = False
     first_turn: bool = False
@@ -202,9 +208,11 @@ class Observer:
         mon = self._team[side][index]
         mon.nickname = nickname
         mon.just_switched = True
-        # Boosts and volatile effects do not survive a switch; status does.
+        # Boosts and volatile effects do not survive a switch; status does. Nor
+        # does a forme change: Aegislash comes back in as Shield.
         mon.boosts = {}
         mon.effects = set()
+        mon.forme = None
         if len(args) > 2:
             _apply_hp(mon, args[2])
         self._active[slot] = index
@@ -223,6 +231,29 @@ class Observer:
             if not mon.nickname and mon.species == species:
                 return i
         return None
+
+    def _on_formechange(self, args: list[str]) -> None:
+        """A forme change, which moves the base stats out from under the name.
+
+        Aegislash is the common case in this format and it is not cosmetic: the
+        Blade forme has 140 Attack and 50 Defence where Shield has the reverse,
+        so a damage number computed against the wrong one is wrong by roughly a
+        factor of two. Left untracked, that was the single largest disagreement
+        between this reconstruction and what the live agent saw.
+
+        `|detailschange|` is the same event for a permanent change -- Mega
+        Evolution most of all, and Champions has 75 legal Mega Stones.
+        """
+        parsed = split_ident(args[0]) if args else None
+        if parsed is None or len(args) < 2:
+            return
+        mon = self._mon(args[0])
+        if mon is None:
+            return
+        forme = _identifier(species_from_details(args[1]))
+        mon.forme = None if forme == mon.species else forme
+
+    _on_detailschange = _on_formechange
 
     def _on_move(self, args: list[str]) -> None:
         mon = self._mon(args[0] if args else "")
@@ -419,7 +450,7 @@ class Observer:
         }
 
     def _mon_view(self, mon: _Mon, known: bool) -> dict[str, Any]:
-        entry = self._species_entry(mon.species)
+        entry = self._species_entry(mon.forme or mon.species)
         common: dict[str, Any] = {
             "species": mon.species,
             "name": mon.nickname or mon.species,

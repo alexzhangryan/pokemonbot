@@ -189,7 +189,7 @@ def _in_play(side: dict[str, Any]) -> list[dict[str, Any]]:
     return brought or seen
 
 
-def _alive(side: dict[str, Any], picked_team_size: int, known: bool) -> int:
+def alive(side: dict[str, Any], picked_team_size: int, known: bool) -> int:
     """How many Pokemon this side still has.
 
     Our own side is counted, because we can see it. The opponent's is derived as
@@ -199,6 +199,9 @@ def _alive(side: dict[str, Any], picked_team_size: int, known: bool) -> int:
 
     Both branches count over `_in_play`, and that is the fix. `remaining` on our
     side counts the registered six.
+
+    Public because `champions.search.policy_features` needs the same count and a
+    second implementation of it would be a second answer to "how many are left".
     """
     in_play = _in_play(side)
     if known:
@@ -271,8 +274,8 @@ def features(snapshot: dict[str, Any], picked_team_size: int = 4) -> dict[str, f
     """
     ours, theirs = snapshot["ours"], snapshot["theirs"]
 
-    our_alive = _alive(ours, picked_team_size, known=True)
-    their_alive = _alive(theirs, picked_team_size, known=False)
+    our_alive = alive(ours, picked_team_size, known=True)
+    their_alive = alive(theirs, picked_team_size, known=False)
 
     tailwind = _speed_control(snapshot["side_conditions"]) - _speed_control(
         snapshot["opponent_side_conditions"]

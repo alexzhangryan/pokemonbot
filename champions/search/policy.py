@@ -304,14 +304,14 @@ class HeuristicPolicy:
         so the same position always produces the same candidate set in the same
         order (`CLAUDE.md`: deterministic by default).
         """
-        position = _Position.read(state, self._dex, self._chart, self._hypothesis)
+        position = Board.read(state, self._dex, self._chart, self._hypothesis)
         ranked = sorted(
             (self._score(action, position) for action in actions),
             key=lambda scored: (-scored.score, scored.action["message"]),
         )
         return ranked[:k]
 
-    def _score(self, action: dict[str, Any], position: _Position) -> ScoredAction:
+    def _score(self, action: dict[str, Any], position: Board) -> ScoredAction:
         total = 0.0
         reasons: list[str] = []
         for index, slot in enumerate(action.get("slots", [])):
@@ -323,9 +323,7 @@ class HeuristicPolicy:
                 reasons.append(reason)
         return ScoredAction(action=action, score=total, reasons=tuple(reasons))
 
-    def _score_slot(
-        self, slot: dict[str, Any], index: int, position: _Position
-    ) -> tuple[float, str]:
+    def _score_slot(self, slot: dict[str, Any], index: int, position: Board) -> tuple[float, str]:
         kind = slot.get("kind")
 
         if kind == "switch":
@@ -355,7 +353,7 @@ class HeuristicPolicy:
         entry: dict[str, Any],
         slot: dict[str, Any],
         index: int,
-        position: _Position,
+        position: Board,
     ) -> tuple[float, str]:
         power = float(entry.get("basePower") or 0)
 
@@ -411,7 +409,7 @@ class HeuristicPolicy:
         entry: dict[str, Any],
         slot: dict[str, Any],
         index: int,
-        position: _Position,
+        position: Board,
     ) -> float:
         """`ATTACK_BASE`, plus what the average roll does, minus what it costs us.
 
@@ -445,7 +443,7 @@ class HeuristicPolicy:
         entry: dict[str, Any],
         slot: dict[str, Any],
         index: int,
-        position: _Position,
+        position: Board,
     ) -> bool:
         return any(
             position.damage_fraction(entry, index, side, target_slot) >= 1.0
@@ -460,7 +458,7 @@ class HeuristicPolicy:
         entry: dict[str, Any],
         slot: dict[str, Any],
         index: int,
-        position: _Position,
+        position: Board,
     ) -> tuple[float, str]:
         move_id = entry["id"]
 
@@ -493,7 +491,7 @@ class HeuristicPolicy:
 
 
 @dataclass
-class _Position:
+class Board:
     """One position, with the damage the heuristic keeps asking it about.
 
     Built once per `scored` call and thrown away. It exists because every
@@ -507,6 +505,20 @@ class _Position:
     a provider positions one at a time and a trace written before the snapshot
     existed has none, so the state-free path is the old base-power ordering
     rather than an exception.
+
+    Shared rather than private, because `champions.search.policy_features` asks
+    the same questions of the same position and a second implementation of them
+    is how a model quietly stops being served the inputs it was fit on. It is
+    named for what it is -- the board -- rather than for the policy that first
+    needed it.
+
+    `exact_stats` is the one thing the two callers differ on. During play our own
+    side carries a real spread; a replay carries a percentage and nothing else
+    (`champions.corpus.replay_state`). `HeuristicPolicy` uses the real spread and
+    keeps the numbers `docs/pruning-guard.md` reports. The learned provider sets
+    this False so that a position produces the same vector whether it was
+    reconstructed from a log or observed in a live battle -- the model is fit on
+    the hypothesis and must therefore be served the hypothesis.
     """
 
     dex: Dex
@@ -516,6 +528,7 @@ class _Position:
     ours: list[dict[str, Any] | None]
     theirs: list[dict[str, Any] | None]
     empty: bool
+    exact_stats: bool = True
     _units: dict[tuple[str, int], Combatant | None] = field(default_factory=dict)
     _damage: dict[tuple[str, int, str, str, int], float] = field(default_factory=dict)
     _threatened: dict[int, bool] = field(default_factory=dict)
@@ -527,9 +540,10 @@ class _Position:
         dex: Dex,
         chart: TypeChart,
         hypothesis: OpponentHypothesis,
-    ) -> _Position:
+        exact_stats: bool = True,
+    ) -> Board:
         if not state or "ours" not in state or "theirs" not in state:
-            return cls(dex, chart, hypothesis, {}, [], [], empty=True)
+            return cls(dex, chart, hypothesis, {}, [], [], empty=True, exact_stats=exact_stats)
         return cls(
             dex,
             chart,
@@ -538,6 +552,7 @@ class _Position:
             list(state["ours"]["active"]),
             list(state["theirs"]["active"]),
             empty=False,
+            exact_stats=exact_stats,
         )
 
     # -- what is on the field --------------------------------------------
@@ -553,8 +568,21 @@ class _Position:
         key = (side, index)
         if key not in self._units:
             view = self.view(side, index)
-            self._units[key] = None if view is None else combatant(view, self.hypothesis)
+            self._units[key] = None if view is None else self.combatant(view)
         return self._units[key]
+
+    def combatant(self, view: dict[str, Any]) -> Combatant:
+        """One Pokemon as the damage layer wants it.
+
+        With `exact_stats` False the exact spread is dropped before `combatant`
+        sees it, which sends our own side down the same hypothesis path the
+        opponent already takes. That is a deliberate loss of information at play
+        time: it is the only way the vector a model is served matches the vector
+        it was fit on, since a replay never contained the spread.
+        """
+        if not self.exact_stats and view.get("stats"):
+            view = {**view, "stats": None, "hp": None, "max_hp": None}
+        return combatant(view, self.hypothesis)
 
     def first_turn(self, index: int) -> bool:
         """Whether this slot came in this turn, which is when Fake Out works.
