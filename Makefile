@@ -15,7 +15,7 @@ VIEWER_PORT ?= 8100
 
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
-        scrape scrape-full corpus
+        scrape scrape-full corpus priors eval-belief
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -31,7 +31,7 @@ help:
 	@echo "make viewer        open the viewer; it starts the simulator and runs everything"
 	@echo ""
 	@echo "make server        start the local Showdown server (PORT=$(PORT))"
-	@echo "make play          run a bot that waits for a human challenge (AGENT=greedy|random)"
+	@echo "make play          run a bot that waits for a human challenge (AGENT=belief|oneply|greedy|random)"
 	@echo "make selfplay      run self-play games (GAMES=$(GAMES))"
 	@echo "make ladder        evaluate random vs max-base-power (GAMES=$(GAMES), SEED=$(SEED))"
 	@echo "make bench         benchmark the simulator, writes docs/benchmarks.md"
@@ -41,6 +41,9 @@ help:
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
 	@echo "make corpus        report what the corpus currently holds"
+	@echo "make priors        distil the corpus into the belief filter's set prior"
+	@echo ""
+	@echo "make eval-belief   measure the belief filter (TRACES=$(TRACES) TEAM=regmb-beta)"
 	@echo ""
 	@echo "make clean-traces  remove traces/ and runs/"
 
@@ -112,3 +115,9 @@ scrape-full:
 
 corpus:
 	$(PYTHON) scripts/scrape_replays.py --stats
+
+priors:
+	$(PYTHON) scripts/build_priors.py
+
+eval-belief:
+	$(PYTHON) scripts/eval_belief.py traces --trace-dir $(TRACES) --team $(or $(TEAM),regmb-beta)

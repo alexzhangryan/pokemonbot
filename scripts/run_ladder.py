@@ -22,6 +22,7 @@ from pathlib import Path
 from poke_env.ps_client import AccountConfiguration
 
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
+from champions.agents.belief_agent import BeliefAgent, BeliefMovesOnly, BeliefStatsOnly
 from champions.agents.oneply import OnePlyAgent
 from champions.dex.loader import Dex
 from champions.harness.ladder import AgentFactory, format_results_table, run_matchup
@@ -35,12 +36,18 @@ ARMS: dict[str, tuple[type[TracingPlayer], str]] = {
     "random": (RandomAgent, "random"),
     "greedy": (MaxBasePowerAgent, "max-base-power"),
     "oneply": (OnePlyAgent, "one-ply"),
+    "belief": (BeliefAgent, "one-ply-belief"),
+    # Ablations. M5 changes two things at once -- what the opponent's stats and
+    # effects are, and what the opponent's action columns are -- and a single
+    # head-to-head cannot say which one moved the number. These split it.
+    "belief-stats": (BeliefStatsOnly, "belief-stats-only"),
+    "belief-moves": (BeliefMovesOnly, "belief-moves-only"),
 }
 
 #: Agents that read their numbers from the resolved Champions dex. poke-env
 #: ships mainline Gen 9 data and 303 moves differ, so these cannot be built
 #: without it.
-NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent)
+NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent)
 
 
 def build_arm(name: str, port: int, team: str = ALPHA) -> tuple[str, AgentFactory]:

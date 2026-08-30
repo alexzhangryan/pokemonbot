@@ -18,6 +18,9 @@ data/corpus.sqlite-*
 data/replays/
 data/dex/*.json
 !data/dex/.gitkeep
+# The set prior is distilled from the corpus in under a second; the corpus is
+# the thing worth keeping. Rebuild with `make priors`.
+data/priors/
 
 # Traces and runs
 runs/

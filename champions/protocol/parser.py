@@ -537,6 +537,14 @@ def apply(state: ParserState, line: str) -> list[Observation]:  # noqa: C901
             event=kind.lstrip("-"),
             effect=effect_kind,
             via=tags.get("from"),
+            # The positional arguments past the effect name, untagged and
+            # unparsed. Most effects have none; the ones that do carry their
+            # payload here rather than in a field per message type. `typechange`
+            # is why this exists -- Protean rewrites a Pokemon's types mid-turn
+            # and the belief filter's damage inference is wrong about both STAB
+            # and effectiveness without it -- but the same slot serves any
+            # future effect whose arguments matter.
+            args=[a for a in args[2:] if not a.strip().startswith("[")] or None,
         )
     elif kind not in IGNORED:
         state.unhandled[kind] += 1

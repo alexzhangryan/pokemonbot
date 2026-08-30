@@ -44,6 +44,10 @@ cd ../..
 
 # The resolved Champions dex (gitignored, regenerated locally)
 .venv/Scripts/python.exe scripts/build_dex.py gen9championsvgc2026regmb --delta
+
+# The belief filter's set prior, distilled from the replay corpus (section 13).
+# Optional: without it the agents still play, with no belief.
+.venv/Scripts/python.exe scripts/build_priors.py
 ```
 
 Or, with `make`: `make venv`, then `make vendor` (clones, checks out the
@@ -163,7 +167,7 @@ The equivalent by hand, if you want the bot in its own terminal:
 
 ```powershell
 .venv/Scripts/python.exe scripts/run_local_server.py 8090        # or: make server
-.venv/Scripts/python.exe scripts/play_human.py --agent greedy    # or: make play
+.venv/Scripts/python.exe scripts/play_human.py --agent belief    # or: make play
 ```
 
 If you do it this way, point the viewer at the same directory the agent writes
@@ -359,21 +363,152 @@ switches in order) and `reveals` (the full observation stream). `actions` and
 `reveals` are both keyed on `(replay_id, seq)`, and `seq` is ordered, because the
 order moves resolve in is the only Speed evidence a replay contains.
 
-## 13. What is not built yet
+## 13. Build the belief filter's prior, and watch it work
 
-M0 through M3 are done. What that leaves:
+The belief filter (M5) is what turns "six species and nothing else" into a
+distribution over the opponent's items, abilities, moves, natures and stat
+points. It needs one artifact, distilled from the corpus in about a second:
 
-- No opponent model. The agent's belief about the opponent is "their revealed
-  moves, and nothing if they have revealed none", so on turn one the matrix game
-  has a single column. The belief filter is M5, and it is what the corpus was
-  built to feed.
-- No bring-4 or lead prediction, and no preview equilibrium. That is M4, and it
-  is next.
-- The evaluation function is hand-weighted and says so (`IS_CALIBRATED = False`).
-  M6 fits it and requires a reliability diagram before it is used anywhere.
+```bash
+make priors          # or: python scripts/build_priors.py
+```
+
+That writes `data/priors/setprior.<hash>.json` — gitignored, like the dex dump,
+because it is derived and the corpus is the thing worth keeping. Rebuild it
+whenever the corpus grows. Without it every agent still runs; the belief simply
+reports itself as unavailable and `battle_start` records `"belief": false`.
+
+With it built, the `belief` agent is available everywhere the others are:
+
+```bash
+python scripts/play_human.py --agent belief          # or: make play AGENT=belief
+python scripts/selfplay.py 10 --agent-a belief --agent-b oneply --team-a regmb-beta --team-b regmb-beta
+```
+
+and in the viewer's control panel, under both **Self-play** and **Play the bot**.
+
+### What to look at
+
+Open the viewer and pick a battle. The **Opponent** panel on the right is the
+belief. Per Pokemon it shows what has actually been revealed, then four ranked
+posteriors — item, ability, nature, moves — and then one bar per stat.
+
+Each bar has two marks on a 0–32 point scale. The wide translucent band is the
+union over live particles: the filter is not more certain about a stat than its
+least certain surviving hypothesis. The solid marker inside it is the modal
+particle's box, which is what the search actually reads. A marker much narrower
+than the band means the belief has concentrated; a band that never shrinks means
+nothing has been learned about the spread.
+
+The panel header carries the population: how many particles are alive, the
+effective sample size, and how many times the filter has resampled. A resample
+is normal — it happens when a reveal kills most of the population, and the new
+draw comes from the prior restricted to everything revealed so far.
+
+The four things worth doing by hand, because each exercises a different half:
+
+- **Watch an item get pinned.** Bring something with a Sitrus Berry and let it
+  proc. The item posterior for that Pokemon goes to 100%, and — this is the part
+  worth watching — that item drops out of the other five, because Item Clause
+  says a team holds one of each.
+- **Watch a move narrow.** Use a move the corpus rarely sees on that species.
+  The set posterior collapses onto whichever registered sets contain it, and if
+  none do, the filter falls back to composed sets rather than concluding the
+  Pokemon is impossible.
+- **Watch Speed narrow.** Outspeed something, or be outsped. A same-priority
+  ordering is a strict inequality against a Speed we know exactly, and it is
+  usually the first bar to move.
+- **Watch it be wrong.** Run a team the corpus has never seen. The prior will be
+  confidently wrong about items, and the reveals will correct it turn by turn.
+  That is the shape of the thing working.
+
+### Measure it, do not eyeball it
+
+```bash
+make eval-belief                                    # against data/teams/regmb-beta.txt
+python scripts/eval_belief.py corpus --replays 200  # against real ladder teams
+```
+
+Two evaluation sets, because neither covers the other. `traces` scores the
+`belief` events out of self-play traces against the team file the opponent
+actually played — the only source in the project that carries stat points, and
+therefore the only source of **interval coverage**. `corpus` runs the filter
+over stored forced-open-sheet Bo3 replays, where the registered set is stated at
+turn 0 and the filter is never shown it, which is where the item, ability,
+nature and moveset numbers come from.
+
+Coverage is the number to watch. It is the fraction of the time the true stat
+point value falls inside the maintained interval, and it is reported twice — for
+the box the search reads and for the union over particles. Below the nominal
+level means the filter is eliminating the truth, which `CLAUDE.md` constraint 5
+calls the single most likely source of a silent correctness bug in the system.
+The turn-1 row is the prior with no in-battle updating, so the difference
+between it and the last row is what the filter actually contributes.
+
+## 14. Fit the evaluation function
+
+The bar at the top of the viewer is a win probability, and it is only a
+probability because it has been fit and measured. Two commands, and they are
+separated because one takes hours and the other takes seconds.
+
+```bash
+make eval-games    # 750 self-play games -> runs/m6-selfplay/ (hours)
+make fit-eval      # fit both sources, ship one, write the diagram (seconds)
+```
+
+`make fit-eval` writes two files. `data/eval/weights.<format>.json` is what
+`champions/search/evaluate.py` loads on import — and its mere existence is what
+makes `IS_CALIBRATED` True, so there is no way to claim calibration without
+having run the fit that measures it. `docs/eval-calibration.md` is the
+reliability diagram `docs/04-decision-engine.md` section 5 requires before that
+number is read as a probability anywhere.
+
+Read the diagram before trusting the model. The number to watch is the expected
+calibration error, and beside it the per-bin table: for each band of predicted
+probability, how often the model said it and how often it was right. A model can
+improve its average log loss while being systematically overconfident, and
+overconfidence is the failure that matters, because the coach reports loss in
+probability units and the matrix game backs values up through this.
+
+Two things in that report are worth understanding rather than skimming:
+
+- **Every weight comes with a 95% interval, bootstrapped over battles.** A
+  weight whose interval spans zero is one that source did not settle the sign
+  of. This is not decoration: self-play on the two checked-in teams produced
+  `status_advantage` at -1.34 — the sign that says being burned is good — from
+  291 rows out of 11,774, and it looked exactly like the six numbers beside it.
+- **The shipping model is a blend, and says which weights came from where.**
+  Self-play is preferred (ladder outcomes are skill dominated, D39) but cannot
+  settle every weight from two teams that carry no Tailwind and no hazards, so
+  those come from the corpus. The blend is re-calibrated and re-measured, so the
+  diagram describes the model that ships.
+
+Without a weights file everything still works: the evaluation falls back to the
+hand-chosen weights, `IS_CALIBRATED` is False, and the viewer draws the bar
+hatched and labelled "not a probability". That path is the normal state of a
+fresh clone — the agent has to play before the fit has anything to read.
+
+## 15. What is not built yet
+
+M0 through M6 are done. What that leaves:
+
+- The preview equilibrium is built and exact, and its value function is not
+  wired into play: M4 could not fit one from replay outcomes, because skill
+  dominates at that sample size. Self-play is the recommended source, and M6
+  has now shown it works — with the caveat that two teams do not cover enough
+  of the game for every feature.
+- Search is one ply. The turn model scores a switch as giving up the turn, which
+  is a real and intended bias that depth would fix; M8 weighs depth against the
+  alternatives.
+- The policy layer has one provider, the heuristic. M7 benchmarks it against a
+  learned prior and a language model on decision quality, discard rate and
+  latency — and `policy.discard_rate`, the guard `docs/04` section 3 requires,
+  has still never been run against a real position.
 - No coach and no game review client. The live view (section 4) is built and
   renders everything the agent emits; the review overlay — move classification,
-  ex-ante and ex-post loss, explanations — is M9.
+  ex-ante and ex-post loss, explanations — is M9. Note that nothing currently
+  checks `IS_CALIBRATED` before reporting; whoever writes the coach has to
+  decide what it does when the flag is False.
 
 See `docs/STATUS.md` for where things actually stand and `docs/01-plan.md` for
 what comes next.

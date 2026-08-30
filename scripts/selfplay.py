@@ -14,7 +14,9 @@ from typing import Any
 from poke_env.ps_client import AccountConfiguration
 from poke_env.ps_client.server_configuration import ServerConfiguration
 
+from champions.agents import commands
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
+from champions.agents.belief_agent import BeliefAgent
 from champions.agents.oneply import OnePlyAgent
 from champions.dex.loader import Dex
 from champions.teams import ALPHA, BETA, available_teams, load_team
@@ -29,8 +31,14 @@ PROTOCOL_FAILURE_MARKERS = (
     "[Invalid choice]",
     "[Unavailable choice]",
     "lost due to inactivity",
-    "forfeited",
 )
+
+# A forfeit used to be counted with those, and it does not belong there. Nothing
+# in the agent concedes by accident: the only path to it is a deliberate request
+# over the control channel (`champions/agents/commands.py`), or the person on the
+# other side giving up. Both are events worth seeing and neither is a defect, so
+# they are collected separately rather than inflating a failure count.
+FORFEIT_MARKER = "forfeited"
 
 
 class ProtocolFailureWatcher(logging.Handler):
@@ -39,13 +47,16 @@ class ProtocolFailureWatcher(logging.Handler):
     def __init__(self) -> None:
         super().__init__(level=logging.NOTSET)
         self.failures: list[str] = []
+        self.forfeits: list[str] = []
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
             message = record.getMessage()
         except Exception:
             return
-        if any(marker in message for marker in PROTOCOL_FAILURE_MARKERS):
+        if FORFEIT_MARKER in message:
+            self.forfeits.append(message)
+        elif any(marker in message for marker in PROTOCOL_FAILURE_MARKERS):
             self.failures.append(message)
 
     def __enter__(self) -> ProtocolFailureWatcher:
@@ -65,11 +76,16 @@ def local_server(port: int) -> ServerConfiguration:
     )
 
 
-AGENTS = {"random": RandomAgent, "greedy": MaxBasePowerAgent, "oneply": OnePlyAgent}
+AGENTS = {
+    "random": RandomAgent,
+    "greedy": MaxBasePowerAgent,
+    "oneply": OnePlyAgent,
+    "belief": BeliefAgent,
+}
 
 # Agents that compute their numbers from the resolved Champions dex rather than
 # from poke-env's mainline data, and so cannot run without it built.
-NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent)
+NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent)
 
 
 def build_agent(kind: str, **kwargs: Any) -> TracingPlayer:
@@ -94,6 +110,7 @@ async def run_selfplay(
     agent_b: str = "random",
     team_a: str = ALPHA,
     team_b: str = BETA,
+    control_stdin: bool = False,
 ) -> tuple[TracingPlayer, TracingPlayer, list[str]]:
     """Play `n_games` between two agents.
 
@@ -103,6 +120,10 @@ async def run_selfplay(
     against each other -- greedy on BETA beats greedy on ALPHA 10-0 -- so a
     head-to-head between different teams measures the teams at least as much as
     the agents. See `docs/DECISIONS.md` D30.
+
+    With `control_stdin`, the run reads commands from stdin so its supervisor
+    can concede the current battle without killing the remaining games. See
+    `champions/agents/commands.py`.
 
     Returns both players and any Showdown protocol failures (invalid choice,
     inactivity timeout) seen during the run.
@@ -148,6 +169,9 @@ async def run_selfplay(
         **common,
     )
 
+    if control_stdin:
+        commands.listen([p1, p2])
+
     with ProtocolFailureWatcher() as watcher:
         await p1.battle_against(p2, n_battles=n_games)
         await p1.close_traces()
@@ -170,6 +194,11 @@ async def main() -> None:
     parser.add_argument("--agent-b", choices=sorted(AGENTS), default="random")
     parser.add_argument("--team-a", default=ALPHA, choices=available_teams())
     parser.add_argument("--team-b", default=BETA, choices=available_teams())
+    parser.add_argument(
+        "--control-stdin",
+        action="store_true",
+        help="read control commands (currently only 'forfeit') from stdin",
+    )
     args = parser.parse_args()
 
     p1, p2, failures = await run_selfplay(
@@ -181,6 +210,7 @@ async def main() -> None:
         agent_b=args.agent_b,
         team_a=args.team_a,
         team_b=args.team_b,
+        control_stdin=args.control_stdin,
     )
 
     print(f"finished: {p1.n_finished_battles}/{args.n_games} battles")
