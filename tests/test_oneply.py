@@ -137,11 +137,17 @@ async def test_the_pruned_candidates_carry_reasons_only_the_position_can_give(
     -- and the one that shipped through M6 read nothing but base power. Every
     reason below is one `BasePowerPolicy` cannot produce, so this fails if the
     agent ever goes back to pruning without the snapshot.
+
+    Content dependent, and deliberately over-provisioned because of it: the
+    reasons only appear if the games contain the positions that produce them.
+    Four games is about forty decisions, and a knockout candidate alone shows up
+    in almost every one -- at two games this failed intermittently, since the
+    simulator's RNG is not seeded by us and a short game can miss all four.
     """
     await run_matchup(
         build_arm("oneply", showdown_server, ALPHA),
         build_arm("greedy", showdown_server, ALPHA),
-        2,
+        4,
         tmp_path,
         seed=21,
     )
