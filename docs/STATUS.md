@@ -836,34 +836,43 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-`HEAD` is `f0a8cca`, "M4: bring-4, leads, and the preview equilibrium". **M5,
-M6, the viewer's forfeit work, the pruning guard and the specified policy A are
-all uncommitted**, in the working tree only. Five commits, in this order, would
-give readable history:
+**Nothing of Claude Code's.** Everything through the specified implementation A
+is committed, on `main`, as of `298db52`:
 
 | commit | what is in it |
 | --- | --- |
-| viewer (D49, D50) | `champions/agents/commands.py`, `tests/test_commands.py`, edits to the supervisor, the server, the page and both run scripts |
-| M5 | everything under `champions/belief/`, `champions/agents/belief_agent.py`, `scripts/build_priors.py`, `scripts/eval_belief.py`, `tests/test_belief.py`, edits to the parser, payoff, policy, both agents, the viewer, the Makefile and three docs |
-| M6 | `champions/search/positions.py`, `champions/search/fit.py`, `scripts/fit_eval.py`, `tests/test_positions.py`, `tests/test_fit.py`, `data/eval/weights.*.json`, `docs/eval-calibration.md`, edits to `evaluate.py`, `state.py`, `baseline.py`, `tests/test_evaluate.py` |
-| the pruning guard | `champions/search/discard.py`, `scripts/discard_rate.py`, `tests/test_discard.py`, `data/eval/discard.*.json`, `docs/pruning-guard.md`, edits to the Makefile and `CLAUDE.md` |
-| the specified A (D61, D62) | `tests/test_policy.py`, edits to `champions/search/policy.py`, `payoff.py`, `discard.py`, `champions/protocol/state.py`, `champions/agents/oneply.py`, `scripts/discard_rate.py`, `tests/test_discard.py`, `tests/test_oneply.py`, `tests/test_observability.py`, and the regenerated `docs/pruning-guard.md` and `data/eval/discard.*.json` |
+| `96887af` | the viewer's forfeit work and its control channel (D49, D50) |
+| `0e64f02` | M5, the belief filter |
+| `c99b73c` | M6, the fitted evaluation |
+| `d02659d` | the pruning guard and the specified implementation A (D61, D62) |
+| `298db52` | `.gitignore` for the agent tooling and the Spartan API key file |
 
-The viewer commit is independent and could land first. The last one is the only
-one that is genuinely separable — it is this session's work and nothing before it
-depends on it. None of the other four is individually runnable in the sense of
-passing on its own, for the same reason M1 through M3 were not: the work arrived
-as one mass and `champions/agents/baseline.py` carries much of it in a single
-diff. The split is for readable history rather than for bisecting.
+Four commits of work rather than the five the earlier plan named, and the
+reason is worth recording so nobody goes looking for the fifth. The guard and
+the specified A could not be separated: this session rewrote
+`discard.py`, `policy.py`, `discard_rate.py`, `test_discard.py` and
+`pruning-guard.md` — every file the guard commit would have contained — so
+splitting them would have meant reconstructing an intermediate state that had
+never existed on disk. `Makefile` and `CLAUDE.md` *were* split, because each
+commit's version of them could be derived exactly by removing later
+milestones' lines, and staging the final version everywhere would have put
+`make discard` in the M5 commit.
 
-Commits in this repository carry no `Co-Authored-By` trailer. Five that did were
-rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
+None of the first three is individually runnable, for the same reason M1
+through M3 were not: the work arrived as one mass and
+`champions/agents/baseline.py` carries much of it in a single diff. The split
+is for readable history rather than for bisecting. The whole suite passes at
+`298db52`: 377 tests.
+
+Commits in this repository carry no `Co-Authored-By` trailer. Five that did
+were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
 byte-identical before and after, only the messages changed.
 
-Uncommitted and not Claude Code's: `data/teams/regmb-beta.txt` has been replaced
-with a different six, and `.gitignore` has three added lines. Uncommitted and
-deliberately so: `.claude/`, `.agents/` and `skills-lock.json`, which are tooling
-configuration rather than project work.
+**Still uncommitted, and not Claude Code's:** `data/teams/regmb-beta.txt` has
+been replaced with a different six. Left alone deliberately — it is a change to
+the evaluation's inputs and whether it lands is Alex's call, not a loose end.
+
+**Not pushed yet.** `origin/main` is still at `f0a8cca`.
 
 ## Next action
 
