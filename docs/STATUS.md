@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-08-29, by Claude Code.
+Last updated: 2026-08-30, by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
@@ -12,9 +12,13 @@ browser.
 
 ## Current milestone
 
-**M0 through M6 are done. M7, the policy provider benchmark, is next**, and the
-thing D55 said to do first — build the implementation A `docs/04-decision-engine.md`
-section 3 actually specifies — is done and measured. See **Next action**.
+**M0 through M6 are done. M7, the policy provider benchmark, is in progress.**
+The thing D55 said to do first — build the implementation A
+`docs/04-decision-engine.md` section 3 actually specifies — is done and measured
+(D61). Implementation B is specified in
+`docs/specs/2026-08-29-learned-policy-provider.md` and its first two steps are
+built: the corpus-side state reconstruction, and the feature function that
+serves both the trainer and the live agent. See **Next action**.
 
 | | what it delivered | where it is measured |
 | --- | --- | --- |
@@ -28,6 +32,7 @@ section 3 actually specifies — is done and measured. See **Next action**.
 | M6 | the fitted, calibrated evaluation function | `docs/eval-calibration.md` |
 | — | the pruning guard, run against real positions | `docs/pruning-guard.md` |
 | — | the specified implementation A, built and measured against the old one (D61) | `docs/pruning-guard.md` |
+| M7 | in progress: implementation B's state reconstruction and feature path (D63, D64) | `tests/test_replay_state.py`, `tests/test_policy_features.py` |
 
 Three milestones in a row have produced negative results worth more than their
 code, and they compose into one reading.
@@ -806,7 +811,7 @@ Nothing.
 
 ## Tests
 
-**377 pass in about 150s**, whole suite, as of 2026-08-29. One is known flaky.
+**401 pass in about 165s**, whole suite, as of 2026-08-30. One is known flaky.
 
 `make lint` and `ruff format --check` are clean. **`make typecheck` is not**:
 `mypy .` reports 45 errors across 11 files, and `make check` therefore fails on
@@ -815,7 +820,8 @@ its second step. None are in the newer modules — the concentrations are
 `search/fit.py` and `search/matrix.py` (4 each), mostly poke-env kwargs and
 numpy/scipy stub friction. Long-standing, nobody's this session, and worth a
 pass of its own rather than a line here. The count is unchanged by this
-session's work: the five modules it touched typecheck clean.
+session's work and by the one before it: every module either has touched
+typechecks clean.
 
 `tests/test_oneply.py::test_the_agent_beats_max_base_power_on_the_same_team`
 asserts the one ply agent wins more than 5 of 10 games; D48 measures that agent
@@ -836,8 +842,8 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing of Claude Code's.** Everything through the specified implementation A
-is committed, on `main`, as of `298db52`:
+**Nothing of Claude Code's.** Everything through implementation B's feature path
+is committed, on `main`, as of `4b946d7`:
 
 | commit | what is in it |
 | --- | --- |
@@ -846,6 +852,10 @@ is committed, on `main`, as of `298db52`:
 | `c99b73c` | M6, the fitted evaluation |
 | `d02659d` | the pruning guard and the specified implementation A (D61, D62) |
 | `298db52` | `.gitignore` for the agent tooling and the Spartan API key file |
+| `53a9e15` | the commit split recorded in this file |
+| `8a9c00d` | the implementation B spec |
+| `cafb64d` | M7 step 1: the corpus-side state reconstruction |
+| `4b946d7` | M7 step 2: the shared feature path (D63, D64) |
 
 Four commits of work rather than the five the earlier plan named, and the
 reason is worth recording so nobody goes looking for the fifth. The guard and
@@ -872,28 +882,62 @@ byte-identical before and after, only the messages changed.
 been replaced with a different six. Left alone deliberately — it is a change to
 the evaluation's inputs and whether it lands is Alex's call, not a loose end.
 
-**Not pushed yet.** `origin/main` is still at `f0a8cca`.
+**Not pushed yet.** `origin/main` is still at `53a9e15`. It has neither M7 step,
+nor the spec they implement, nor this file's update.
 
 ## Next action
 
-**M7: the policy provider benchmark**, and the thing D55 said to do first is
-done. `docs/08-implementation-blueprint.md` puts heuristic against learned prior
-against language model, measured identically on decision quality, discard rate
-and latency. `champions/search/policy.py` now has `PolicyProvider` and two
-implementations of A, both measured; the work is B and C.
+**M7, implementation B, step 3: the training set and the fit.**
+`docs/specs/2026-08-29-learned-policy-provider.md` section 4 orders the work in
+four steps and the first two are done and committed:
 
-The harness is finished rather than half-finished. `discard.measure_many` takes
-a mapping of provider name to `keep` callable and measures every one of them
-against a single solve of each position, so adding B is a dict entry in
-`scripts/discard_rate.py`'s `PROVIDERS` and adding C is another. Section 3 asks
-for the providers to be benchmarked *identically*, and that is now what the
-harness does rather than what a reader has to assume about two separate runs.
+| step | what it is | state |
+| --- | --- | --- |
+| 1 | `champions/corpus/replay_state.py`, each player's view rebuilt from a log | done, `cafb64d` |
+| 2 | `champions/search/policy_features.py`, one feature path for both callers | done, `4b946d7` |
+| 3 | `scripts/fit_policy.py` and the model. First number: top-`k` recall against A | **next** |
+| 4 | `LearnedPolicy`, then `make discard` for the three-way table | after 3 |
+
+Step 3 is a checkpoint rather than a stage on the way to step 4. If recall on
+held-out players is at or below A's, that is the result and it is reportable on
+its own; step 4 then confirms it cheaply rather than hoping for a different
+answer. Section 3.4 fixes the parts that are decisions rather than code — split
+by *player* and not by replay, rated replays with both players at or above the
+75th percentile recomputed at fit time, intervals bootstrapped over battles, and
+the 621 closed-sheet replays held back as a separate line.
+
+What step 2 leaves for step 3 to be careful about:
+
+- **The features are computed on the assumed spread, not the real one (D63).**
+  This is the whole reason the two paths agree, and it means B is handed
+  approximate damage on our own side where A is handed exact damage. If B loses,
+  re-measuring A with `exact_stats=False` separates "the model is worse" from
+  "the model was blindfolded", and it is one flag.
+- **Switch options carry one number about the Pokemon coming in.** Its health,
+  and nothing else. Every switch out of a slot otherwise has an identical
+  vector, which is A's defect too (`policy.SWITCH` is a constant). First thing
+  to extend if B loses to A on positions that wanted a switch.
+- **The corpus half of the label is noisy by construction** and no amount of it
+  helps. Spec section 2: the corpus is open-sheet play, the agent declines open
+  sheets, so a human who switched because they could see a Choice Scarf made a
+  choice the features cannot explain.
+
+The harness step 4 lands in is finished rather than half-finished.
+`discard.measure_many` takes a mapping of provider name to `keep` callable and
+measures every one of them against a single solve of each position, so adding B
+is a dict entry in `scripts/discard_rate.py`'s `PROVIDERS` and adding C is
+another. Section 3 asks for the providers to be benchmarked *identically*, and
+that is what the harness does rather than what a reader has to assume about two
+separate runs.
+
+C, the language model provider, is still blocked on a model API key and is not
+in the B spec's scope.
 
 Read before starting, in this order:
 
 1. `docs/pruning-guard.md`. The numbers to beat are 0.174 discarded mass and
-   0.008 value loss at `k = 10`, not the 0.639 and 0.061 that were there before
-   this session. The old policy is still in the table as
+   0.008 value loss at `k = 10`, not the 0.639 and 0.061 D61 replaced. The old
+   policy is still in the table as
    `heuristic-base-power`, which is what a benchmark against a weak baseline
    would have looked like.
 2. M6's discipline. It moved the evaluation from "the ordering is
@@ -1060,6 +1104,26 @@ Three things that read as questions and are not.
   base stats from the dex for whichever forme is on the field (D45); the payoff
   model does not, and has been reading base-forme stats for opponents since M2.
   Fixing it at the source fixes both at once.
+
+  **The entry as written may be wrong, and it now matters more.** D64 made the
+  corpus-side reconstruction track `|-formechange|` and `|detailschange|`,
+  because Aegislash's Stance Change swaps 140 Attack for 50 and the M7 feature
+  vectors disagreed by a factor of two until it did. Checking the live side
+  against poke-env's source for the same reason,
+  `Pokemon.mega_evolve` calls `_update_from_pokedex(mega_species,
+  store_species=False)`, which *does* replace `_base_stats` while leaving
+  `species` on the base name — the same shape as the forme change, and the
+  opposite of what this entry says. Either the original observation was of
+  something else, or it predates this poke-env version.
+
+  Two things follow. Someone has to re-measure it in a game where a Mega
+  actually evolves, rather than either of us reasoning from source; the M6
+  self-play teams carry a Charizard that never evolves, so no existing trace
+  settles it. And there is a second defect visible in the same three lines
+  regardless of how that comes out: `_update_from_pokedex` reads poke-env's
+  **mainline Gen 9 pokedex**, so whatever base stats a Mega gets in a snapshot
+  are mainline's rather than the Champions mod's. `CLAUDE.md` constraint 1 says
+  never to take a number from poke-env, and this is a path that does.
 - **`scripts/selfplay.py` and `scripts/run_ladder.py` collide on Showdown
   usernames.** Two runs against one server both hang, and a killed run leaves the
   name held until the local server restarts. `run_selfplay` already takes
