@@ -20,9 +20,15 @@ from typing import Any
 import pytest
 
 from champions.search.evaluate import (
+    BOOTSTRAP_WEIGHTS,
     IS_CALIBRATED,
+    MODEL,
+    WEIGHTS,
+    WEIGHTS_PATH,
+    Model,
     evaluate,
     features,
+    load_model,
     win_prob,
 )
 
@@ -247,7 +253,22 @@ def test_picked_team_size_is_honoured() -> None:
 def test_each_feature_moves_the_evaluation_the_right_way(
     feature: str, better: dict[str, Any], worse: dict[str, Any]
 ) -> None:
-    """Monotonicity is the only claim the hand-chosen weights actually make."""
+    """Every feature the model has an opinion about points the right way.
+
+    Under the hand-chosen weights this held for all seven, because all seven were
+    chosen positive. M6 fit them, and the fit does not have an opinion about all
+    seven: `hazard_advantage` came back with its sign undetermined by 750
+    self-play battles *and* by 25,000 corpus ones, so it ships at zero. Asserting
+    monotonicity there would be asserting a belief nothing measured supports.
+
+    So the claim is conditional on the weight, and a weight of zero is checked to
+    be an actual zero rather than a feature quietly dropped from the model.
+    """
+    weight = WEIGHTS.get(feature)
+    assert weight is not None, f"{feature} is not in the model at all"
+    if weight == 0.0:
+        assert win_prob(_snapshot(**better)) == win_prob(_snapshot(**worse)), feature
+        return
     assert win_prob(_snapshot(**better)) > win_prob(_snapshot(**worse)), feature
 
 
@@ -273,8 +294,42 @@ def test_features_and_value_come_back_together() -> None:
     assert result.win_prob == pytest.approx(win_prob(_snapshot()))
 
 
-def test_the_bootstrap_evaluation_declares_itself_uncalibrated() -> None:
-    """Load bearing: the coach reports ex-ante loss in probability units and
-    must not do that with hand-chosen weights (`docs/04` section 5)."""
-    assert IS_CALIBRATED is False
-    assert evaluate(_snapshot()).calibrated is False
+def test_calibration_is_claimed_only_when_it_has_been_measured() -> None:
+    """Load bearing: the coach reports ex-ante loss in probability units and must
+    not do that with hand-chosen weights (`docs/04` section 5).
+
+    Asserted as the invariant rather than as a constant. Before M6 this test said
+    `IS_CALIBRATED is False`, which stops being a check the moment the fit lands
+    -- either it fails and gets edited to True, and then nothing tests anything,
+    or it silently passes because someone flipped the flag by hand. What must
+    hold at every milestone is that the flag agrees with whether a fitted weights
+    file exists, since that file is written by the same run that writes the
+    reliability diagram.
+    """
+    fitted = WEIGHTS_PATH("gen9championsvgc2026regmb").is_file()
+    assert IS_CALIBRATED is fitted
+    assert evaluate(_snapshot()).calibrated is fitted
+    if not fitted:
+        assert MODEL.source == "bootstrap"
+
+
+def test_an_absent_fit_falls_back_to_the_bootstrap_and_says_so() -> None:
+    """A fresh clone has no weights file: the agent has to play before the fit
+    has anything to read. That path must work and must not claim calibration."""
+    model = load_model("nosuchformat")
+    assert model.calibrated is False
+    assert model.source == "bootstrap"
+    assert model.weights == BOOTSTRAP_WEIGHTS
+    assert model.platt_a == 1.0 and model.platt_b == 0.0
+
+
+def test_a_fitted_model_applies_its_platt_terms() -> None:
+    """The calibration is not decoration. A model whose Platt slope is not 1
+    must produce a different number from its raw weights, or the scaling fit on
+    the validation split is being computed and then thrown away.
+    """
+    raw = Model(weights={"pokemon_advantage": 1.0})
+    scaled = Model(weights={"pokemon_advantage": 1.0}, platt_a=0.5, platt_b=0.25)
+    vector = {"pokemon_advantage": 2.0}
+    assert raw.log_odds(vector) == pytest.approx(2.0)
+    assert scaled.log_odds(vector) == pytest.approx(1.25)

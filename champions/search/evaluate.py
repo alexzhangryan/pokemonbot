@@ -6,12 +6,14 @@ calibrated as a probability rather than merely monotone, cheap because it sits
 in the innermost loop, and eventually trained on replay outcomes rather than
 hand tuned.
 
-This is the bootstrap version and it meets exactly one of those three. It is
-cheap. It is **not calibrated**, and `IS_CALIBRATED` says so in a way callers
-can check, because the coach's ex-ante loss and the eval bar both interpret this
-number as a probability and would report confident nonsense if handed an
-uncalibrated one. M6 replaces the weights with a fit model and a reliability
-diagram; the interface and the features do not change.
+Which of the three it meets depends on whether M6 has been run here. It is
+always cheap. The weights are fit and the number is a calibrated probability
+when `data/eval/weights.<format>.json` exists, which is written by
+`scripts/fit_eval.py` in the same run that writes `docs/eval-calibration.md`;
+without that file it falls back to `BOOTSTRAP_WEIGHTS` and `IS_CALIBRATED` is
+False. There is no way to claim calibration without having measured it, which
+matters because the coach's ex-ante loss and the eval bar both read this number
+as a probability and would report confident nonsense given an uncalibrated one.
 
 It reads the trace snapshot (`champions.protocol.state.snapshot`) rather than a
 poke-env battle. That decouples it from the transport, and it means the coach
@@ -24,24 +26,32 @@ are alive but invisible. Counting only revealed Pokemon would score a fresh
 opponent as nearly dead, so the surviving count is derived from the format's
 picked team size minus observed faints, which is exact because faints are always
 announced.
+
+The symmetry that also matters, and was missing until M6 measured it: only the
+Pokemon that were *brought* count on either side. Reg M-B registers six and
+brings four, and poke-env keeps all six in `battle.team` for the whole game, so
+our side was being counted as six against an opponent who could only be counted
+as four. Turn 1 of a dead-even position scored 0.996. Nothing in the output said
+so, and fitting weights over the broken features would have absorbed it into an
+intercept rather than revealed it. See `_in_play`.
 """
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
-#: Whether `win_prob` may be read as a probability. False until M6 fits the
-#: weights to replay outcomes and produces a reliability diagram. The coach
-#: checks this before reporting an ex-ante loss in probability units.
-IS_CALIBRATED = False
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "eval"
 
-#: Feature weights, in log odds. Hand chosen, not fit -- the ordering they
-#: encode is uncontroversial (being ahead on Pokemon is worth more than being
-#: ahead on HP, which is worth more than field control) but the magnitudes are
-#: guesses, which is the whole reason `IS_CALIBRATED` is False.
-WEIGHTS: dict[str, float] = {
+#: Feature weights, in log odds. These are the fallback: hand chosen, not fit.
+#: The ordering they encode is uncontroversial (being ahead on Pokemon is worth
+#: more than being ahead on HP, which is worth more than field control) but the
+#: magnitudes are guesses, which is why a position scored with them is not a
+#: probability. `load_weights` replaces them with the M6 fit when it is present.
+BOOTSTRAP_WEIGHTS: dict[str, float] = {
     "pokemon_advantage": 1.10,
     "hp_advantage": 1.60,
     "active_hp_advantage": 0.55,
@@ -74,6 +84,72 @@ SPEED_CONTROL_SIDE_CONDITIONS = {"TAILWIND"}
 HAZARDS = {"STEALTH_ROCK", "SPIKES", "TOXIC_SPIKES", "STICKY_WEB"}
 
 
+def format_key(format_id: str) -> str:
+    """A format id as it appears in a weights filename."""
+    return format_id.lower()
+
+
+def WEIGHTS_PATH(format_id: str) -> Path:  # noqa: N802 - a path, named like one
+    return DATA_DIR / f"weights.{format_key(format_id)}.json"
+
+
+@dataclass(frozen=True)
+class Model:
+    """What `evaluate` scores with: weights, and whether they were fit.
+
+    `calibrated` is not a setting. It is True exactly when the weights came from
+    a file that `scripts/fit_eval.py` wrote, which is the same run that wrote the
+    reliability diagram `docs/04-decision-engine.md` section 5 requires. There is
+    deliberately no way to assert calibration without having measured it.
+    """
+
+    weights: dict[str, float]
+    platt_a: float = 1.0
+    platt_b: float = 0.0
+    calibrated: bool = False
+    source: str | None = None
+    fitted_at: str | None = None
+
+    def log_odds(self, vector: dict[str, float]) -> float:
+        raw = sum(self.weights.get(name, 0.0) * value for name, value in vector.items())
+        return self.platt_a * raw + self.platt_b
+
+
+def load_model(format_id: str = "gen9championsvgc2026regmb") -> Model:
+    """The fitted model if M6 has been run, the hand-written one otherwise.
+
+    Missing weights are not an error. The agent has to run before the fit does:
+    `scripts/fit_eval.py` reads self-play traces, which means a game has to be
+    played with the bootstrap weights in order to produce the data the fit needs.
+    So the fallback is the bootstrap, loudly uncalibrated.
+    """
+    path = WEIGHTS_PATH(format_id)
+    if not path.is_file():
+        return Model(weights=dict(BOOTSTRAP_WEIGHTS), calibrated=False, source="bootstrap")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    platt = payload.get("platt", {})
+    return Model(
+        weights={str(k): float(v) for k, v in payload["weights"].items()},
+        platt_a=float(platt.get("a", 1.0)),
+        platt_b=float(platt.get("b", 0.0)),
+        calibrated=True,
+        source=payload.get("source"),
+        fitted_at=payload.get("fitted_at"),
+    )
+
+
+MODEL = load_model()
+
+#: The weights actually in use. Kept as a module-level name because the viewer,
+#: the coach and several tests read it.
+WEIGHTS: dict[str, float] = MODEL.weights
+
+#: Whether `win_prob` may be read as a probability. True once M6's fit is on
+#: disk, because that is the run that produced the reliability diagram. The
+#: coach checks this before reporting an ex-ante loss in probability units.
+IS_CALIBRATED = MODEL.calibrated
+
+
 @dataclass(frozen=True)
 class Evaluation:
     """A position's value, with the features that produced it.
@@ -86,23 +162,48 @@ class Evaluation:
     win_prob: float
     log_odds: float
     features: dict[str, float]
-    calibrated: bool = IS_CALIBRATED
+    #: Whether this number may be read as a probability. Carried on the value
+    #: rather than looked up beside it, so a stored evaluation still says what
+    #: it was worth when it was made.
+    calibrated: bool = False
+
+
+def _in_play(side: dict[str, Any]) -> list[dict[str, Any]]:
+    """The Pokemon on this side that can actually take part in the battle.
+
+    Reg M-B registers six and brings four, and poke-env's `battle.team` holds
+    all six for the whole game. Counting the two that were left behind is not a
+    small error: it made our side worth six Pokemon against an opponent that can
+    only ever be counted as four, which scored turn 1 of a dead-even position at
+    a win probability of 0.996 before a single move was chosen.
+
+    `selected` is recorded by `champions/protocol/state.py` for our side only --
+    the opponent's bring is not observable, and does not need to be, because
+    their count is derived from faints instead. A snapshot written before that
+    field existed carries no `selected` on any Pokemon, and is passed through
+    unfiltered rather than silently dropping the whole side; `docs/07` and
+    `champions/search/positions.py` treat such a trace as unfit for fitting.
+    """
+    seen = [p for p in side["active"] if p is not None] + list(side["bench"])
+    brought = [p for p in seen if p.get("selected")]
+    return brought or seen
 
 
 def _alive(side: dict[str, Any], picked_team_size: int, known: bool) -> int:
     """How many Pokemon this side still has.
 
-    For our own side the snapshot is complete and `remaining` is the answer. For
-    the opponent it counts only what has been revealed, so an opponent who has
-    shown two Pokemon and lost neither would score as having two rather than
-    four. Faints are always announced, so picked size minus observed faints is
-    exact regardless of how much has been revealed.
+    Our own side is counted, because we can see it. The opponent's is derived as
+    the bring minus their observed faints, because we cannot: an opponent who has
+    shown two Pokemon and lost neither must not score as having two. Faints are
+    always announced, so the derivation is exact however little has been revealed.
+
+    Both branches count over `_in_play`, and that is the fix. `remaining` on our
+    side counts the registered six.
     """
+    in_play = _in_play(side)
     if known:
-        return int(side["remaining"])
-    seen = [p for p in side["active"] if p is not None] + list(side["bench"])
-    fainted = sum(1 for p in seen if p["fainted"])
-    return max(0, picked_team_size - fainted)
+        return sum(1 for p in in_play if not p["fainted"])
+    return max(0, picked_team_size - sum(1 for p in in_play if p["fainted"]))
 
 
 def _hp_total(side: dict[str, Any], picked_team_size: int, known: bool) -> float:
@@ -112,10 +213,10 @@ def _hp_total(side: dict[str, Any], picked_team_size: int, known: bool) -> float
     speak: opponent HP arrives quantized to percent and their maximum is never
     known. Unrevealed Pokemon are counted at full health, which is what they are.
     """
-    seen = [p for p in side["active"] if p is not None] + list(side["bench"])
-    total = sum(0.0 if p["fainted"] else p["hp_pct"] / 100.0 for p in seen)
+    in_play = _in_play(side)
+    total = sum(0.0 if p["fainted"] else p["hp_pct"] / 100.0 for p in in_play)
     if not known:
-        unrevealed = max(0, picked_team_size - len(seen))
+        unrevealed = max(0, picked_team_size - len(in_play))
         total += float(unrevealed)
     return total
 
@@ -203,17 +304,17 @@ def evaluate(snapshot: dict[str, Any], picked_team_size: int = 4) -> Evaluation:
     if vector["faint_swing"] < 0:
         return Evaluation(0.0, -math.inf, vector)
 
-    # `faint_swing` is deliberately absent from WEIGHTS: it is handled by the
-    # short circuit above rather than by a weight, because a wiped side is a
+    # `faint_swing` is deliberately absent from the weights: it is handled by
+    # the short circuit above rather than by a weight, because a wiped side is a
     # decided game and not a very large advantage.
-    log_odds = sum(WEIGHTS.get(name, 0.0) * value for name, value in vector.items())
-    return Evaluation(_sigmoid(log_odds), log_odds, vector)
+    log_odds = MODEL.log_odds(vector)
+    return Evaluation(_sigmoid(log_odds), log_odds, vector, MODEL.calibrated)
 
 
 def win_prob(snapshot: dict[str, Any], picked_team_size: int = 4) -> float:
     """The interface `docs/08-implementation-blueprint.md` section 3 names.
 
-    Not calibrated until M6. See `IS_CALIBRATED`.
+    Readable as a probability only when `IS_CALIBRATED`; see `load_model`.
     """
     return evaluate(snapshot, picked_team_size).win_prob
 

@@ -92,3 +92,4 @@ tests/
 | How do I set it up and run it | `docs/QUICKSTART.md` |
 | What actually differs from mainline | `docs/dex-delta.md` |
 | How fast is the simulator here | `docs/benchmarks.md` |
+| Is the evaluation function actually calibrated | `docs/eval-calibration.md` |

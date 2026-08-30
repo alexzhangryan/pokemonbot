@@ -12,7 +12,10 @@ gets the full observability surface without opting into it.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import math
 import random
+import time
 from collections.abc import Callable
 from functools import cache
 from typing import Any
@@ -20,10 +23,18 @@ from typing import Any
 from poke_env.battle import AbstractBattle, DoubleBattle
 from poke_env.concurrency import handle_threaded_coroutines
 from poke_env.player import Player
-from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, DoubleBattleOrder
+from poke_env.player.battle_order import (
+    BattleOrder,
+    DefaultBattleOrder,
+    DoubleBattleOrder,
+    _EmptyBattleOrder,
+)
 
+from champions.belief.filter import BattleBelief
+from champions.belief.priors import PriorNotBuiltError, SetPrior
 from champions.dex.loader import Dex, DexNotBuiltError
 from champions.protocol import actions, parser, state
+from champions.search.evaluate import evaluate
 from champions.search.watchdog import AnytimeDecision, decide_with_deadline
 from champions.trace.schema import EventType
 from champions.trace.writer import Trace
@@ -66,6 +77,8 @@ class TracingPlayer(Player):
         decision_deadline_s: float = DEFAULT_DECISION_DEADLINE_S,
         seed: int | None = None,
         dex: Dex | None = None,
+        prior: SetPrior | None = None,
+        belief: bool = True,
         on_battle_end: Callable[[AbstractBattle], None] | None = None,
         **kwargs: Any,
     ) -> None:
@@ -88,6 +101,20 @@ class TracingPlayer(Player):
         # nickname bound on turn 1 has to still resolve on turn 20.
         self._parsers: dict[str, parser.ParserState] = {}
         self._dex = dex if dex is not None else _load_dex_if_built(self.format)
+
+        # The belief filter is on by default and lives in the base class, for
+        # the same reason the rest of the emission does: a new agent should get
+        # the whole observability surface without opting into it, and the
+        # `belief` panel is the most useful debugging surface in the system once
+        # it exists (`docs/07-observability.md`). It costs a few milliseconds a
+        # turn against a 45 second budget.
+        #
+        # It needs both the dex and a built prior. Missing either is a normal
+        # state -- a fresh checkout has no corpus -- so it degrades to no belief
+        # rather than refusing to play, and `battle_start` records which.
+        self._prior = prior if prior is not None else (_load_prior_if_built() if belief else None)
+        self._beliefs: dict[str, BattleBelief] = {}
+        self._belief_enabled = bool(belief and self._dex is not None and self._prior is not None)
         # Lets a caller report progress as a run proceeds. poke-env only returns
         # once every battle is done, so without this a long run is silent until
         # it ends -- which is exactly when progress stops being useful.
@@ -128,6 +155,28 @@ class TracingPlayer(Player):
     async def _close_traces(self) -> None:
         for trace in self._traces.values():
             await trace.close()
+
+    # -- conceding -------------------------------------------------------
+
+    async def forfeit_active(self) -> list[str]:
+        """Concede every battle currently in progress, and report which.
+
+        This is the only thing in the agent that can end a battle without
+        playing it out, and it exists for one situation: a game has gone long or
+        gone wrong and what you want is the *next* game, not the death of the
+        run. Killing the process was the previous answer and it is the wrong
+        granularity -- it takes the remaining games with it.
+
+        `/forfeit` is a room command rather than a move, so it goes out through
+        the client directly instead of through `choose_move`. Nothing about the
+        decision pipeline is involved and no trace event claims a decision was
+        made: the battle simply ends, and `_battle_finished_callback` emits the
+        `battle_end` it would have emitted for any other loss.
+        """
+        tags = [tag for tag, battle in self._battles.items() if not battle.finished]
+        for tag in tags:
+            await self.ps_client.send_message("/forfeit", tag)
+        return tags
 
     # -- protocol log ----------------------------------------------------
 
@@ -172,6 +221,35 @@ class TracingPlayer(Player):
             observations.extend(parser.apply(state_for_battle, line))
         return observations
 
+    # -- belief ----------------------------------------------------------
+
+    def belief_for(self, battle: AbstractBattle) -> BattleBelief | None:
+        """This battle's belief, created on first use. None when unavailable.
+
+        Created lazily rather than at construction because it is seeded from the
+        opponent's previewed six, which do not exist until the battle does. The
+        seed is derived per battle so a replayed battle rebuilds the same
+        particles -- the same reason `OnePlyAgent` derives its equilibrium draw
+        per decision rather than from a shared generator (D31).
+        """
+        if not self._belief_enabled or self._dex is None or self._prior is None:
+            return None
+        tag = battle.battle_tag
+        if tag not in self._beliefs:
+            preview = [p.species for p in battle.teampreview_opponent_team]
+            if not preview:
+                preview = [p.species for p in battle.opponent_team.values()]
+            if not preview:
+                return None
+            self._beliefs[tag] = BattleBelief(
+                dex=self._dex,
+                prior=self._prior,
+                opponent_species=preview,
+                player_role=battle.player_role or "p1",
+                seed=_battle_seed(self._seed, tag),
+            )
+        return self._beliefs[tag]
+
     # -- events ----------------------------------------------------------
 
     def _emit_battle_start_once(self, battle: AbstractBattle) -> None:
@@ -196,6 +274,7 @@ class TracingPlayer(Player):
                 "seed": self._seed,
                 "accept_open_team_sheet": False,
                 "dex_hash": self._dex.content_hash if self._dex else None,
+                "belief": self._belief_enabled,
             },
         )
 
@@ -223,7 +302,20 @@ class TracingPlayer(Player):
         Order matters: state before candidates before the decision, so that a
         reader replaying the file sees what the agent saw before it sees what
         the agent did with it.
+
+        A finished battle is decided *before* anything is emitted. Showdown can
+        hand out a request and then end the battle underneath it -- the other
+        side concedes, an inactivity timer fires, or we concede ourselves over
+        the control channel -- and poke-env dispatches the request it already
+        had. Deciding it produced two visible failures: a full turn of events
+        appended after `battle_end`, which makes the trace invalid by our own
+        validator and shows the viewer a turn that never happened, and a
+        `/choose` into a room we had already left, which Showdown answers with a
+        popup. An empty order is the one poke-env does not send at all.
         """
+        if battle.finished:
+            return _EmptyBattleOrder()
+
         self._emit_battle_start_once(battle)
         trace = self.trace_for(battle)
         log_lines = self._take_log(battle)
@@ -243,14 +335,47 @@ class TracingPlayer(Player):
                 },
             )
 
+        snapshot = state.snapshot(battle, self._dex)
+        # The eval bar `docs/04-decision-engine.md` section 5 describes, emitted
+        # by the base class so every agent has one. It has to come from here
+        # rather than from the viewer: the viewer renders traces and does not
+        # import the agent, and an evaluation recomputed at display time would
+        # be a different function from the one the search actually used.
+        # `calibrated` travels with the number, so a trace written before M6 was
+        # fit still says that its numbers are not probabilities.
+        position = evaluate(snapshot)
         trace.emit(
             EventType.TURN_START,
             {
                 "turn": battle.turn,
-                "state": state.snapshot(battle, self._dex),
+                "state": snapshot,
                 "log": log_lines,
+                "evaluation": {
+                    "win_prob": position.win_prob,
+                    "log_odds": None if math.isinf(position.log_odds) else position.log_odds,
+                    "calibrated": position.calibrated,
+                    "features": position.features,
+                },
             },
         )
+
+        # The belief update runs before the search, because the search reads it.
+        # It consumes the same observations `turn_result` was built from rather
+        # than re-reading the log, which is what stops the live filter and the
+        # offline corpus from drifting apart (D32).
+        belief = self.belief_for(battle)
+        if belief is not None:
+            started = time.perf_counter()
+            belief.add_species(p.species for p in battle.opponent_team.values())
+            belief.update(observations, snapshot)
+            trace.emit(
+                EventType.BELIEF,
+                {
+                    "turn": battle.turn,
+                    "elapsed_s": round(time.perf_counter() - started, 4),
+                    **belief.summary(),
+                },
+            )
 
         orders = self._legal_orders(battle)
         fallback: BattleOrder = orders[0] if orders else DefaultBattleOrder()
@@ -331,6 +456,7 @@ class TracingPlayer(Player):
         final_log = self._take_log(battle)
         observations = self._observe(battle, final_log)
         parser_state = self._parsers.pop(battle.battle_tag, None)
+        belief = self._beliefs.pop(battle.battle_tag, None)
         self.trace_for(battle).emit(
             EventType.BATTLE_END,
             {
@@ -343,6 +469,10 @@ class TracingPlayer(Player):
                 # Zero unless Showdown emitted protocol this parser does not
                 # read. Non-zero is a signal to look, not a failure (D32).
                 "unhandled_messages": dict(parser_state.unhandled) if parser_state else {},
+                # The belief as it stood at the end. On a forced-open-sheet
+                # replay the truth is knowable, which makes this the row an
+                # offline accuracy measurement joins against.
+                "belief": belief.summary() if belief is not None else None,
             },
         )
 
@@ -429,6 +559,22 @@ class MaxBasePowerAgent(TracingPlayer):
 
 
 @cache
+@cache
+def _load_prior_if_built() -> SetPrior | None:
+    """The set prior, or None when the corpus has not been distilled into one.
+
+    Cached for the same reason the dex is: it is a ~1 MB JSON parse, and a
+    ladder run constructs several agents. The SetPrior is read-only after
+    construction, so one instance is safe to share across battles and across
+    agents -- and sharing it is also what makes the two arms of a head-to-head
+    provably run against the same prior rather than two loads of the same file.
+    """
+    try:
+        return SetPrior.load()
+    except (PriorNotBuiltError, ValueError):
+        return None
+
+
 def _load_dex_if_built(format_id: str) -> Dex | None:
     """The dex is gitignored and built locally, so its absence is not fatal here.
 
@@ -477,3 +623,15 @@ _LOG_NOISE = frozenset(
         "notify",
     }
 )
+
+
+def _battle_seed(seed: int | None, battle_tag: str) -> int:
+    """A per battle seed derived from the run seed and the battle id.
+
+    hashlib rather than the builtin `hash()`: Python randomises string hashing
+    per process, so the builtin would give the same battle different particles
+    on every rerun -- the same irreproducibility D31 records for the equilibrium
+    draw.
+    """
+    key = f"{seed}:{battle_tag}".encode()
+    return int.from_bytes(hashlib.sha256(key).digest()[:8], "big")

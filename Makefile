@@ -12,10 +12,11 @@ GAMES ?= 50
 SEED ?= 0
 TRACES ?= traces
 VIEWER_PORT ?= 8100
+EVAL_TRACES ?= runs/m6-selfplay
 
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
-        scrape scrape-full corpus priors eval-belief
+        scrape scrape-full corpus priors eval-belief eval-games fit-eval
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -37,6 +38,9 @@ help:
 	@echo "make bench         benchmark the simulator, writes docs/benchmarks.md"
 	@echo "make differential  check simulator determinism over random positions (GAMES=1000)"
 	@echo "make trace         show the most recent trace (TRACE=path to pick one)"
+	@echo ""
+	@echo "make eval-games    generate self-play for the M6 fit (EVAL_GAMES=750; hours)"
+	@echo "make fit-eval      fit the evaluation function, write its reliability diagram"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -121,3 +125,14 @@ priors:
 
 eval-belief:
 	$(PYTHON) scripts/eval_belief.py traces --trace-dir $(TRACES) --team $(or $(TEAM),regmb-beta)
+
+# M6. `eval-games` generates the self-play the fit reads; it is separate because
+# it takes hours and `fit-eval` takes seconds, and the fit is the part that gets
+# re-run. Both sides of one team on purpose: a head-to-head between different
+# teams measures the teams (D30), and here the distribution of positions is the
+# product, not the win rate.
+eval-games:
+	$(PYTHON) scripts/selfplay.py $(or $(EVAL_GAMES),750) --port $(PORT) 	  --trace-dir $(EVAL_TRACES) --seed $(SEED) 	  --agent-a $(or $(EVAL_AGENT),oneply) --agent-b $(or $(EVAL_AGENT),oneply) 	  --team-a regmb-alpha --team-b regmb-alpha
+
+fit-eval:
+	$(PYTHON) scripts/fit_eval.py --traces $(EVAL_TRACES)
