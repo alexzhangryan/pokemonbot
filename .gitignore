@@ -40,3 +40,12 @@ config/local.*
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Spartan AI config (contains API keys)
+.spartan/ai.env
+
+# Agent tooling. Configuration for how this repository is worked on rather
+# than part of it, and `.claude/` in particular can hold credentials.
+.agents/
+.claude/
+skills-lock.json
