@@ -210,7 +210,8 @@ def test_no_state_is_the_heuristic_order(dex: Dex, scenario: Any) -> None:
     # Without a board there is nothing to put in a brief, so the model is never
     # called and the ordering is A's state-free one.
     assert client.prompt == ""
-    assert got == [a["message"] for a in HeuristicPolicy(dex).scored(actions, k=len(actions))]
+    stateless = HeuristicPolicy(dex).scored(actions, k=len(actions))
+    assert got == [s.action["message"] for s in stateless]
 
 
 def test_the_budget_slices_the_result(dex: Dex, scenario: Any) -> None:
@@ -219,8 +220,10 @@ def test_the_budget_slices_the_result(dex: Dex, scenario: Any) -> None:
 
     kept = policy.candidates(actions, state, None, k=2)
     assert len(kept) == 2
-    # The model put index 2 first, so it leads the kept set.
-    assert kept[0]["message"] == actions[2]["message"]
+    # The prompt numbers candidates in A's shortlist order, so the model's
+    # "index 2" is the shortlist's third candidate, not `actions[2]`.
+    shortlist = _heuristic_order(dex, state, actions)
+    assert kept[0]["message"] == shortlist[2]
 
 
 def test_it_is_deterministic_given_a_deterministic_client(dex: Dex, scenario: Any) -> None:

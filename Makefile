@@ -5,7 +5,12 @@
 # install ezwinports.make`), Node.js, and vendor/showdown built (`make vendor`).
 # Works from PowerShell or Git Bash.
 
+# Windows venvs put the interpreter under Scripts/, POSIX ones under bin/.
+ifeq ($(OS),Windows_NT)
 PYTHON := .venv/Scripts/python.exe
+else
+PYTHON := .venv/bin/python
+endif
 FORMAT_ID := gen9championsvgc2026regmb
 PORT ?= 8090
 GAMES ?= 50
@@ -58,8 +63,14 @@ help:
 
 # -- setup -----------------------------------------------------------------
 
+ifeq ($(OS),Windows_NT)
+SYSTEM_PYTHON := python
+else
+SYSTEM_PYTHON := python3
+endif
+
 venv:
-	python -m venv .venv
+	$(SYSTEM_PYTHON) -m venv .venv
 	$(PYTHON) -m pip install -e ".[dev]"
 
 vendor:
