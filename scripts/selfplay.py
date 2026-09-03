@@ -17,6 +17,7 @@ from poke_env.ps_client.server_configuration import ServerConfiguration
 from champions.agents import commands
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
 from champions.agents.belief_agent import BeliefAgent
+from champions.agents.language_agent import LanguageAgent
 from champions.agents.oneply import OnePlyAgent
 from champions.dex.loader import Dex
 from champions.teams import ALPHA, BETA, available_teams, load_team
@@ -81,11 +82,12 @@ AGENTS = {
     "greedy": MaxBasePowerAgent,
     "oneply": OnePlyAgent,
     "belief": BeliefAgent,
+    "llm": LanguageAgent,
 }
 
 # Agents that compute their numbers from the resolved Champions dex rather than
 # from poke-env's mainline data, and so cannot run without it built.
-NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent)
+NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent, LanguageAgent)
 
 
 def build_agent(kind: str, **kwargs: Any) -> TracingPlayer:

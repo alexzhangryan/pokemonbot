@@ -21,6 +21,10 @@ data/dex/*.json
 # The set prior is distilled from the corpus in under a second; the corpus is
 # the thing worth keeping. Rebuild with `make priors`.
 data/priors/
+# Cached language-model replies (implementation C). Keyed by prompt; regenerated
+# by re-running against Ollama. Never committed -- it can get large and is a
+# derived artifact, not a source of truth.
+data/llm/
 
 # Traces and runs
 runs/

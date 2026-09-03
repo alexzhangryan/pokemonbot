@@ -40,6 +40,7 @@ import numpy as np
 
 from champions.dex.loader import Dex
 from champions.search import discard
+from champions.search.language import LanguagePolicy
 from champions.search.learned import LearnedPolicy, UnionPolicy
 from champions.search.payoff import TurnModel, payoff_matrix
 from champions.search.policy import BasePowerPolicy, HeuristicPolicy
@@ -62,10 +63,9 @@ def _union(dex: Dex) -> UnionPolicy:
 #: The candidate providers this benchmark knows how to build. Implementation A
 #: as `docs/04-decision-engine.md` section 3 specifies it; A as it shipped
 #: through M6, which is the baseline every number written before D61 describes;
-#: B, the learned prior; and the union of A and B, which the spec asks for
-#: because if neither dominates the union may still beat both and is a
-#: legitimate thing to ship. C, the language model provider, is blocked on a
-#: model API key.
+#: B, the learned prior; the union of A and B, which the spec asks for because if
+#: neither dominates the union may still beat both and is a legitimate thing to
+#: ship; and C, the language model provider, now a local Ollama mock (D68).
 #:
 #: Every one of them is measured against the same solve of the same position, so
 #: the rows compare providers rather than runs.
@@ -74,12 +74,21 @@ PROVIDERS = {
     BasePowerPolicy.name: BasePowerPolicy,
     LearnedPolicy.name: LearnedPolicy,
     UNION: _union,
+    LanguagePolicy.name: LanguagePolicy,
 }
 
 #: The providers that need `make fit-policy` to have been run. Named so that a
 #: default run can skip them with an explanation rather than failing, while a
 #: run that asked for one by name still fails loudly.
 NEEDS_MODEL = (LearnedPolicy.name, UNION)
+
+#: Providers left out of a default run and measured only when asked for by name.
+#: C calls a language model once per position, so sweeping the whole trace
+#: directory through it is minutes-to-hours and needs a running Ollama server; a
+#: default run measures A, B and the union and leaves C to an explicit
+#: `--policy language-model --limit N`. Named rather than skipped inside
+#: `build_policies` so the exclusion is visible here.
+OPTIONAL = (LanguagePolicy.name,)
 
 
 def parse_args() -> argparse.Namespace:
@@ -123,7 +132,7 @@ def build_policies(dex: Dex, names: list[str] | None) -> dict[str, Any]:
     measures the rest, because a missing model should not make the guard
     unrunnable on a fresh checkout.
     """
-    wanted = names or list(PROVIDERS)
+    wanted = names or [name for name in PROVIDERS if name not in OPTIONAL]
     out: dict[str, Any] = {}
     for name in wanted:
         try:
@@ -143,6 +152,12 @@ def main() -> None:
     model = TurnModel(dex)
     policies = build_policies(dex, args.policy)
     args.policy = list(policies)
+
+    # C falls back to A on any failed call, which is right in a battle and wrong
+    # here: a down server would report A's numbers under C's name. Fail before
+    # the sweep instead of measuring a silent fallback.
+    if LanguagePolicy.name in policies:
+        policies[LanguagePolicy.name].ensure_available()
 
     def matrix_fn(
         snapshot: dict[str, Any],
@@ -282,8 +297,12 @@ def document(payload: dict[str, Any], common: dict[str, Any]) -> str:
         "`docs/policy-prior.md` is where it is fit and what it recalls. |",
         "| `union-heuristic-learned` | A and B interleaved to the same `k`. The spec asks for it "
         "because if neither dominates the union may still beat both. |",
+        "| `language-model` | Implementation C: a language model reorders A's shortlist, shown "
+        "each candidate's computed damage and knockouts. A local Ollama mock for now (D68). |",
         "",
-        "C, the language model provider, is blocked on a model API key.",
+        "C is excluded from a default run -- it calls a model once per position, so it is "
+        "measured only when asked for by name (`--policy language-model --limit N`) against a "
+        "running Ollama server. A row for it appears below only when it was measured.",
         "",
         "## Results",
         "",

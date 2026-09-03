@@ -16,7 +16,8 @@ EVAL_TRACES ?= runs/m6-selfplay
 
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
-        scrape scrape-full corpus priors eval-belief eval-games fit-eval fit-policy discard
+        scrape scrape-full corpus priors eval-belief eval-games fit-eval fit-policy discard \
+        llm-smoke discard-llm
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -43,6 +44,8 @@ help:
 	@echo "make fit-eval      fit the evaluation function, write its reliability diagram"
 	@echo "make fit-policy    fit the learned candidate prior, write its recall table"
 	@echo "make discard       measure what candidate pruning throws away"
+	@echo "make llm-smoke     exercise the language-model provider (C) against local Ollama"
+	@echo "make discard-llm   run the pruning guard on C only (LIMIT=$(or $(LIMIT),20), needs Ollama)"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -151,3 +154,17 @@ fit-policy:
 
 discard:
 	$(PYTHON) scripts/discard_rate.py --traces $(EVAL_TRACES) --json data/eval/discard.$(FORMAT_ID).json
+
+# M7, implementation C: the language-model provider, mocked with a local Ollama
+# model (D68). `llm-smoke` proves the prompt -> model -> parse loop end to end
+# with no simulator, dex or traces. `discard-llm` measures C on the guard the same
+# way A and B are measured, but only C and on a sample (LIMIT), because it calls a
+# model once per position; it prints rather than writing docs/pruning-guard.md so
+# a partial C run cannot clobber the committed A/B numbers. Both need `ollama
+# serve` running and the model pulled (`ollama pull qwen2.5:3b-instruct`).
+llm-smoke:
+	$(PYTHON) scripts/llm_smoke.py
+
+discard-llm:
+	$(PYTHON) scripts/discard_rate.py --traces $(EVAL_TRACES) --policy language-model \
+	  --limit $(or $(LIMIT),20) --no-report

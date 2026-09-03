@@ -48,7 +48,7 @@ from champions.protocol import actions as action_describe
 from champions.protocol import state as state_snapshot
 from champions.search.matrix import solve_both
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
-from champions.search.policy import DEFAULT_K, HeuristicPolicy, opponent_candidates
+from champions.search.policy import DEFAULT_K, HeuristicPolicy, PolicyProvider, opponent_candidates
 from champions.search.watchdog import AnytimeDecision
 from champions.trace.schema import EventType
 
@@ -66,6 +66,7 @@ class OnePlyAgent(TracingPlayer):
         dex: Dex | None = None,
         k: int = DEFAULT_K,
         hypothesis: OpponentHypothesis | None = None,
+        policy: PolicyProvider | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, dex=dex, **kwargs)
@@ -81,7 +82,11 @@ class OnePlyAgent(TracingPlayer):
         # this point on and the type checker should know it.
         self.dex: Dex = self._dex
         self._k = k
-        self._policy = HeuristicPolicy(self.dex)
+        # The candidate provider is swappable so that implementation B (the
+        # learned prior) and C (the language model) can play through the same
+        # search as A does. Defaults to the specified A, so every existing caller
+        # -- and the whole M2-M6 measurement record -- is unchanged.
+        self._policy = policy if policy is not None else HeuristicPolicy(self.dex)
         self._model = TurnModel(self.dex, hypothesis)
 
     async def _search(

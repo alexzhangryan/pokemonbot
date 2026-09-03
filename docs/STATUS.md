@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-08-30, by Claude Code.
+Last updated: 2026-09-02, by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
@@ -907,6 +907,67 @@ rather than "what would this have played?"; and value loss is loss under the
 one-turn model and the current weights, which is what the search optimises and
 is not a win-rate claim.
 
+## M7, implementation C: the language-model provider, mocked (D68)
+
+C is built. It was the last of section 3's three providers and had sat "blocked
+on a model API key" since M7 opened. It is no longer blocked and no longer
+waiting on a paid API: it runs behind a swappable client against a **free local
+Ollama model as a mock**, so the whole pipeline can be validated for correctness
+before any money is spent, and the paid provider drops in at one seam when it is.
+Alex's direction was explicit — prove the pipeline end to end on a free mock
+first, defer the real API to the end.
+
+- `champions/search/llm.py` — the backend. An `LLMClient` protocol, an
+  `OllamaClient` over `/api/generate`, a `CachingClient` that stores every reply
+  keyed by `(model, prompt)`, and `client_from_env`, the one place a backend is
+  chosen. Dex-free and numpy-free on purpose: the whole decision loop — build a
+  prompt, call, parse — runs without the built simulator, which is what lets
+  `scripts/llm_smoke.py` exercise it on a machine that has neither dex nor
+  traces. `parse_ranking` is robust to a small model's habits — a `<think>`
+  block, a fenced array, prose, or a bare run of integers — and `order_indices`
+  completes whatever it returns to a full ordering so a short or empty reply is
+  A's ordering rather than a crash.
+- `champions/search/language.py` — `LanguagePolicy`, implementation C as a
+  `PolicyProvider`. It ranks the legal set with A, shows the model A's top
+  `shortlist` (20) candidates each carrying the damage, knockout, threat and
+  speed numbers A computed off the same `Board`, and plays the order the model
+  returns. The model never does arithmetic — section 3's whole case for C. Every
+  failure path (server down, unparseable reply, short ranking) falls back to A,
+  so a broken model makes C *equal* A rather than unplayable.
+- `champions/agents/language_agent.py` — `LanguageAgent`, the one-ply search
+  pruning with C. `champions/agents/oneply.py` now takes a `policy` argument so
+  B and C play through the same search as A; the default is unchanged, so the
+  whole M2–M6 record is untouched.
+- `scripts/discard_rate.py` — C is a fourth measured provider, but excluded from
+  a default run: it calls a model once per position, so it is measured only when
+  asked by name (`--policy language-model --limit N`) against a running Ollama
+  server, and `make discard-llm` prints rather than overwriting the committed
+  A/B report. `scripts/llm_smoke.py` (`make llm-smoke`) is the cheap end-to-end
+  proof. Both need `ollama serve` and `ollama pull qwen2.5:3b-instruct`.
+- `tests/test_llm.py` (22, dex-free: transport, cache, parse, prompt) and
+  `tests/test_language.py` (the provider glue, with a stubbed client).
+
+**Determinism** is the one property to carry forward. A model is not
+reproducible from a seed the way an LP solve is, so temperature and seed are
+pinned and every reply is cached; a rerun of the guard reads the same rankings
+off disk. That holds for a warm cache and is a stated soft spot for a cold one.
+`data/llm/` is the cache and is gitignored.
+
+**Verified this session** on a CPU-only machine with no built simulator: the
+decision loop runs end to end against Ollama, `qwen2.5:3b-instruct` returning a
+clean full ordering in about 2.6s that leads with the guaranteed knockout and
+trails with the idle Protect. The dex-free logic is green (22 tests, `ruff` clean
+and formatted). **What is not done and is the next real step: C's guard number.**
+It needs the built dex and the self-play traces — the same prerequisites A and
+B's guard rows already have — so it belongs on the machine that has them. Until
+then C has demonstrated that its pipeline runs, and nothing about its decision
+quality (D67: read it on the guard, not on transcripts).
+
+The default mock is `qwen2.5:3b-instruct` because the task is to order a list
+whose numbers are already computed, so a small instruct model beats a reasoning
+one on latency for no loss. `CHAMPIONS_LLM_MODEL` points it elsewhere; the GPU
+box will want something larger.
+
 
 ## In flight
 
@@ -992,7 +1053,21 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing of Claude Code's.** M7 is complete and committed on `main`:
+**Implementation C, this session's work, is uncommitted** (D68). Claude Code does
+not commit unless asked, so these are in the working tree on the machine they
+were written on: `champions/search/llm.py`, `champions/search/language.py`,
+`champions/agents/language_agent.py`, `scripts/llm_smoke.py`, `tests/test_llm.py`,
+`tests/test_language.py`, and edits to `champions/agents/oneply.py`,
+`scripts/discard_rate.py`, `scripts/selfplay.py`, `Makefile`, `.gitignore`,
+`docs/DECISIONS.md` (D68) and this file. Note the machine: C was written on a
+CPU-only Mac checkout at `/Users/alexryan/Desktop/pokemonbot` that has no venv, no
+built dex, no vendored Showdown and no traces — the dex-free half was verified
+there, and the guard number waits on the machine that has the built environment.
+The `Makefile`'s `PYTHON` is still the Windows `.venv/Scripts/python.exe`, so the
+new `make` targets run as written on the Windows box and need `PYTHONPATH=.` or a
+venv to run on the Mac.
+
+Everything before this session is committed on `main`:
 
 | commit | what is in it |
 | --- | --- |
@@ -1071,11 +1146,18 @@ this session leaves behind are arguments for going there rather than back:
   ownership rule; the measurement it needs is in `docs/pruning-guard.md` and
   `docs/policy-prior.md` already.
 
-C, the language model provider, is still blocked on a model API key. What this
-session changes about C: read it on the guard, not on its accuracy. B recalled
-strong humans far better than A and pruned far worse, so an LLM provider that
-looks convincing on transcripts has demonstrated nothing until it has a
-discarded-mass number beside A's.
+C, the language model provider, **is now built** (D68) — behind a swappable
+client, mocked with a local Ollama model so the pipeline is validated for free
+before a paid API is wired in. What has *not* happened is the measurement that
+decides anything: read C on the guard, not on its accuracy. B recalled strong
+humans far better than A and pruned far worse, so an LLM provider that looks
+convincing on transcripts has demonstrated nothing until it has a discarded-mass
+number beside A's 0.174 at `k = 10`. The single next action for C is exactly
+that number: `make discard-llm LIMIT=…` on the machine that has the dex and the
+self-play traces, with `ollama serve` running. If the mock produces a
+guard number in A's neighbourhood, that is the signal a paid model is worth
+paying for; if it does not, the paid model has to clear a bar the free one
+could not, and the swap is one function (`client_from_env`) away either way.
 
 Read before starting, in this order:
 
