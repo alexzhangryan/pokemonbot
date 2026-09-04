@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-02, by Claude Code.
+Last updated: 2026-09-03, by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
@@ -12,15 +12,25 @@ browser.
 
 ## Current milestone
 
-**M0 through M7 are done. M8, the deeper payoff model, is next.**
+**M0 through M7 are done — all three providers built *and measured*. M8, the
+deeper payoff model, is next.**
 M7 was the policy provider benchmark: build the three candidate providers
 `docs/04-decision-engine.md` section 3 specifies and measure them identically.
 A is the implementation that section actually specifies, built and measured at
 D55/D61. B, the learned prior, is specified in
-`docs/specs/2026-08-29-learned-policy-provider.md`, and all four of its steps
-are now built and measured — **and it lost.** A discards 0.174 of the
-equilibrium's mass at `k = 10` and B discards 0.415, so A stays and the agent's
-provider does not change (D67). C is still blocked on a model API key.
+`docs/specs/2026-08-29-learned-policy-provider.md`, built and measured — **and
+it lost** (D67). C, the language-model provider, is built behind a swappable
+client with a local Ollama mock (D68) and now has its guard number — **and the
+mock lost too, worse than B**: 0.678 discarded mass at `k = 10` against A's
+0.382 on the same positions (D69). A stays and the agent's provider does not
+change. Whether a paid or larger model gets to attempt the bar the free one
+missed is Alex's call; the swap is one function either way.
+
+Note the 0.382: the guard was re-measured this session on regenerated traces,
+and the number that was 0.174 moved. The positions are now the ones the
+current agent (pruning with A) plays into, not the ones `heuristic-base-power`
+produced, and the guard is harder on every provider there — see D69 and
+`docs/pruning-guard.md`, which now reports the new basis.
 
 The result that outlasts the rejection: B *recalls strong humans better* than A
 and *prunes worse*, both with intervals apart. Imitation accuracy is not a proxy
@@ -953,15 +963,11 @@ pinned and every reply is cached; a rerun of the guard reads the same rankings
 off disk. That holds for a warm cache and is a stated soft spot for a cold one.
 `data/llm/` is the cache and is gitignored.
 
-**Verified this session** on a CPU-only machine with no built simulator: the
-decision loop runs end to end against Ollama, `qwen2.5:3b-instruct` returning a
-clean full ordering in about 2.6s that leads with the guaranteed knockout and
-trails with the idle Protect. The dex-free logic is green (22 tests, `ruff` clean
-and formatted). **What is not done and is the next real step: C's guard number.**
-It needs the built dex and the self-play traces — the same prerequisites A and
-B's guard rows already have — so it belongs on the machine that has them. Until
-then C has demonstrated that its pipeline runs, and nothing about its decision
-quality (D67: read it on the guard, not on transcripts).
+**Verified in the session that built it**, on this machine before it had a
+built simulator: the decision loop runs end to end against Ollama,
+`qwen2.5:3b-instruct` returning a clean full ordering in about 2.6s that leads
+with the guaranteed knockout and trails with the idle Protect. The guard number
+it named as the next step has now been measured — the section below.
 
 The default mock is `qwen2.5:3b-instruct` because the task is to order a list
 whose numbers are already computed, so a small instruct model beats a reasoning
@@ -969,15 +975,74 @@ one on latency for no loss. `CHAMPIONS_LLM_MODEL` points it elsewhere; the GPU
 box will want something larger.
 
 
+## M7 closed: C's guard number, and a re-based guard (D69)
+
+The Mac at `/Users/alexryan/Desktop/pokemonbot/pokemonbot` is now a full
+working environment: venv (Python 3.13.7 — `pyproject.toml` wants only >=3.12),
+vendored Showdown built at the pinned commit, dex dump reproducing
+`docs/dex-delta.md` byte for byte, and the Makefile now picks the venv layout
+by OS. `make eval-games` regenerated the self-play traces here: 750 battles,
+1,500 traces, 0 invalid, 0 protocol failures, about 30 minutes — this machine
+is faster than the box the "hours" estimate came from.
+
+**The re-based guard.** The regenerated traces were played by the current
+agent, which prunes with A; the old traces were played under
+`heuristic-base-power`. That moves every number in `docs/pruning-guard.md`,
+and not by noise — the guard is harder on positions a better policy plays
+into. 9,334 eligible positions over 750 battles:
+
+| provider | k = 5 | k = 10 | k = 15 | k = 20 |
+| --- | --- | --- | --- | --- |
+| `heuristic-position` (A) | 0.5156 | **0.3778** | 0.3263 | 0.2823 |
+| `learned-prior` (B) | 0.6832 | 0.4888 | 0.3372 | 0.2270 |
+| `union-heuristic-learned` | **0.4985** | **0.3361** | **0.2368** | **0.1721** |
+
+A's 0.174 at `k = 10` is now 0.378 on its own positions. Two orderings D67
+recorded as budget-dependent became clean: the union now beats A at `k = 10`
+with intervals apart (0.336 [0.325, 0.347] vs 0.378 [0.368, 0.388]) — on the
+old positions it tied — and B overtakes A at `k = 20`. A stays the default (it
+still wins alone at the agent's own `k`, and the union costs a second
+provider), but the union's case strengthened, and any guard comparison now
+has to say which position set it was measured on.
+
+**C's number, and it is a rejection of the mock.** 291 positions from 50 trace
+files, C and A scored on the same positions in one run, warm cache:
+
+| provider | k = 5 | k = 10 | k = 15 | k = 20 |
+| --- | --- | --- | --- | --- |
+| `heuristic-position` (A) | 0.5211 | **0.3822** | 0.3407 | 0.3028 |
+| `language-model` (C, qwen2.5:3b) | 0.7813 | 0.6781 | 0.5225 | 0.3028 |
+
+Intervals nowhere near each other at 5, 10 and 15; identical at 20 by
+construction, since C reorders A's top-20 shortlist and keeping all 20 is the
+same set. The model was handed candidates whose damage, knockout, threat and
+speed numbers were already computed, and its reordering is worse than the
+ordering A computed them in. The mock did not land in A's neighbourhood, so
+the paid model has to clear a bar the free one could not (the framing the
+last session fixed in advance). Whether to spend on that attempt — or first
+try a larger free model via `CHAMPIONS_LLM_MODEL` — is Alex's call, and no
+code waits on it: the swap is `client_from_env`.
+
+Also fixed on the way: two `tests/test_language.py` tests needed the dex
+fixture, so they had *never run* on the machine C was written on. Both were
+wrong about interfaces, not about C — one subscripted `ScoredAction` as a
+dict, the other read the model's indices against the raw action list when the
+prompt numbers candidates in A's shortlist order. 473 tests pass in about 35s
+on this machine.
+
 ## In flight
 
-**The Bo3 backfill, still.** `scrape_replays.py --format
-gen9championsvgc2026regmbbo3 --full` has been walking the format back toward its
-first replay since 14:28 on 2026-08-29 at one request per second (it shows as
-two processes — a venv launcher and its child — not two scrapers). Resumable and
-stateless between runs, so killing it costs at most one replay. `make scrape` is
-the cheap incremental one: newest first, stops at the first page with nothing
-new, seconds.
+**The Bo3 backfill — a Windows-box process, state unknown from here.**
+`scrape_replays.py --format gen9championsvgc2026regmbbo3 --full` was walking
+the format back toward its first replay on the Windows box as of 2026-08-30;
+this Mac has no corpus (`data/corpus.sqlite` and `data/replays/` are
+gitignored and were never copied). Resumable and stateless between runs, so
+whatever state it is in costs at most one replay. If corpus work moves to this
+machine, `make scrape` starts from nothing and `make scrape-full` backfills;
+until then the corpus-derived artifacts here are whatever is committed — B's
+prior (`data/policy/`) is; the belief filter's set prior (`data/priors/`) is
+not, so the `belief` agent on this machine runs with no belief until
+`make scrape` + `make priors` are run here.
 
 Consequence for anything measured against the corpus: **it is a moving number.**
 It went 15,897 → 17,096 replays over a few hours on 2026-08-29. `make corpus`
@@ -1003,8 +1068,12 @@ pruning guard is unaffected — it reads self-play traces, not the corpus.
 
 `runs/m6-selfplay/` holds 750 self-play games (1,500 agent-view traces) that
 `make fit-eval` and `make discard` both read. It is gitignored and reproducible
-with `make eval-games`, which takes hours; deleting it costs that, not
-correctness.
+with `make eval-games` (about 30 minutes on this machine); deleting it costs
+that, not correctness. **The set on this Mac is not the set the Windows box
+had**: it was regenerated on 2026-09-03 and played by the current agent, which
+prunes with A — the old set was played under `heuristic-base-power`. Every
+number in `docs/pruning-guard.md` is now measured on the new set, and the two
+are not comparable row for row (D69).
 
 ## Blocked
 
@@ -1012,9 +1081,12 @@ Nothing.
 
 ## Tests
 
-**444 pass in about 205s**, whole suite, as of 2026-08-30, with M7's 61 new
-tests in it. The known flaky one passed this run; see below for why that is not
-evidence of anything.
+**473 pass, 3 skipped, in about 35s** on the Mac, whole suite, as of
+2026-09-03. Two `tests/test_language.py` tests failed on first run here and
+are fixed — they required the dex fixture and had never executed anywhere
+before this machine had a dex (both were interface mistakes in the tests, not
+defects in C; see D69). The known flaky one passed this run; see below for why
+that is not evidence of anything.
 
 `make lint` and `ruff format --check` are clean. **`make typecheck` is not**:
 `mypy .` reports 46 errors across 12 files, and `make check` therefore fails on
@@ -1053,21 +1125,15 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Implementation C, this session's work, is uncommitted** (D68). Claude Code does
-not commit unless asked, so these are in the working tree on the machine they
-were written on: `champions/search/llm.py`, `champions/search/language.py`,
-`champions/agents/language_agent.py`, `scripts/llm_smoke.py`, `tests/test_llm.py`,
-`tests/test_language.py`, and edits to `champions/agents/oneply.py`,
-`scripts/discard_rate.py`, `scripts/selfplay.py`, `Makefile`, `.gitignore`,
-`docs/DECISIONS.md` (D68) and this file. Note the machine: C was written on a
-CPU-only Mac checkout at `/Users/alexryan/Desktop/pokemonbot` that has no venv, no
-built dex, no vendored Showdown and no traces — the dex-free half was verified
-there, and the guard number waits on the machine that has the built environment.
-The `Makefile`'s `PYTHON` is still the Windows `.venv/Scripts/python.exe`, so the
-new `make` targets run as written on the Windows box and need `PYTHONPATH=.` or a
-venv to run on the Mac.
+**Nothing from past sessions.** Implementation C landed as `fb1c633`, and the
+Mac-setup session's fixes as `ce22bac` (portable Makefile, the two
+never-run `tests/test_language.py` tests). The Mac is no longer the
+environmentless checkout the previous revision of this section described — see
+the D69 section above. This session's remaining edits — this file,
+`docs/DECISIONS.md` (D69), and the regenerated `docs/pruning-guard.md` +
+`data/eval/discard.*.json` — are committed at the end of the session as usual.
 
-Everything before this session is committed on `main`:
+The milestone record on `main`:
 
 | commit | what is in it |
 | --- | --- |
@@ -1082,18 +1148,24 @@ Everything before this session is committed on `main`:
 | `4b946d7` | M7 step 2: the shared feature path (D63, D64) |
 | `2f22336` | this file, at the end of that session |
 | `f66832c` | M7 steps 3 and 4: the training set, the model, and the four-way guard (D65-D67) |
+| `fb1c633` | M7 implementation C, mocked with local Ollama (D68) |
+| `ce22bac` | Mac setup: portable Makefile, two never-run C tests fixed |
 
 Commits in this repository carry no `Co-Authored-By` trailer. Five that did
 were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
 byte-identical before and after, only the messages changed.
 
-**Still uncommitted, and not Claude Code's:** `data/teams/regmb-beta.txt` has
-been replaced with a different six. Left alone deliberately — it is a change to
-the evaluation's inputs and whether it lands is Alex's call, not a loose end.
+**The `data/teams/regmb-beta.txt` replacement was Windows working-tree state.**
+The previous revision of this section recorded it as uncommitted there; it was
+never committed, so this Mac clone carries the original six. If that
+replacement is still wanted it lives only on the Windows box, and whether it
+lands is Alex's call.
 
-**Not pushed.** Claude Code does not run `git push` here, so `origin/main` is
-behind by everything from `298db52` on. Check `git log` against
-`git log origin/main` rather than assuming they match.
+**Pushed, but not by Claude Code.** The rule stands — Claude Code never runs
+`git push` here — yet `origin/main` matched local `main` (`ce22bac`) minutes
+after the commit, so something on the Mac auto-syncs (or Alex pushed). Worth
+knowing which, because the rule assumes pushing is a deliberate act. Check
+`git log` against `git log origin/main` rather than assuming either way.
 
 **A duplicate process, worth knowing about rather than acting on.** Two
 identical `scripts/discard_rate.py` runs were alive at once on 2026-08-30,
@@ -1114,9 +1186,14 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 
 ## Next action
 
-**M7 is done. Implementation B was built, measured and rejected (D67); the
-choice for the next session is what to do with the union, and the honest answer
-is nothing yet.**
+**M7 is done — all three providers measured, all three rejections or
+non-changes. What to do with the union is a live question now**: on the
+re-based guard it beats A at the agent's own `k = 10` with intervals apart
+(0.336 vs 0.378, D69), which the old position set did not show. Making the
+union the default is a provider change and by D67's own rule that is a
+decision to put to Alex, not a drift; the counterargument is that M8 is about
+to change what a candidate costs, which is the same reason `k` stayed
+unsettled.
 
 The spec's four steps are all built, measured and committed. What is left is not
 more of M7:
@@ -1131,10 +1208,11 @@ more of M7:
 **M8, the deeper payoff model, is the next milestone**, and three of the things
 this session leaves behind are arguments for going there rather than back:
 
-- The union beats A at `k = 15` and `k = 20` and not at `k = 10`, so the open
-  question is the *budget*, not the provider. `k` trades candidate quality
-  against search cost, and M8 changes the cost of a column. Settling `k` now
-  settles it against a payoff model that is about to be replaced.
+- The union now beats A at `k = 10`, 15 and 20 on the re-based guard (D69),
+  so the provider question is live as well as the budget one. But `k` trades
+  candidate quality against search cost, and M8 changes the cost of a column.
+  Settling either now settles it against a payoff model that is about to be
+  replaced.
 - B's four cheap extensions — the assumed-spread handicap (one flag, D63),
   switch options carrying one feature, slot interaction, the belief — are all
   changes to a provider feeding the one-turn model. Same argument.
@@ -1146,32 +1224,27 @@ this session leaves behind are arguments for going there rather than back:
   ownership rule; the measurement it needs is in `docs/pruning-guard.md` and
   `docs/policy-prior.md` already.
 
-C, the language model provider, **is now built** (D68) — behind a swappable
-client, mocked with a local Ollama model so the pipeline is validated for free
-before a paid API is wired in. What has *not* happened is the measurement that
-decides anything: read C on the guard, not on its accuracy. B recalled strong
-humans far better than A and pruned far worse, so an LLM provider that looks
-convincing on transcripts has demonstrated nothing until it has a discarded-mass
-number beside A's 0.174 at `k = 10`. The single next action for C is exactly
-that number: `make discard-llm LIMIT=…` on the machine that has the dex and the
-self-play traces, with `ollama serve` running. If the mock produces a
-guard number in A's neighbourhood, that is the signal a paid model is worth
-paying for; if it does not, the paid model has to clear a bar the free one
-could not, and the swap is one function (`client_from_env`) away either way.
+C, the language model provider, **is built and measured, and the mock lost
+the guard** (D68, D69): 0.678 discarded mass at `k = 10` against A's 0.382 on
+the same positions, intervals nowhere near. The framing fixed in advance now
+binds: the paid model has to clear a bar the free one could not. The one open
+decision on C is Alex's — pay for a real model, try a larger free one first
+(`CHAMPIONS_LLM_MODEL`, one env var), or park C and proceed to M8. No code
+waits on it; the swap is `client_from_env`.
 
-Read before starting, in this order:
+Read before starting M8, in this order:
 
-1. `docs/pruning-guard.md`. The number to beat is still A's — 0.174 discarded
-   mass and 0.008 value loss at `k = 10` — and there are now three other
-   providers in the table showing what missing it looks like at three different
-   distances.
-2. D67, for the rule that decided it. The intervals were fixed as the criterion
-   before the numbers arrived, which is the only reason the result is readable
-   as a result rather than as a preference.
-3. The two limits in the section above. The guard scores what a provider *would*
-   have kept on positions another provider played, and the threat model sees
-   only revealed moves. Neither is fixed by more games, and both bound what any
-   of the four numbers can mean.
+1. `docs/pruning-guard.md`, which is now measured on the regenerated Mac
+   traces — positions the current agent (pruning with A) played into. A's own
+   number at the agent's `k = 10` is 0.378 there, not the 0.174 the old
+   position set gave, and the union beats A at `k = 10` with intervals apart.
+   The `k` question M8 inherits got sharper, not settled.
+2. D69, for both halves: C's rejection and why every guard number moved.
+3. D67, for the rule that decides these: intervals fixed as the criterion
+   before the numbers arrive.
+4. The two limits carried over unchanged: the guard scores what a provider
+   *would* have kept on positions the shipping agent played, and the threat
+   model sees only revealed moves. Neither is fixed by more games.
 
 One smaller decision from the earlier triage is still open and now lands in M8
 rather than M7 (D57, D58): traces are still not gzipped per battle, which the
@@ -1436,7 +1509,7 @@ Redo it at the local figure before M8 treats that conclusion as settled.
 
 ## Notes for the next session
 
-The repository was moved off OneDrive during T0.1: it now lives at `C:\dev\pokemonbot`, not `C:\Users\bingk\OneDrive\Desktop\pokemonbot`. Git history is intact (local clone, then `origin` repointed to `https://github.com/alexzhangryan/pokemonbot.git`). The old OneDrive copy may still be sitting on disk pending manual deletion by Alex — if so, it is stale and should be ignored, not worked from.
+There are now **two full working environments**: the Windows box at `C:\dev\pokemonbot` and the Mac at `/Users/alexryan/Desktop/pokemonbot/pokemonbot` (set up 2026-09-03: venv on Python 3.13.7, vendored Showdown at the pin, dex built, traces regenerated — D69). They share git and nothing else: traces, the corpus, the belief prior and the dex dumps are all gitignored and per-machine, and the corpus lives only on Windows so far. The Windows repo was moved off OneDrive during T0.1 (`C:\dev\pokemonbot`, not the old OneDrive path, which may still exist and is stale).
 
 Claude Code never runs `git push` in this repository — Alex pushes himself. Local commits can get ahead of `origin/main`; check `git log` vs `git log origin/main` rather than assuming they match.
 
