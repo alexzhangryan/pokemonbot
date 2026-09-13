@@ -1032,6 +1032,12 @@ on this machine.
 
 ## In flight
 
+**M8, the engine gate, started 2026-09-13 on a third machine.** The spec is
+`docs/specs/2026-09-13-engine-gate.md` and the rule is fixed in D70 before any
+number exists. Order of work: docs (done), the two-ply model, `materialize` and
+the simulator payoff, the oracle and the arms, the run. This section is
+rewritten at the end of the session with where it got to.
+
 **The Bo3 backfill — a Windows-box process, state unknown from here.**
 `scrape_replays.py --format gen9championsvgc2026regmbbo3 --full` was walking
 the format back toward its first replay on the Windows box as of 2026-08-30;
