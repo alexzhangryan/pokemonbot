@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-03, by Claude Code.
+Last updated: 2026-09-13, by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
@@ -12,8 +12,21 @@ browser.
 
 ## Current milestone
 
-**M0 through M7 are done — all three providers built *and measured*. M8, the
-deeper payoff model, is next.**
+**M8, the engine gate, is built and its run is in flight (D70).** The spec is
+`docs/specs/2026-09-13-engine-gate.md`; the arms and the rule were fixed
+before any number existed. Everything the run needs is committed: the
+two-ply model (`champions/search/twoply.py`), `materialize` in
+`js/sim_server.js` and the simulator payoff (`champions/search/rollout.py`),
+the oracle opponent and the four arms (`champions/agents/oracle.py`), and
+`scripts/engine_gate.py`, which applies section 4's rule mechanically and
+writes `docs/engine-gate.md`. See **M8: the engine gate** in the milestone
+record, **In flight** for the run, and **Next action** for what the verdict
+decides. The verdict goes in D71 when the run finishes; do not read anything
+into partial rows.
+
+The M7 recap below stands as the record it was:
+
+**M0 through M7 are done — all three providers built *and measured*.**
 M7 was the policy provider benchmark: build the three candidate providers
 `docs/04-decision-engine.md` section 3 specifies and measure them identically.
 A is the implementation that section actually specifies, built and measured at
@@ -1030,13 +1043,102 @@ dict, the other read the model's indices against the raw action list when the
 prompt numbers candidates in A's shortlist order. 473 tests pass in about 35s
 on this machine.
 
+## M8: the engine gate, built (D70)
+
+Built 2026-09-13 on a third machine (see **Notes for the next session**),
+in the order the spec gives, one commit per step: `4094370` (spec, D70, the
+doc edits), `9698a7b` (two-ply), `edd7b61` (materialize and the rollout),
+`d421e28` (oracle, arms, gate script). 517 tests pass.
+
+**Step 1, the docs.** `docs/02-mechanics-deltas.md` section 7 now carries the
+budget arithmetic at the local 2.13 ms, and its conclusion 2 is reversed:
+depth 2 with pruning on both plies fits the 45 s turn on one core (21.3 s) and
+what a 100× engine buys is particles at depth 2, or depth 3.
+`docs/04-decision-engine.md` section 3 carries the paragraph D67 asked for
+(B built, measured, rejected; the union's `k` dependence).
+
+**Step 2, depth.** `TwoPlyModel` solves a one-ply matrix game at every
+position the first ply reaches, memoised on the position; the `TurnModel`
+gains `place_incoming`, off by default (every one-ply number since M2 is
+unchanged), on at depth, where a switch puts the named Pokemon on the field —
+the switch bias `docs/STATUS.md` named is now a test
+(`test_depth_sees_the_switch_the_one_ply_model_cannot`) rather than a
+sentence. Interior nodes enumerate from the position rather than a request,
+and the module docstring lists what that does not know (Choice locks, Encore,
+PP, trapping, Mega). `TwoPlyAgent` proposes the one-ply draw first, then the
+two-ply one, and puts both matrices on the trace. Cost on `regmb-alpha`
+against `greedy`: 63 ms median per decision at `k2 = 6`, about six times the
+one-ply decision; against an oracle's true-move columns the child matrices
+are wider and a decision is 1.8 s median (the smoke gate run).
+
+**Step 3, fidelity.** `materialize` builds a battle at an observed position:
+plays team preview so the right four lead, then sets HP, status, boosts,
+faints, consumed items, formes (temporary for Stance Change, permanent for a
+Mega), side conditions with remaining duration, weather, terrain and
+pseudo-weather, the Protect counter, and Fake Out eligibility, through the
+simulator's own methods, and issues fresh requests. `step` takes a seed, so
+every cell of one decision is stepped under the same replicate seeds (common
+random numbers), and reports whether each choice was accepted. The
+equivalence test rebuilds every move-request turn of four random games from
+the battle's own log, materialises it, copies the real PRNG seed across, and
+steps both with the same choices: **50 of 54 turns reproduce the request and
+the log line for line**; the 4 skipped are turns on which weather ends,
+which the snapshot cannot date (below). Materialise costs about 1 ms; a
+cell costs about 5.3 ms at two replicates (clone, step, serialize, destroy,
+twice); a 100-cell decision is about half a second. `sim_snapshot` reads
+the stepped battle back in `state.snapshot()`'s shape and agrees with the
+replay observer on every field both carry. A refused choice takes the
+analytic value and is counted and worded on the trace; in the smoke runs
+every refusal was a forced-switch decision, which the model now skips by
+design rather than counting against the simulator.
+
+**Step 4, the oracle and the gate.** `TeamOracle` answers the belief's three
+questions — stats, set, moves — from the team export; its stats equal the
+simulator's own request stats (tested). `BeliefHypothesis` and
+`BeliefEffects` now take a `SetSource` Protocol, so the oracle stands in for
+`BattleBelief` structurally. Arms `oneply-oracle`, `twoply`, `twoply-oracle`,
+`sim-oracle` are in `run_ladder.py` and `selfplay.py`; `run_matchup` gains a
+username suffix (closing the collision defect recorded below) and a
+`shutdown` hook (the simulator arm holds a Node process). `engine_gate.py`
+runs each arm against `oneply` on each team, saves after every matchup
+(`--resume`), and `verdict` is a pure function covered on every branch of
+section 4 by `tests/test_engine_gate.py`. A 4-game smoke run on alpha
+produced a report end to end.
+
+Four things found on the way, none of which changes the design:
+
+- **Neither checked-in team carries a held item.** The item-heavy
+  `regmb-beta` D30 describes never landed (it was Windows working-tree
+  state, see M7's Uncommitted). Fidelity's headroom on items is therefore
+  not measured by this gate; abilities, secondary effects, status, weather
+  and the switch are.
+- **poke-env re-dates weather on every `[upkeep]`**, so a live snapshot
+  carries the last upkeep turn, not the start, and no remaining duration can
+  be derived. The simulator gets weather fresh, over-lengthening it by up to
+  four turns. Side conditions and field effects are dated once and are set
+  with their remaining duration.
+- **The replay observer keeps a Pokemon's base species and folds the forme
+  into types and base stats**; the live snapshot reports the forme as the
+  species. Materialising needs the forme (Aegislash-Blade has other
+  defences). The tests supply it from the real state; production reads it
+  from the live snapshot, which has it.
+- **`PolicyProvider` now declares `scored` and `name`**, which every provider
+  implemented and the two oldest mypy errors complained about; and
+  `payoff_matrix` takes a `CellModel` Protocol, so the analytic turn, the
+  two-ply model and the rollout drop into the one seam.
+
 ## In flight
 
-**M8, the engine gate, started 2026-09-13 on a third machine.** The spec is
-`docs/specs/2026-09-13-engine-gate.md` and the rule is fixed in D70 before any
-number exists. Order of work: docs (done), the two-ply model, `materialize` and
-the simulator payoff, the oracle and the arms, the run. This section is
-rewritten at the end of the session with where it got to.
+**The M8 gate run, started 2026-09-13 on this machine.** `make gate` with
+the defaults: 4 arms × 2 teams × 200 games, seed 0, `oneply` as the incumbent,
+one Showdown server on 8090. Rows land in
+`data/eval/engine-gate.gen9championsvgc2026regmb.json` after every matchup,
+traces in `runs/m8-gate/<team>/<arm>/`, and `docs/engine-gate.md` is written
+at the end (or from the JSON with `--report-only`). A killed run continues with
+`make gate GATE_ARGS=--resume`. Estimated from the smoke run: the analytic
+arms take minutes per matchup, the simulator arm about 15 minutes, and
+`twoply-oracle` an hour or more per team at 1.8 s a decision. **The verdict
+goes in D71 when the run finishes**; partial rows are not a result.
 
 **The Bo3 backfill — a Windows-box process, state unknown from here.**
 `scrape_replays.py --format gen9championsvgc2026regmbbo3 --full` was walking
@@ -1087,7 +1189,19 @@ Nothing.
 
 ## Tests
 
-**473 pass, 3 skipped, in about 35s** on the Mac, whole suite, as of
+**517 pass, 3 skipped, in about 2 minutes** on this Windows box, whole suite,
+as of 2026-09-13 (473 on the Mac on 2026-09-03 before M8 added 44). Two
+`tests/test_corpus.py` tests fail only under a long custom `--basetemp` path
+(a Windows path-length artefact of where the temp directory was put, not of
+the code); with the default temp directory they pass. On this machine
+`mypy .` reports 52 errors, none in any file M8 touched, and two fewer in
+`champions/agents/oneply.py` than before (the `PolicyProvider` Protocol now
+declares what it always implemented); the 46 the Mac counted and the 52 here
+differ in `tests/test_corpus.py` and the preview code, and the pass of its
+own that section asks for still stands. The paragraph below is the Mac's
+reading and is kept as written.
+
+Previously: **473 pass, 3 skipped, in about 35s** on the Mac, whole suite, as of
 2026-09-03. Two `tests/test_language.py` tests failed on first run here and
 are fixed — they required the dex fixture and had never executed anywhere
 before this machine had a dex (both were interface mistakes in the tests, not
@@ -1131,6 +1245,12 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
+**Nothing, as of the M8 build.** The four M8 commits are on `main` locally
+(`4094370`, `9698a7b`, `edd7b61`, `d421e28`); whether they have been pushed is
+Alex's to check. The gate run writes `data/eval/engine-gate.*.json`,
+`docs/engine-gate.md` and `docs/STATUS.md`/`docs/DECISIONS.md` (D71) when it
+finishes, and those are committed with the verdict. The earlier record:
+
 **Nothing from past sessions.** Implementation C landed as `fb1c633`, and the
 Mac-setup session's fixes as `ce22bac` (portable Makefile, the two
 never-run `tests/test_language.py` tests). The Mac is no longer the
@@ -1156,6 +1276,11 @@ The milestone record on `main`:
 | `f66832c` | M7 steps 3 and 4: the training set, the model, and the four-way guard (D65-D67) |
 | `fb1c633` | M7 implementation C, mocked with local Ollama (D68) |
 | `ce22bac` | Mac setup: portable Makefile, two never-run C tests fixed |
+| `b736877` | M7 closed: C's mock loses the guard, the guard re-based (D69) |
+| `4094370` | M8 spec, D70, the budget arithmetic redone, section 3's B paragraph |
+| `9698a7b` | M8 step 2: the two-ply model and agent |
+| `edd7b61` | M8 step 3: `materialize` and the simulator payoff |
+| `d421e28` | M8 step 4: the oracle, the four arms, the gate script |
 
 Commits in this repository carry no `Co-Authored-By` trailer. Five that did
 were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
@@ -1191,6 +1316,28 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 
 
 ## Next action
+
+**Read the gate.** When the run in **In flight** finishes (or after
+`--report-only` on what it saved), `docs/engine-gate.md` states a verdict per
+team by section 4's rule. Then, in order:
+
+1. Append D71 with the verdict and the numbers, per team, and with the two
+   caveats the report already carries: the oracle is a ceiling, and neither
+   team has items.
+2. Follow the verdict's branch as section 4 wrote it *before* the numbers:
+   depth → the Rust engine on `m8/rust-engine` with section 2's brief;
+   fidelity → the simulator payoff fed by belief particles, which needs the
+   corpus and `make priors` on a machine that has them, then `k`, the union
+   (D67) and the belief head-to-head (D58) re-opened against it; both →
+   fidelity first; neither → the secondary measurement against `greedy`.
+3. Move "What the switch bias costs" from **Still open** to **Cleared by
+   measurement**: the depth gap is that number.
+
+Do not tune anything to the partial rows, and do not re-run a matchup because
+its number looks wrong; the rule was fixed in D70 so that this session cannot.
+
+The M7 next-action text that follows is superseded by the above and kept as
+the record of how M8 was chosen.
 
 **M7 is done — all three providers measured, all three rejections or
 non-changes. What to do with the union is a live question now**: on the
@@ -1483,14 +1630,12 @@ Five. Each states the choice rather than describing the situation.
 - **What the switch bias costs.** The turn model scores a switch as giving up the
   turn, because the incoming Pokemon's value is a next-turn question. This is a
   real and intended bias against switching and it is the clearest thing depth
-  would fix. Nothing measures how much it costs. Quantify it as part of M8's
-  justification rather than after M8 has committed to depth.
+  would fix. **Being measured**: the two-ply model places the incoming Pokemon
+  (D70), so the gate's depth gap — `twoply-oracle` minus `oneply-oracle` in
+  `docs/engine-gate.md` — is this number. Moves to "cleared" with D71.
 
-One arithmetic job belongs beside that last entry and is not a question. The local
-simulator is faster than the reference container: 2.13 ms per clone plus step
-against 4.7 ms. The budget arithmetic in `docs/02-mechanics-deltas.md` section 7,
-and the depth-2 feasibility conclusion drawn from it, were computed at 4.7 ms.
-Redo it at the local figure before M8 treats that conclusion as settled.
+The arithmetic job that stood beside that entry is done: `docs/02-mechanics-deltas.md`
+section 7 carries the local figure and its conclusion 2 is reversed (D70).
 
 ### Cleared by measurement since the last triage
 
@@ -1515,7 +1660,13 @@ Redo it at the local figure before M8 treats that conclusion as settled.
 
 ## Notes for the next session
 
-There are now **two full working environments**: the Windows box at `C:\dev\pokemonbot` and the Mac at `/Users/alexryan/Desktop/pokemonbot/pokemonbot` (set up 2026-09-03: venv on Python 3.13.7, vendored Showdown at the pin, dex built, traces regenerated — D69). They share git and nothing else: traces, the corpus, the belief prior and the dex dumps are all gitignored and per-machine, and the corpus lives only on Windows so far. The Windows repo was moved off OneDrive during T0.1 (`C:\dev\pokemonbot`, not the old OneDrive path, which may still exist and is stale).
+There are now **three full working environments**. The newest is a second Windows
+box, `C:\Users\aryan\pokemonbot`, set up 2026-09-13 (venv on Python 3.13.7 via
+`py -3.13`; the default `python` there is 3.11 and too old; GNU Make 3.81;
+vendored Showdown at the pin; dex built and reproducing `docs/dex-delta.md` byte
+for byte). It has no corpus and no belief prior, so the `belief` arms cannot
+run there and the M8 gate uses the oracle instead. `C:\dev\pokemonbot` does not
+exist on it. The other two: the Windows box at `C:\dev\pokemonbot` and the Mac at `/Users/alexryan/Desktop/pokemonbot/pokemonbot` (set up 2026-09-03: venv on Python 3.13.7, vendored Showdown at the pin, dex built, traces regenerated — D69). They share git and nothing else: traces, the corpus, the belief prior and the dex dumps are all gitignored and per-machine, and the corpus lives only on Windows so far. The Windows repo was moved off OneDrive during T0.1 (`C:\dev\pokemonbot`, not the old OneDrive path, which may still exist and is stale).
 
 Claude Code never runs `git push` in this repository — Alex pushes himself. Local commits can get ahead of `origin/main`; check `git log` vs `git log origin/main` rather than assuming they match.
 
