@@ -5,6 +5,7 @@
     python scripts/engine_gate.py --teams regmb-beta    # one team
     python scripts/engine_gate.py --arms twoply         # one arm
     python scripts/engine_gate.py --resume              # continue an interrupted run
+    python scripts/engine_gate.py --baseline greedy     # the secondary measurement (section 4)
 
 `docs/specs/2026-09-13-engine-gate.md` sections 3 and 4 specify the arms and
 the rule; D70 fixed both before any number existed. This script runs the
@@ -15,7 +16,12 @@ the rule cannot drift between the spec and the run; `tests/test_engine_gate.py`
 covers every branch of it on synthetic rows.
 
 Every arm plays `oneply`, the incumbent, in a mirror match on one team, with
-one seed. Each matchup gets its own username suffix so that several matchups
+one seed. `--baseline greedy` is section 4's pre-registered secondary
+measurement for the "neither clears" outcome: the same arms, plus `oneply`
+itself, against max-base-power, which has a known baseline (D30) and more
+headroom than a mirror. It is a check on sensitivity; the verdict is only ever
+read from the primary run, so a secondary run writes its own report and JSON
+and applies no rule. Each matchup gets its own username suffix so that several matchups
 against one incumbent on one server do not collide -- the defect
 `docs/STATUS.md` records against `run_ladder.py`. Results are written to the
 JSON after every matchup, so an interrupted run resumes rather than restarts.
@@ -43,6 +49,8 @@ from scripts.run_local_server import start_server
 
 FORMAT_ID = "gen9championsvgc2026regmb"
 BASELINE = "oneply"
+#: Display names the ladder reports each baseline under.
+BASELINE_DISPLAYS = {"oneply": "one-ply", "greedy": "max-base-power"}
 CONTROL = "oneply-oracle"
 DEPTH = "twoply-oracle"
 FIDELITY = "sim-oracle"
@@ -235,9 +243,10 @@ def row_from(
     trace_dir: Path,
     username: str,
     elapsed_s: float,
+    baseline_display: str = "one-ply",
 ) -> Row:
-    mine = next(r for r in results if r.name != BASELINE_DISPLAY)
-    theirs = next(r for r in results if r.name == BASELINE_DISPLAY)
+    mine = next(r for r in results if r.name != baseline_display)
+    theirs = next(r for r in results if r.name == baseline_display)
     clock: ClockMetrics = mine.clock
     decisions, with_fallback, fraction = fallback_summary(
         sorted(trace_dir.glob(f"*.{username}.jsonl"))
@@ -277,11 +286,14 @@ async def run_gate(
     trace_dir: Path,
     json_path: Path,
     resume: bool,
+    baseline: str = BASELINE,
 ) -> dict[str, Any]:
+    baseline_display = BASELINE_DISPLAYS[baseline]
     record: dict[str, Any] = _load(json_path) if resume else {}
     record.setdefault("format", FORMAT_ID)
     record.setdefault("games", games)
     record.setdefault("seed", seed)
+    record.setdefault("baseline", baseline)
     record.setdefault("rows", {})
     record["started"] = record.get("started") or datetime.now(UTC).isoformat()
 
@@ -294,20 +306,20 @@ async def run_gate(
             suffix = f"t{team_index}a{arm_index}"
             matchup_dir = trace_dir / team / arm
             matchup_dir.mkdir(parents=True, exist_ok=True)
-            print(f"{key}: {games} games against {BASELINE} on {team} ...", flush=True)
+            print(f"{key}: {games} games against {baseline} on {team} ...", flush=True)
             started = time.perf_counter()
             results = await run_matchup(
                 build_arm(arm, port, team, opponent_team=team),
-                build_arm(BASELINE, port, team),
+                build_arm(baseline, port, team),
                 games,
                 matchup_dir,
                 seed=seed,
                 username_suffix=suffix,
             )
             elapsed = time.perf_counter() - started
-            display = next(r.name for r in results if r.name != BASELINE_DISPLAY)
+            display = next(r.name for r in results if r.name != baseline_display)
             username = f"{_username_safe(display)}{seed}{suffix}"
-            row = row_from(team, arm, results, matchup_dir, username, elapsed)
+            row = row_from(team, arm, results, matchup_dir, username, elapsed, baseline_display)
             record["rows"][key] = asdict(row)
             low, high = row.interval
             print(
@@ -317,9 +329,10 @@ async def run_gate(
             )
             _save(json_path, record)
 
-    record["verdicts"] = {
-        team: verdict({r.arm: r for r in rows_for(record, team)}) for team in teams
-    }
+    if baseline == BASELINE:
+        record["verdicts"] = {
+            team: verdict({r.arm: r for r in rows_for(record, team)}) for team in teams
+        }
     record["finished"] = datetime.now(UTC).isoformat()
     _save(json_path, record)
     return record
@@ -368,17 +381,31 @@ def _gap_cell(g: dict[str, float] | None) -> str:
 
 
 def render(record: dict[str, Any], teams: list[str]) -> str:
+    baseline = str(record.get("baseline") or BASELINE)
+    secondary = baseline != BASELINE
     lines: list[str] = []
-    lines.append("# The engine gate")
+    lines.append(
+        "# The engine gate: the secondary measurement" if secondary else "# The engine gate"
+    )
     lines.append("")
     lines.append("Generated by `scripts/engine_gate.py` (`make gate`). Do not edit by hand.")
     lines.append("")
     lines.append(
         f"Run started {record.get('started', '?')}, finished {record.get('finished', '?')}, "
         f"at commit `{_commit()}` on {platform.platform()}. "
-        f"{record.get('games')} games per arm, seed {record.get('seed')}."
+        f"{record.get('games')} games per arm, seed {record.get('seed')}, "
+        f"every arm against `{baseline}`."
     )
     lines.append("")
+    if secondary:
+        lines.append(
+            "This is section 4's pre-registered secondary measurement for the outcome in "
+            "which neither depth nor fidelity clears the primary gate (`docs/engine-gate.md`): "
+            f"the same arms, and `oneply` itself, against `{baseline}`, which has a known "
+            "baseline (D30) and more headroom than a mirror. It checks whether the mirror "
+            "was too insensitive to see an effect. No verdict is read from it."
+        )
+        lines.append("")
     lines.append("## What this measures")
     lines.append("")
     lines.append(
@@ -410,14 +437,13 @@ def render(record: dict[str, Any], teams: list[str]) -> str:
         lines.append(f"## `{team}`")
         lines.append("")
         lines.append(
-            "| arm | games | win rate vs `oneply` | 95% | vs `oneply-oracle` | p50 ms | p95 ms | "
-            "> 45 s | worst battle | clock ok | fallback |"
+            f"| arm | games | win rate vs `{baseline}` | 95% | vs `oneply-oracle` | p50 ms | "
+            "p95 ms | > 45 s | worst battle | clock ok | fallback |"
         )
         lines.append("| --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |")
         control = rows.get(CONTROL)
-        for arm in [a for a in (CONTROL, BLIND_DEPTH, DEPTH, FIDELITY) if a in rows] + sorted(
-            a for a in rows if a not in DEFAULT_ARMS
-        ):
+        ordered = [a for a in (BASELINE, CONTROL, BLIND_DEPTH, DEPTH, FIDELITY) if a in rows]
+        for arm in ordered + sorted(a for a in rows if a not in ordered):
             row = rows[arm]
             low, high = row.interval
             versus = (
@@ -436,6 +462,8 @@ def render(record: dict[str, Any], teams: list[str]) -> str:
                 f"{row.worst_battle_s:.0f} s | {'yes' if row.clock_ok else 'NO'} | {fallback} |"
             )
         lines.append("")
+        if secondary:
+            continue
         result = (record.get("verdicts") or {}).get(team) or verdict(rows)
         lines.append(f"**Verdict on `{team}`:** {OUTCOME_TEXT[result['outcome']]}")
         lines.append("")
@@ -491,15 +519,21 @@ def main() -> None:
     parser.add_argument("--teams", default=",".join(DEFAULT_TEAMS))
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--port", type=int, default=8090)
-    parser.add_argument("--trace-dir", default=str(TRACE_DIR))
-    parser.add_argument("--json", default=str(JSON_PATH))
-    parser.add_argument("--out", default=str(REPORT_PATH))
+    parser.add_argument("--trace-dir", default=None, help=f"default {TRACE_DIR} (+ -<baseline>)")
+    parser.add_argument("--json", default=None, help=f"default {JSON_PATH} (+ -<baseline>)")
+    parser.add_argument("--out", default=None, help=f"default {REPORT_PATH} (+ -<baseline>)")
     parser.add_argument("--resume", action="store_true", help="keep rows already in --json")
     parser.add_argument(
         "--no-server", action="store_true", help="a Showdown server is already on --port"
     )
     parser.add_argument(
         "--report-only", action="store_true", help="rewrite the report from --json; no games"
+    )
+    parser.add_argument(
+        "--baseline",
+        default=BASELINE,
+        choices=sorted(BASELINE_DISPLAYS),
+        help="the arm every other arm plays; `greedy` is the secondary measurement",
     )
     args = parser.parse_args()
 
@@ -508,13 +542,19 @@ def main() -> None:
     if unknown:
         raise SystemExit(f"unknown teams {unknown}; available: {available_teams()}")
     arms = [a for a in args.arms.split(",") if a]
-
-    json_path, out = Path(args.json), Path(args.out)
+    secondary = args.baseline != BASELINE
+    if secondary and BASELINE not in arms:
+        arms = [BASELINE, *arms]
+    tag = f"-{args.baseline}" if secondary else ""
+    json_path = Path(args.json or f"data/eval/engine-gate{tag}.{FORMAT_ID}.json")
+    out = Path(args.out or f"docs/engine-gate{tag}.md")
+    trace_dir = Path(args.trace_dir or f"runs/m8-gate{tag}")
     if args.report_only:
         record = _load(json_path)
-        record["verdicts"] = {
-            team: verdict({r.arm: r for r in rows_for(record, team)}) for team in teams
-        }
+        if not secondary:
+            record["verdicts"] = {
+                team: verdict({r.arm: r for r in rows_for(record, team)}) for team in teams
+            }
     else:
         process = None if args.no_server else start_server(port=args.port)
         try:
@@ -525,9 +565,10 @@ def main() -> None:
                     args.games,
                     args.seed,
                     args.port,
-                    Path(args.trace_dir),
+                    trace_dir,
                     json_path,
                     args.resume,
+                    args.baseline,
                 )
             )
         finally:

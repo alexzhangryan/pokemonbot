@@ -32,11 +32,12 @@ a cell this model cannot score. That cell takes the fallback model's value and
 the decision counts it, because an arm that quietly scored a third of its
 cells some other way would not be measuring what its name says.
 
-A position with an empty slot on our side is a forced-switch decision and is
-not materialised at all; `begin` returns False and the agent uses the fallback
-for the whole decision. A fainted Pokemon still in its slot is different: at a
-move request it means there is nothing to replace it with, and the position is
-materialised with that slot passing.
+A forced-switch decision is not materialised at all; `begin` returns False and
+the agent uses the fallback for the whole decision. An empty slot at a move
+request -- a side down to one Pokemon -- is materialised with a fainted
+Pokemon holding the slot, so that the simulator's slot numbering matches the
+snapshot's and the choices for that slot are passes, which the simulator
+takes.
 """
 
 from __future__ import annotations
@@ -597,32 +598,36 @@ class RolloutModel:
             self.stats.skipped = "forced switch"
             return False
         our_active = list(snapshot["ours"]["active"])
-        if not our_active or any(p is None for p in our_active):
-            self.stats.skipped = "empty slot"
+        our_bench = [p for p in snapshot["ours"]["bench"] if p.get("selected", True)]
+        their_active = list(snapshot["theirs"]["active"])
+        their_bench = list(snapshot["theirs"]["bench"])
+        if not any(p is not None for p in our_active):
+            self.stats.skipped = "nothing of ours on the field"
             return False
-        their_active = [p for p in snapshot["theirs"]["active"] if p is not None]
-        if not their_active:
+        if not any(p is not None for p in their_active):
             self.stats.skipped = "no opponent on the field"
+            return False
+
+        # Slots are positions, and the simulator's targets and passes are
+        # addressed to them. A side down to one Pokemon has one slot
+        # permanently empty, and team preview cannot leave a slot empty, so a
+        # fainted Pokemon leads in it: the simulator sees exactly the board
+        # the snapshot shows, the living Pokemon in the slot the targets name
+        # and a passed corpse in the other.
+        our_leads = slot_leads(our_active, our_bench)
+        their_leads = slot_leads(their_active, their_bench)
+        if our_leads is None or their_leads is None:
+            self.stats.skipped = "empty slot with no fainted Pokemon to hold it"
             return False
 
         rng = np.random.default_rng(
             int.from_bytes(replicate_seed_bytes(self._seed, battle_tag, turn), "big")
         )
-        our_bench = [p for p in snapshot["ours"]["bench"] if p.get("selected", True)]
         our_order = team_order(
-            self._our_sets,
-            [p["name"] for p in our_active],
-            [p["name"] for p in our_bench],
-            rng,
-            self._picked,
+            self._our_sets, our_leads, [p["name"] for p in our_bench], rng, self._picked
         )
-        their_bench = list(snapshot["theirs"]["bench"])
         their_order = team_order(
-            self._their_sets,
-            [p["name"] for p in their_active],
-            [p["name"] for p in their_bench],
-            rng,
-            self._picked,
+            self._their_sets, their_leads, [p["name"] for p in their_bench], rng, self._picked
         )
         if len(our_order) < self._picked or len(their_order) < self._picked:
             self.stats.problems.append("could not name a full bring for both sides")
@@ -658,12 +663,14 @@ class RolloutModel:
             return False
 
         self._handle = int(result["handle"])
-        self._brought = {p["name"] for p in our_active} | {p["name"] for p in our_bench}
-        self._revealed = {p["name"] for p in their_active} | {p["name"] for p in their_bench}
-        self._our_alive = [not p.get("fainted") for p in our_active]
-        self._their_alive = [
-            p is not None and not p.get("fainted") for p in snapshot["theirs"]["active"]
-        ]
+        self._brought = {p["name"] for p in our_active if p is not None} | {
+            p["name"] for p in our_bench
+        }
+        self._revealed = {p["name"] for p in their_active if p is not None} | {
+            p["name"] for p in their_bench
+        }
+        self._our_alive = [p is not None and not p.get("fainted") for p in our_active]
+        self._their_alive = [p is not None and not p.get("fainted") for p in their_active]
         self._seeds = [
             replicate_seed(self._seed, battle_tag, turn, r) for r in range(self._replicates)
         ]
@@ -737,6 +744,24 @@ class RolloutModel:
         their_actions: list[dict[str, Any]],
     ) -> list[float]:
         return [self.value(snapshot, our_action, theirs) for theirs in their_actions]
+
+
+def slot_leads(
+    active: Sequence[dict[str, Any] | None], bench: Sequence[dict[str, Any]]
+) -> list[str] | None:
+    """The team preview leads, slot by slot: the occupant's name, or a fainted
+    bench Pokemon's for an empty slot. None when an empty slot has nothing
+    fainted to hold it, which is a position this model cannot lay out."""
+    fillers = [p["name"] for p in bench if p.get("fainted")]
+    leads: list[str] = []
+    for view in active:
+        if view is not None:
+            leads.append(view["name"])
+        elif fillers:
+            leads.append(fillers.pop(0))
+        else:
+            return None
+    return leads
 
 
 def replicate_seed_bytes(seed: int, battle_tag: str, turn: int) -> bytes:

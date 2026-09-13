@@ -37,6 +37,7 @@ from champions.search.rollout import (
     position_payload,
     replicate_seed,
     sim_snapshot,
+    slot_leads,
     team_order,
     their_choice,
 )
@@ -280,6 +281,14 @@ def test_their_choice_targets_a_living_slot_and_passes_a_fainted_one(dex: Dex) -
     assert their_choice(column, dex, [True, True], [True, False]) == "move icebeam 1, pass"
     spread = {"slots": [{"kind": "move", "move": "earthquake", "target": 1}]}
     assert their_choice(spread, dex, [True, True], [True, True]) == "move earthquake, default"
+
+
+def test_slot_leads_hold_empty_slots_with_the_fainted() -> None:
+    active = [None, {"name": "Milotic"}]
+    bench = [{"name": "Gyarados", "fainted": True}, {"name": "Dragonite", "fainted": False}]
+    assert slot_leads(active, bench) == ["Gyarados", "Milotic"]
+    assert slot_leads([None, None], bench) is None
+    assert slot_leads([{"name": "A"}, {"name": "B"}], []) == ["A", "B"]
 
 
 def test_replicate_seeds_are_four_words_and_stable() -> None:
@@ -616,10 +625,35 @@ def test_a_fainted_slot_with_no_bench_is_materialised_and_passes(sim: SimServer,
     assert 0.0 <= value <= 1.0 and model.stats.fallback_cells == 0, model.stats.refusals
 
 
-def test_an_empty_slot_is_not_materialised(sim: SimServer, dex: Dex) -> None:
+def test_an_empty_slot_is_held_by_a_fainted_pokemon(sim: SimServer, dex: Dex) -> None:
+    """A side down to one Pokemon: the survivor stays in its slot, the other
+    slot passes, and a target aimed at the survivor's slot lands on it."""
+    position = _position(sim, dex)
+    survivor = position["ours"]["active"][1]
+    position["ours"]["active"] = [None, survivor]
+    position["ours"]["bench"] = [
+        {**p, "fainted": True, "hp_pct": 0.0, "hp": 0} for p in position["ours"]["bench"]
+    ]
+    model = _model(sim, dex, replicates=1)
+    assert model.begin(position, "battle-test-3") is True, model.stats
+    first = next(m["id"] for m in survivor["moves"] if dex.moves[m["id"]]["target"] == "normal")
+    value = model.value(
+        position,
+        {"message": f"/choose pass, move {first} 1"},
+        {"slots": [{"kind": "move", "move": "protect", "target": 1}, {"kind": "none"}]},
+    )
+    model.end()
+    assert 0.0 <= value <= 1.0 and model.stats.fallback_cells == 0, model.stats.refusals
+
+
+def test_an_empty_slot_with_nothing_fainted_is_not_materialised(sim: SimServer, dex: Dex) -> None:
     position = _position(sim, dex)
     position["ours"]["active"][1] = None
+    position["ours"]["bench"] = [
+        {**p, "fainted": False, "hp_pct": 100.0} for p in position["ours"]["bench"]
+    ]
     model = _model(sim, dex)
-    assert model.begin(position, "battle-test-3") is False
+    assert model.begin(position, "battle-test-5") is False
+    assert model.stats.skipped == "empty slot with no fainted Pokemon to hold it"
     value = model.value(position, {"message": "/choose default"}, {"slots": []})
     assert 0.0 <= value <= 1.0 and model.stats.fallback_cells == 1
