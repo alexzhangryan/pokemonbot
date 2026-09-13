@@ -268,12 +268,29 @@ class TurnModel:
         hypothesis: OpponentHypothesis | None = None,
         picked_team_size: int | None = None,
         effects: EffectsProvider | None = None,
+        place_incoming: bool = False,
     ) -> None:
         self._dex = dex
         self._chart = TypeChart.from_dex(dex)
         self._hypothesis = hypothesis or OpponentHypothesis()
         self._picked_team_size = picked_team_size or dex.picked_team_size
         self._effects = effects or NoEffects()
+        #: Whether a switch puts the named Pokemon on the field. Off by default
+        #: so every one-ply number since M2 is unchanged; on when the model is
+        #: used one ply deeper (`champions.search.twoply`). See `_switch`.
+        self._place_incoming = place_incoming
+
+    @property
+    def hypothesis(self) -> OpponentHypothesis:
+        return self._hypothesis
+
+    @property
+    def effects(self) -> EffectsProvider:
+        return self._effects
+
+    @property
+    def places_incoming(self) -> bool:
+        return self._place_incoming
 
     # -- public ---------------------------------------------------------
 
@@ -406,14 +423,48 @@ class TurnModel:
         giving up this turn's action while keeping the Pokemon. That is a real
         and intended bias against switching, and it is the clearest thing depth
         would fix.
+
+        With `place_incoming` the model is being used one ply deeper
+        (`champions.search.twoply`), the next turn *is* asked, and the switch
+        names who comes in: that Pokemon leaves the bench for the slot, with
+        `_placed` set so the next ply knows it just came in, and the outgoing
+        one is benched with its boosts cleared, as the game clears them.
+        Opponent columns never contain switches, so this only ever fires for
+        our side.
         """
         state = copy.deepcopy(state)
         side = state[action.side]
         active = side["active"]
-        if action.slot < len(active) and active[action.slot] is not None:
-            side["bench"] = [*side["bench"], active[action.slot]]
+        if action.slot >= len(active) or active[action.slot] is None:
+            return state
+
+        outgoing = {**active[action.slot], "boosts": {}}
+        incoming = self._incoming(side["bench"], action.described) if self._place_incoming else None
+        if incoming is None:
+            side["bench"] = [*side["bench"], outgoing]
             active[action.slot] = None
+            return state
+
+        side["bench"] = [*[p for p in side["bench"] if p is not incoming], outgoing]
+        active[action.slot] = {**incoming, "_placed": True}
         return state
+
+    @staticmethod
+    def _incoming(bench: list[dict[str, Any]], described: dict[str, Any]) -> dict[str, Any] | None:
+        """The bench entry a switch names, by nickname first and species second."""
+        wanted_name = described.get("name")
+        wanted_species = described.get("species")
+        for view in bench:
+            if view.get("fainted"):
+                continue
+            if wanted_name and view.get("name") == wanted_name:
+                return view
+        for view in bench:
+            if view.get("fainted"):
+                continue
+            if wanted_species and view.get("species") == wanted_species:
+                return view
+        return None
 
     def _protect(self, state: dict[str, Any], action: _Action) -> dict[str, Any]:
         state = copy.deepcopy(state)
@@ -609,11 +660,24 @@ def _count_remaining(side: dict[str, Any]) -> int:
     return sum(1 for p in seen if not p["fainted"])
 
 
+class CellModel(Protocol):
+    """Anything that can value one cell: the analytic turn (`TurnModel`), the
+    same turn one ply deeper (`champions.search.twoply.TwoPlyModel`), or the
+    simulator (`champions.search.rollout`). `payoff_matrix` is the seam."""
+
+    def value(
+        self,
+        snapshot: dict[str, Any],
+        our_action: dict[str, Any],
+        their_action: dict[str, Any],
+    ) -> float: ...  # pragma: no cover
+
+
 def payoff_matrix(
     snapshot: dict[str, Any],
     our_actions: list[dict[str, Any]],
     their_actions: list[dict[str, Any]],
-    model: TurnModel,
+    model: CellModel,
 ) -> np.ndarray:
     """The full payoff matrix for one decision.
 

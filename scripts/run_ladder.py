@@ -24,6 +24,7 @@ from poke_env.ps_client import AccountConfiguration
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
 from champions.agents.belief_agent import BeliefAgent, BeliefMovesOnly, BeliefStatsOnly
 from champions.agents.oneply import OnePlyAgent
+from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
 from champions.harness.ladder import AgentFactory, format_results_table, run_matchup
 from champions.teams import ALPHA, available_teams, load_team
@@ -36,6 +37,8 @@ ARMS: dict[str, tuple[type[TracingPlayer], str]] = {
     "random": (RandomAgent, "random"),
     "greedy": (MaxBasePowerAgent, "max-base-power"),
     "oneply": (OnePlyAgent, "one-ply"),
+    # M8, the depth arm: the same agent one ply deeper on the same model.
+    "twoply": (TwoPlyAgent, "two-ply"),
     "belief": (BeliefAgent, "one-ply-belief"),
     # Ablations. M5 changes two things at once -- what the opponent's stats and
     # effects are, and what the opponent's action columns are -- and a single

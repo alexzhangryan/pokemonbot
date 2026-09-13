@@ -37,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import time
+from collections.abc import Callable
 from typing import Any
 
 import numpy as np
@@ -131,7 +132,9 @@ class OnePlyAgent(TracingPlayer):
         started = time.perf_counter()
         theirs = self._opponent_candidates(battle, snapshot)
         ours = [s.action for s in scored]
-        matrix = payoff_matrix(snapshot, ours, theirs, self._turn_model(battle))
+        matrix, estimate = await self._estimate(
+            battle, snapshot, ours, theirs, decision, by_message, timings
+        )
         timings["payoff_s"] = time.perf_counter() - started
         await asyncio.sleep(0)
 
@@ -172,15 +175,41 @@ class OnePlyAgent(TracingPlayer):
                 "timings": timings,
                 # What the matrix is actually built on, so a reader never
                 # mistakes this for a simulator-backed number.
-                "model": "analytic-one-turn",
+                "model": self.payoff_model,
                 "opponent_model": self.opponent_model,
+                **estimate,
             },
         )
 
+    # -- the payoff seam -------------------------------------------------
+    #
+    # The M8 arms (`champions.agents.twoply`, `champions.agents.oracle`) differ
+    # from this agent in how a cell is valued and in nothing else, so that is
+    # the one method they override. `docs/specs/2026-09-13-engine-gate.md`.
+
+    #: Recorded on the trace beside `opponent_model`, so a reader can tell an
+    #: analytic estimate from a two-ply or simulator-backed one.
+    payoff_model = "analytic-one-turn"
+
+    async def _estimate(
+        self,
+        battle: AbstractBattle,
+        snapshot: dict[str, Any],
+        ours: list[dict[str, Any]],
+        theirs: list[dict[str, Any]],
+        decision: AnytimeDecision[BattleOrder],
+        by_message: dict[str, BattleOrder],
+        timings: dict[str, float],
+    ) -> tuple[np.ndarray, dict[str, Any]]:
+        """The payoff matrix for this decision, plus anything the trace should
+        record about how it was built. May propose to `decision` on the way, if
+        it has an intermediate answer worth returning at the deadline."""
+        return payoff_matrix(snapshot, ours, theirs, self._turn_model(battle)), {}
+
     # -- the two seams a belief plugs into -------------------------------
     #
-    # Overridden by `champions.agents.belief_agent.BeliefAgent` and by nothing
-    # else. Kept as methods rather than as constructor arguments because a
+    # Overridden by `champions.agents.belief_agent.BeliefAgent` and by the M8
+    # oracle. Kept as methods rather than as constructor arguments because a
     # belief is per battle and this agent is per run: the ladder plays several
     # games concurrently through one player object.
 
@@ -196,7 +225,16 @@ class OnePlyAgent(TracingPlayer):
         battle: AbstractBattle,
         snapshot: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        return opponent_candidates(snapshot, self.dex, self._k)
+        return opponent_candidates(
+            snapshot, self.dex, self._k, believed_moves=self._believed_moves(battle)
+        )
+
+    def _believed_moves(self, battle: AbstractBattle) -> Callable[[str], list[str]] | None:
+        """Moves the opponent is believed to have beyond the revealed ones, as a
+        callable from species, or None for the revealed-only model. Also what
+        the two-ply child uses for its columns, which is why it is a seam of
+        its own rather than folded into `_opponent_candidates`."""
+        return None
 
     def _sample(self, strategy: np.ndarray, battle: AbstractBattle) -> int:
         """Draw an action index from the mixed strategy.

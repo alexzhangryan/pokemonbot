@@ -19,6 +19,7 @@ from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPla
 from champions.agents.belief_agent import BeliefAgent
 from champions.agents.language_agent import LanguageAgent
 from champions.agents.oneply import OnePlyAgent
+from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
 from champions.teams import ALPHA, BETA, available_teams, load_team
 from champions.trace.validate import validate_trace_file
@@ -81,6 +82,7 @@ AGENTS = {
     "random": RandomAgent,
     "greedy": MaxBasePowerAgent,
     "oneply": OnePlyAgent,
+    "twoply": TwoPlyAgent,
     "belief": BeliefAgent,
     "llm": LanguageAgent,
 }

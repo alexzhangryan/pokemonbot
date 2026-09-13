@@ -30,6 +30,7 @@ was worth building.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from poke_env.battle import AbstractBattle
@@ -38,7 +39,6 @@ from champions.agents.oneply import OnePlyAgent
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.priors import PriorNotBuiltError
 from champions.search.payoff import TurnModel
-from champions.search.policy import opponent_candidates
 
 #: Posterior mass a move needs before it becomes a column of the matrix. Low,
 #: because a column costs one payoff evaluation and a missing column costs the
@@ -87,20 +87,11 @@ class BeliefAgent(OnePlyAgent):
             )
         return self._models[tag]
 
-    def _opponent_candidates(
-        self,
-        battle: AbstractBattle,
-        snapshot: dict[str, Any],
-    ) -> list[dict[str, Any]]:
+    def _believed_moves(self, battle: AbstractBattle) -> Callable[[str], list[str]] | None:
         belief = self.belief_for(battle)
-        return opponent_candidates(
-            snapshot,
-            self.dex,
-            self._k,
-            believed_moves=None
-            if belief is None
-            else (lambda species: belief.believed_moves(species, self._move_threshold)),
-        )
+        if belief is None:
+            return None
+        return lambda species: belief.believed_moves(species, self._move_threshold)
 
     def _battle_finished_callback(self, battle: AbstractBattle) -> None:
         self._models.pop(battle.battle_tag, None)
@@ -118,12 +109,8 @@ class BeliefStatsOnly(BeliefAgent):
     strategy = "one-ply-belief-stats"
     opponent_model = "belief-stats-revealed-moves"
 
-    def _opponent_candidates(
-        self,
-        battle: AbstractBattle,
-        snapshot: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        return opponent_candidates(snapshot, self.dex, self._k)
+    def _believed_moves(self, battle: AbstractBattle) -> Callable[[str], list[str]] | None:
+        return None
 
 
 class BeliefMovesOnly(BeliefAgent):

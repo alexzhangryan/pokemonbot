@@ -106,6 +106,9 @@ class PolicyProvider(Protocol):
     should get the degraded ordering rather than an exception.
     """
 
+    #: The name the trace and the pruning guard report the provider under.
+    name: str
+
     def candidates(
         self,
         actions: list[dict[str, Any]],
@@ -113,6 +116,13 @@ class PolicyProvider(Protocol):
         belief: Any,
         k: int,
     ) -> list[dict[str, Any]]: ...  # pragma: no cover
+
+    def scored(
+        self,
+        actions: list[dict[str, Any]],
+        k: int = ...,
+        state: dict[str, Any] | None = None,
+    ) -> list[ScoredAction]: ...  # pragma: no cover
 
 
 @dataclass(frozen=True)
