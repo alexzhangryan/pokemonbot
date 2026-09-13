@@ -1,0 +1,200 @@
+{
+  "format": "gen9championsvgc2026regmb",
+  "games": 200,
+  "seed": 0,
+  "rows": {
+    "regmb-alpha/oneply-oracle": {
+      "team": "regmb-alpha",
+      "arm": "oneply-oracle",
+      "games": 200,
+      "wins": 88,
+      "baseline_wins": 112,
+      "p50_ms": 115.79110000047876,
+      "p95_ms": 193.80921500032855,
+      "max_ms": 294.2048999993858,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 2.9883548000007067,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 223.46399550000024
+    },
+    "regmb-alpha/twoply": {
+      "team": "regmb-alpha",
+      "arm": "twoply",
+      "games": 200,
+      "wins": 103,
+      "baseline_wins": 97,
+      "p50_ms": 104.59770000034041,
+      "p95_ms": 456.4387600006737,
+      "max_ms": 2619.165499999326,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 9.36062960000072,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 306.50538679999954
+    },
+    "regmb-alpha/twoply-oracle": {
+      "team": "regmb-alpha",
+      "arm": "twoply-oracle",
+      "games": 200,
+      "wins": 86,
+      "baseline_wins": 114,
+      "p50_ms": 1321.9974000003276,
+      "p95_ms": 3892.8527800002475,
+      "max_ms": 5980.151699999624,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 35.3420387999995,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 3095.3201511000007
+    },
+    "regmb-beta/oneply-oracle": {
+      "team": "regmb-beta",
+      "arm": "oneply-oracle",
+      "games": 200,
+      "wins": 94,
+      "baseline_wins": 106,
+      "p50_ms": 144.59439999973256,
+      "p95_ms": 244.33716500025184,
+      "max_ms": 448.9257999994152,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 4.768200499998784,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 291.28734460000123
+    },
+    "regmb-beta/twoply": {
+      "team": "regmb-beta",
+      "arm": "twoply",
+      "games": 200,
+      "wins": 87,
+      "baseline_wins": 113,
+      "p50_ms": 146.3858999995864,
+      "p95_ms": 1164.1361450006116,
+      "max_ms": 3772.231000000829,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 16.747477900005833,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 667.518789400001
+    },
+    "regmb-beta/twoply-oracle": {
+      "team": "regmb-beta",
+      "arm": "twoply-oracle",
+      "games": 200,
+      "wins": 104,
+      "baseline_wins": 96,
+      "p50_ms": 2039.7307999992336,
+      "p95_ms": 6021.754849999525,
+      "max_ms": 9730.891600000177,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 108.68696899999486,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 0,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": null,
+      "elapsed_s": 5364.789775500001
+    },
+    "regmb-alpha/sim-oracle": {
+      "team": "regmb-alpha",
+      "arm": "sim-oracle",
+      "games": 200,
+      "wins": 98,
+      "baseline_wins": 102,
+      "p50_ms": 506.49965000047814,
+      "p95_ms": 639.3206050006484,
+      "max_ms": 1041.0528000029444,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 8.449240699999791,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 1715,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": 0.0,
+      "elapsed_s": 832.5392021000007
+    },
+    "regmb-beta/sim-oracle": {
+      "team": "regmb-beta",
+      "arm": "sim-oracle",
+      "games": 200,
+      "wins": 106,
+      "baseline_wins": 94,
+      "p50_ms": 555.877300001157,
+      "p95_ms": 685.0541650004743,
+      "max_ms": 1268.4176999973715,
+      "frac_over_limit": 0.0,
+      "worst_battle_s": 14.38758970001436,
+      "clock_ok": true,
+      "watchdog_fires": 0,
+      "decisions": 1867,
+      "fallback_decisions": 0,
+      "fallback_cell_fraction": 0.0,
+      "elapsed_s": 952.7531565000027
+    }
+  },
+  "started": "2026-09-13T17:29:44.985882+00:00",
+  "baseline": "oneply",
+  "verdicts": {
+    "regmb-alpha": {
+      "outcome": "neither",
+      "depth_gap": {
+        "estimate": -0.010000000000000009,
+        "low": -0.10716164469987591,
+        "high": 0.08716164469987589
+      },
+      "fidelity_gap": {
+        "estimate": 0.04999999999999999,
+        "low": -0.047634933368830776,
+        "high": 0.14763493336883077
+      },
+      "depth_minus_fidelity": {
+        "estimate": -0.06,
+        "low": -0.15750697785906195,
+        "high": 0.03750697785906196
+      },
+      "control_gain": false,
+      "depth_gain": false,
+      "fidelity_gain": false,
+      "blind_depth_gain": false
+    },
+    "regmb-beta": {
+      "outcome": "neither",
+      "depth_gap": {
+        "estimate": 0.050000000000000044,
+        "low": -0.04787071942369468,
+        "high": 0.14787071942369479
+      },
+      "fidelity_gap": {
+        "estimate": 0.06000000000000005,
+        "low": -0.0378216441965086,
+        "high": 0.1578216441965087
+      },
+      "depth_minus_fidelity": {
+        "estimate": -0.010000000000000009,
+        "low": -0.10787071942369474,
+        "high": 0.08787071942369472
+      },
+      "control_gain": false,
+      "depth_gain": false,
+      "fidelity_gain": false,
+      "blind_depth_gain": false
+    }
+  },
+  "finished": "2026-09-13T21:15:50.977816+00:00"
+}

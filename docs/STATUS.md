@@ -12,17 +12,18 @@ browser.
 
 ## Current milestone
 
-**M8, the engine gate, is built and its run is in flight (D70).** The spec is
-`docs/specs/2026-09-13-engine-gate.md`; the arms and the rule were fixed
-before any number existed. Everything the run needs is committed: the
-two-ply model (`champions/search/twoply.py`), `materialize` in
-`js/sim_server.js` and the simulator payoff (`champions/search/rollout.py`),
-the oracle opponent and the four arms (`champions/agents/oracle.py`), and
-`scripts/engine_gate.py`, which applies section 4's rule mechanically and
-writes `docs/engine-gate.md`. See **M8: the engine gate** in the milestone
-record, **In flight** for the run, and **Next action** for what the verdict
-decides. The verdict goes in D71 when the run finishes; do not read anything
-into partial rows.
+**M8 is done and the verdict is "neither clears", on both teams (D71). No
+engine is built.** The gate (`docs/engine-gate.md`, rule fixed in D70 before
+the numbers) measured the two ways of doing more with the one-turn payoff
+model — one more ply, and the real simulator — each handed the opponent's
+true sets, against the incumbent in a 200-game mirror on each team. No arm
+demonstrates a gain and neither gap is apart from zero; on beta both gaps are
++5 to +6 points with intervals to +15, which a 200-game mirror cannot resolve.
+The premise this milestone rested on — that the one-turn payoff model is the
+binding constraint — is not demonstrated at this pairing. The pre-registered
+secondary measurement against `greedy` is **In flight**; **Next action** says
+what each outcome of it means. Everything is committed except the secondary
+run's report.
 
 The M7 recap below stands as the record it was:
 
@@ -1129,16 +1130,14 @@ Four things found on the way, none of which changes the design:
 
 ## In flight
 
-**The M8 gate run, started 2026-09-13 on this machine.** `make gate` with
-the defaults: 4 arms × 2 teams × 200 games, seed 0, `oneply` as the incumbent,
-one Showdown server on 8090. Rows land in
-`data/eval/engine-gate.gen9championsvgc2026regmb.json` after every matchup,
-traces in `runs/m8-gate/<team>/<arm>/`, and `docs/engine-gate.md` is written
-at the end (or from the JSON with `--report-only`). A killed run continues with
-`make gate GATE_ARGS=--resume`. Estimated from the smoke run: the analytic
-arms take minutes per matchup, the simulator arm about 15 minutes, and
-`twoply-oracle` an hour or more per team at 1.8 s a decision. **The verdict
-goes in D71 when the run finishes**; partial rows are not a result.
+**The gate's secondary measurement, started 2026-09-13 on this machine.**
+`scripts/engine_gate.py --baseline greedy`: `oneply` and the four arms against
+`max-base-power`, 200 games, seed 0, both teams, one server on 8090. Rows land
+in `data/eval/engine-gate-greedy.gen9championsvgc2026regmb.json` after every
+matchup, traces in `runs/m8-gate-greedy/`, and `docs/engine-gate-greedy.md`
+at the end; it carries no verdict by design (D71). About three hours, most of
+it `twoply-oracle`. A killed run continues with `--baseline greedy --resume`.
+The primary run is finished and its report is committed.
 
 **The Bo3 backfill — a Windows-box process, state unknown from here.**
 `scrape_replays.py --format gen9championsvgc2026regmbbo3 --full` was walking
@@ -1245,11 +1244,13 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing, as of the M8 build.** The four M8 commits are on `main` locally
-(`4094370`, `9698a7b`, `edd7b61`, `d421e28`); whether they have been pushed is
-Alex's to check. The gate run writes `data/eval/engine-gate.*.json`,
-`docs/engine-gate.md` and `docs/STATUS.md`/`docs/DECISIONS.md` (D71) when it
-finishes, and those are committed with the verdict. The earlier record:
+**Nothing but the secondary run's output.** The M8 commits are on `main`
+locally (`4094370`, `9698a7b`, `edd7b61`, `d421e28`, `e721612`, `265dca4`, and
+the verdict commit carrying this file, D71, `docs/engine-gate.md` and its
+JSON); whether they have been pushed is Alex's to check. The secondary run
+writes `docs/engine-gate-greedy.md` and `data/eval/engine-gate-greedy.*.json`
+when it finishes; commit them with D72. `runs/m8-gate*/` is gitignored and
+reproducible with the same seed. The earlier record:
 
 **Nothing from past sessions.** Implementation C landed as `fb1c633`, and the
 Mac-setup session's fixes as `ce22bac` (portable Makefile, the two
@@ -1281,6 +1282,8 @@ The milestone record on `main`:
 | `9698a7b` | M8 step 2: the two-ply model and agent |
 | `edd7b61` | M8 step 3: `materialize` and the simulator payoff |
 | `d421e28` | M8 step 4: the oracle, the four arms, the gate script |
+| `e721612` | this file, with M8 built and the run in flight |
+| `265dca4` | the rollout holds an empty slot with a fainted Pokemon; `--baseline` |
 
 Commits in this repository carry no `Co-Authored-By` trailer. Five that did
 were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
@@ -1317,24 +1320,26 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 
 ## Next action
 
-**Read the gate.** When the run in **In flight** finishes (or after
-`--report-only` on what it saved), `docs/engine-gate.md` states a verdict per
-team by section 4's rule. Then, in order:
+**Read the secondary measurement when it lands** (`docs/engine-gate-greedy.md`,
+or `--baseline greedy --report-only` on what it saved). It has no verdict; it
+says whether the mirror was too insensitive. Two readings, decided in advance
+(D71):
 
-1. Append D71 with the verdict and the numbers, per team, and with the two
-   caveats the report already carries: the oracle is a ceiling, and neither
-   team has items.
-2. Follow the verdict's branch as section 4 wrote it *before* the numbers:
-   depth → the Rust engine on `m8/rust-engine` with section 2's brief;
-   fidelity → the simulator payoff fed by belief particles, which needs the
-   corpus and `make priors` on a machine that has them, then `k`, the union
-   (D67) and the belief head-to-head (D58) re-opened against it; both →
-   fidelity first; neither → the secondary measurement against `greedy`.
-3. Move "What the switch bias costs" from **Still open** to **Cleared by
-   measurement**: the depth gap is that number.
+- **Nothing apart from zero there either** (every arm within its interval of
+  `oneply`'s own rate against `greedy`, D30's 82% on alpha and 56% on beta).
+  Then the payoff model is not where win rate lives at this pairing, and the
+  next question is the search's *inputs*: the union at higher `k` on the
+  current model (D69's strongest open result), and a third and fourth team so
+  the evaluation can fit the weights two teams cannot (M6). Both are cheaper
+  than anything M8 built.
+- **An arm apart from the rest.** Then that arm earns a larger mirror (about
+  1,500 games per arm resolves a 5-point gap), and the engine question is
+  re-asked only if the arm is a depth arm.
 
-Do not tune anything to the partial rows, and do not re-run a matchup because
-its number looks wrong; the rule was fixed in D70 so that this session cannot.
+Either way: no engine, `k` and the union stay deferred no longer than that
+reading, and D58's head-to-head waits for a payoff model that won, which none
+did. Commit the secondary report with a one-paragraph D72 saying which reading
+it was.
 
 The M7 next-action text that follows is superseded by the above and kept as
 the record of how M8 was chosen.
@@ -1630,14 +1635,20 @@ Five. Each states the choice rather than describing the situation.
 - **What the switch bias costs.** The turn model scores a switch as giving up the
   turn, because the incoming Pokemon's value is a next-turn question. This is a
   real and intended bias against switching and it is the clearest thing depth
-  would fix. **Being measured**: the two-ply model places the incoming Pokemon
-  (D70), so the gate's depth gap — `twoply-oracle` minus `oneply-oracle` in
-  `docs/engine-gate.md` — is this number. Moves to "cleared" with D71.
+  would fix. **Measured (D71)**: the two-ply model places the incoming Pokemon,
+  and the gate's depth gap is this number — −1.0% [−10.7%, +8.7%] on alpha,
+  +5.0% [−4.8%, +14.8%] on beta. Not apart from zero on either team; on beta,
+  consistent with a small cost a 200-game mirror cannot resolve. See "Cleared
+  by measurement".
 
 The arithmetic job that stood beside that entry is done: `docs/02-mechanics-deltas.md`
 section 7 carries the local figure and its conclusion 2 is reversed (D70).
 
 ### Cleared by measurement since the last triage
+
+- **What the switch bias costs (D71).** The depth gap in `docs/engine-gate.md`:
+  −1.0% [−10.7%, +8.7%] on alpha, +5.0% [−4.8%, +14.8%] on beta. The bias is
+  real by construction and its cost is not demonstrated at 200 games.
 
 - **The opponent model is no longer degenerate.** It was "their revealed moves,
   and nothing if they have revealed none", so on turn one the matrix had a single
