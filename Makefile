@@ -22,7 +22,7 @@ EVAL_TRACES ?= runs/m6-selfplay
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
         scrape scrape-full corpus priors eval-belief eval-games fit-eval fit-policy discard \
-        llm-smoke discard-llm
+        llm-smoke discard-llm gate
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -51,6 +51,7 @@ help:
 	@echo "make discard       measure what candidate pruning throws away"
 	@echo "make llm-smoke     exercise the language-model provider (C) against local Ollama"
 	@echo "make discard-llm   run the pruning guard on C only (LIMIT=$(or $(LIMIT),20), needs Ollama)"
+	@echo "make gate          run the M8 engine gate (GATE_GAMES=$(or $(GATE_GAMES),200) per arm per team)"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -179,3 +180,12 @@ llm-smoke:
 discard-llm:
 	$(PYTHON) scripts/discard_rate.py --traces $(EVAL_TRACES) --policy language-model \
 	  --limit $(or $(LIMIT),20) --no-report
+
+# M8, the engine gate (`docs/specs/2026-09-13-engine-gate.md`, D70). Four arms
+# against `oneply` in a mirror match on each checked-in team, the rule applied
+# mechanically, and `docs/engine-gate.md` written. Starts its own Showdown
+# server on PORT. Hours at the default; `GATE_GAMES=20` is a smoke run, and an
+# interrupted run continues with `make gate GATE_ARGS=--resume`.
+gate:
+	$(PYTHON) scripts/engine_gate.py --games $(or $(GATE_GAMES),200) --port $(PORT) \
+	  --seed $(SEED) $(GATE_ARGS)

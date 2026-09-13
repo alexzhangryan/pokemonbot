@@ -15,14 +15,25 @@ agents is what is passed into `TurnModel` rather than which code path runs.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from champions.belief import effects as effect_table
-from champions.belief.filter import BattleBelief
 from champions.belief.priors import SetHypothesis
 from champions.dex.damage import TypeChart
 from champions.dex.loader import to_id
 from champions.search.payoff import ASSUMED_POINTS, OpponentHypothesis
+
+
+class SetSource(Protocol):
+    """What the two seams below read: a point-estimate spread and a set per
+    species. `champions.belief.filter.BattleBelief` is the designed source; the
+    M8 oracle (`champions.agents.oracle.TeamOracle`) answers the same two
+    questions from the registered team, which is how the gate hands the
+    payoff model the truth without the belief in the loop."""
+
+    def stats_for(self, species: str) -> dict[str, int] | None: ...  # pragma: no cover
+
+    def set_for(self, species: str) -> SetHypothesis | None: ...  # pragma: no cover
 
 
 @dataclass(frozen=True, eq=False)
@@ -37,7 +48,7 @@ class BeliefHypothesis(OpponentHypothesis):
     much better failure mode than a plausible-looking invented spread.
     """
 
-    belief: BattleBelief | None = None
+    belief: SetSource | None = None
     points: int = ASSUMED_POINTS
 
     def stats_for(self, view: dict[str, Any]) -> dict[str, int]:
@@ -63,7 +74,7 @@ class BeliefEffects:
     (a knockout, a Sash survival) that the cell exists to distinguish.
     """
 
-    def __init__(self, belief: BattleBelief | None) -> None:
+    def __init__(self, belief: SetSource | None) -> None:
         self._belief = belief
 
     def attacker(

@@ -95,3 +95,4 @@ tests/
 | Is the evaluation function actually calibrated | `docs/eval-calibration.md` |
 | What does candidate pruning throw away | `docs/pruning-guard.md` |
 | Did the learned candidate prior learn anything | `docs/policy-prior.md` |
+| Is depth or payoff fidelity worth building, and was an engine justified | `docs/engine-gate.md`, `docs/specs/2026-09-13-engine-gate.md` |

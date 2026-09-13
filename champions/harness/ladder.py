@@ -108,19 +108,26 @@ async def run_matchup(
     n_games: int,
     trace_dir: Path | str,
     seed: int = 0,
+    username_suffix: str = "",
 ) -> list[ArmResult]:
     """Play `n_games` between two arms and return a result per arm.
 
     Seeds and teams are fixed and passed in, so re-running with the same seed
     reproduces the run, and two arms compared against the same opponent see
     common random numbers rather than independent ones.
+
+    `username_suffix` keeps two matchups on one server apart: Showdown holds a
+    username until the server restarts, so the same arm and seed twice in a
+    row would collide and hang (the defect `docs/STATUS.md` records against
+    `run_ladder.py`). The gate runs several matchups against one incumbent on
+    one server and passes a suffix per matchup.
     """
     trace_dir = Path(trace_dir)
     name_a, make_a = arm_a
     name_b, make_b = arm_b
 
-    username_a = f"{_username_safe(name_a)}{seed}"
-    username_b = f"{_username_safe(name_b)}{seed}"
+    username_a = f"{_username_safe(name_a)}{seed}{username_suffix}"
+    username_b = f"{_username_safe(name_b)}{seed}{username_suffix}"
 
     player_a = make_a(username_a, seed, str(trace_dir))
     player_b = make_b(username_b, seed + 1, str(trace_dir))
@@ -129,6 +136,7 @@ async def run_matchup(
     await player_a.close_traces()
     await player_b.close_traces()
     for player in (player_a, player_b):
+        await player.shutdown()
         await player.ps_client.stop_listening()
 
     return [

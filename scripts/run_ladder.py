@@ -24,6 +24,7 @@ from poke_env.ps_client import AccountConfiguration
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
 from champions.agents.belief_agent import BeliefAgent, BeliefMovesOnly, BeliefStatsOnly
 from champions.agents.oneply import OnePlyAgent
+from champions.agents.oracle import OraclePlyAgent, SimOracleAgent, TwoPlyOracleAgent
 from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
 from champions.harness.ladder import AgentFactory, format_results_table, run_matchup
@@ -39,6 +40,13 @@ ARMS: dict[str, tuple[type[TracingPlayer], str]] = {
     "oneply": (OnePlyAgent, "one-ply"),
     # M8, the depth arm: the same agent one ply deeper on the same model.
     "twoply": (TwoPlyAgent, "two-ply"),
+    # M8, the oracle arms: handed the opponent's registered sets
+    # (`docs/specs/2026-09-13-engine-gate.md` section 3). `--opponent-team`
+    # names the team they are told about; it defaults to the arm's own team,
+    # which is the mirror match the gate is measured in.
+    "oneply-oracle": (OraclePlyAgent, "one-ply-oracle"),
+    "twoply-oracle": (TwoPlyOracleAgent, "two-ply-oracle"),
+    "sim-oracle": (SimOracleAgent, "sim-oracle"),
     "belief": (BeliefAgent, "one-ply-belief"),
     # Ablations. M5 changes two things at once -- what the opponent's stats and
     # effects are, and what the opponent's action columns are -- and a single
@@ -53,8 +61,14 @@ ARMS: dict[str, tuple[type[TracingPlayer], str]] = {
 NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent)
 
 
-def build_arm(name: str, port: int, team: str = ALPHA) -> tuple[str, AgentFactory]:
-    """One arm of a matchup, by its command-line name."""
+def build_arm(
+    name: str, port: int, team: str = ALPHA, opponent_team: str | None = None
+) -> tuple[str, AgentFactory]:
+    """One arm of a matchup, by its command-line name.
+
+    `opponent_team` is what an oracle arm is told the opponent registered;
+    it defaults to `team`, the mirror. Other arms ignore it.
+    """
     server = local_server(port)
     agent_class, display = ARMS[name]
     dex = Dex.load(FORMAT_ID) if issubclass(agent_class, NEEDS_DEX) else None
@@ -70,6 +84,10 @@ def build_arm(name: str, port: int, team: str = ALPHA) -> tuple[str, AgentFactor
         }
         if dex is not None:
             kwargs["dex"] = dex
+        if issubclass(agent_class, OraclePlyAgent):
+            kwargs["opponent_team"] = load_team(opponent_team or team)
+        if issubclass(agent_class, SimOracleAgent):
+            kwargs["our_team"] = load_team(team)
         return agent_class(**kwargs)
 
     return display, make
@@ -98,14 +116,26 @@ async def main() -> None:
     )
     parser.add_argument("--team-a", default=None, choices=available_teams())
     parser.add_argument("--team-b", default=None, choices=available_teams())
+    parser.add_argument(
+        "--username-suffix",
+        default="",
+        help="keeps this run's Showdown usernames apart from another run on the same server",
+    )
     args = parser.parse_args()
 
     team_a = args.team_a or args.team
     team_b = args.team_b or args.team
 
-    arm_a = build_arm(args.arm_a, args.port, team_a)
-    arm_b = build_arm(args.arm_b, args.port, team_b)
-    results = await run_matchup(arm_a, arm_b, args.n_games, Path(args.trace_dir), seed=args.seed)
+    arm_a = build_arm(args.arm_a, args.port, team_a, opponent_team=team_b)
+    arm_b = build_arm(args.arm_b, args.port, team_b, opponent_team=team_a)
+    results = await run_matchup(
+        arm_a,
+        arm_b,
+        args.n_games,
+        Path(args.trace_dir),
+        seed=args.seed,
+        username_suffix=args.username_suffix,
+    )
 
     print()
     print(f"format {FORMAT_ID}, {args.n_games} games, seed {args.seed}")

@@ -156,6 +156,11 @@ class TracingPlayer(Player):
         for trace in self._traces.values():
             await trace.close()
 
+    async def shutdown(self) -> None:
+        """Release anything the agent holds beyond the connection. The base
+        agents hold nothing; the M8 simulator arm holds a Node process."""
+        return None
+
     # -- conceding -------------------------------------------------------
 
     async def forfeit_active(self) -> list[str]:

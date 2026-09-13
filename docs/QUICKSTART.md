@@ -522,7 +522,7 @@ do not need one, rather than failing. That is the normal state of a fresh clone.
 
 ## 16. What is not built yet
 
-M0 through M6 are done. What that leaves:
+M0 through M7 are done and M8 is in flight (section 17). What that leaves:
 
 - The preview equilibrium is built and exact, and its value function is not
   wired into play: M4 could not fit one from replay outcomes, because skill
@@ -544,3 +544,38 @@ M0 through M6 are done. What that leaves:
 
 See `docs/STATUS.md` for where things actually stand and `docs/01-plan.md` for
 what comes next.
+
+## 17. Run the M8 engine gate
+
+M8 decides whether marginal win rate comes from search depth or from payoff
+fidelity, and whether a Rust engine is justified (`docs/01-plan.md`, D6). The
+arms and the rule are fixed in `docs/specs/2026-09-13-engine-gate.md` and D70;
+`docs/engine-gate.md` is the generated result.
+
+```powershell
+.venv/Scripts/python.exe scripts/engine_gate.py --games 20      # or: make gate GATE_GAMES=20
+.venv/Scripts/python.exe scripts/engine_gate.py                 # the real thing: 200 games x 4 arms x 2 teams
+.venv/Scripts/python.exe scripts/engine_gate.py --resume        # continue an interrupted run
+.venv/Scripts/python.exe scripts/engine_gate.py --report-only   # rewrite the report from the JSON
+```
+
+The script starts its own Showdown server on `--port` (8090), plays each arm
+against `oneply` in a mirror match on each team, writes
+`data/eval/engine-gate.<format>.json` after every matchup, and renders
+`docs/engine-gate.md` with the verdict per team. Traces land in `runs/m8-gate/`.
+
+The arms are also available to `make ladder` and `make selfplay`:
+
+```powershell
+.venv/Scripts/python.exe scripts/run_ladder.py 20 --arm-a twoply --arm-b oneply --team regmb-alpha
+.venv/Scripts/python.exe scripts/run_ladder.py 20 --arm-a sim-oracle --arm-b oneply --team regmb-beta
+```
+
+`oneply-oracle`, `twoply-oracle` and `sim-oracle` are told the opponent's
+registered sets (`--team-b`'s file, which in a mirror is their own). `sim-oracle`
+starts one `js/sim_server.js` process per agent and scores every cell of the
+matrix by stepping the real simulator from the current position
+(`materialize` in `js/sim_server.js`, `champions/search/rollout.py`); expect
+about half a second per decision. `twoply` and `twoply-oracle` solve a one-ply
+game at every position the first ply reaches (`champions/search/twoply.py`);
+about 60 ms per decision.
