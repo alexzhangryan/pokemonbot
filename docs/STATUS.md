@@ -21,9 +21,10 @@ demonstrates a gain and neither gap is apart from zero; on beta both gaps are
 +5 to +6 points with intervals to +15, which a 200-game mirror cannot resolve.
 The premise this milestone rested on — that the one-turn payoff model is the
 binding constraint — is not demonstrated at this pairing. The pre-registered
-secondary measurement against `greedy` is **In flight**; **Next action** says
-what each outcome of it means. Everything is committed except the secondary
-run's report.
+secondary measurement against `greedy` (`docs/engine-gate-greedy.md`, D72)
+shows nothing apart from the incumbent either, and had no headroom to: the
+specified A already beats `greedy` 95% and 96%, up from D30's 82% and 56%. M8
+is closed. **Next action** is the search's inputs, not its payoff model.
 
 The M7 recap below stands as the record it was:
 
@@ -1130,14 +1131,10 @@ Four things found on the way, none of which changes the design:
 
 ## In flight
 
-**The gate's secondary measurement, started 2026-09-13 on this machine.**
-`scripts/engine_gate.py --baseline greedy`: `oneply` and the four arms against
-`max-base-power`, 200 games, seed 0, both teams, one server on 8090. Rows land
-in `data/eval/engine-gate-greedy.gen9championsvgc2026regmb.json` after every
-matchup, traces in `runs/m8-gate-greedy/`, and `docs/engine-gate-greedy.md`
-at the end; it carries no verdict by design (D71). About three hours, most of
-it `twoply-oracle`. A killed run continues with `--baseline greedy --resume`.
-The primary run is finished and its report is committed.
+**Nothing of M8's.** Both gate runs are finished and committed
+(`docs/engine-gate.md`, `docs/engine-gate-greedy.md`, their JSON under
+`data/eval/`). Traces are in `runs/m8-gate/` and `runs/m8-gate-greedy/`,
+gitignored and reproducible with seed 0.
 
 **The Bo3 backfill — a Windows-box process, state unknown from here.**
 `scrape_replays.py --format gen9championsvgc2026regmbbo3 --full` was walking
@@ -1188,8 +1185,9 @@ Nothing.
 
 ## Tests
 
-**517 pass, 3 skipped, in about 2 minutes** on this Windows box, whole suite,
-as of 2026-09-13 (473 on the Mac on 2026-09-03 before M8 added 44). Two
+**519 pass, 3 skipped, in about 2 minutes** on this Windows box, whole suite,
+as of 2026-09-13 at the end of M8 (473 on the Mac on 2026-09-03 before M8
+added 46). Two
 `tests/test_corpus.py` tests fail only under a long custom `--basetemp` path
 (a Windows path-length artefact of where the temp directory was put, not of
 the code); with the default temp directory they pass. On this machine
@@ -1244,13 +1242,11 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing but the secondary run's output.** The M8 commits are on `main`
-locally (`4094370`, `9698a7b`, `edd7b61`, `d421e28`, `e721612`, `265dca4`, and
-the verdict commit carrying this file, D71, `docs/engine-gate.md` and its
-JSON); whether they have been pushed is Alex's to check. The secondary run
-writes `docs/engine-gate-greedy.md` and `data/eval/engine-gate-greedy.*.json`
-when it finishes; commit them with D72. `runs/m8-gate*/` is gitignored and
-reproducible with the same seed. The earlier record:
+**Nothing.** The M8 commits are on `main` locally (`4094370`, `9698a7b`,
+`edd7b61`, `d421e28`, `e721612`, `265dca4`, `8f67609`, and the D72 commit
+carrying this file and the secondary report); whether they have been pushed is
+Alex's to check. `runs/m8-gate*/` is gitignored and reproducible with the same
+seed. The earlier record:
 
 **Nothing from past sessions.** Implementation C landed as `fb1c633`, and the
 Mac-setup session's fixes as `ce22bac` (portable Makefile, the two
@@ -1284,6 +1280,7 @@ The milestone record on `main`:
 | `d421e28` | M8 step 4: the oracle, the four arms, the gate script |
 | `e721612` | this file, with M8 built and the run in flight |
 | `265dca4` | the rollout holds an empty slot with a fainted Pokemon; `--baseline` |
+| `8f67609` | M8 verdict: neither clears; no engine (D71), the report and its JSON |
 
 Commits in this repository carry no `Co-Authored-By` trailer. Five that did
 were rewritten and force-pushed on 2026-08-29 at Alex's request; the trees were
@@ -1320,26 +1317,29 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 
 ## Next action
 
-**Read the secondary measurement when it lands** (`docs/engine-gate-greedy.md`,
-or `--baseline greedy --report-only` on what it saved). It has no verdict; it
-says whether the mirror was too insensitive. Two readings, decided in advance
-(D71):
+**M8 is closed with no engine (D71, D72). The next question is the search's
+inputs, and it is Alex's to order.** Two candidates, both cheaper than
+anything M8 built, and one limit that both would ease:
 
-- **Nothing apart from zero there either** (every arm within its interval of
-  `oneply`'s own rate against `greedy`, D30's 82% on alpha and 56% on beta).
-  Then the payoff model is not where win rate lives at this pairing, and the
-  next question is the search's *inputs*: the union at higher `k` on the
-  current model (D69's strongest open result), and a third and fourth team so
-  the evaluation can fit the weights two teams cannot (M6). Both are cheaper
-  than anything M8 built.
-- **An arm apart from the rest.** Then that arm earns a larger mirror (about
-  1,500 games per arm resolves a 5-point gap), and the engine question is
-  re-asked only if the arm is a depth arm.
+1. **The union at higher `k` on the current model.** D69's strongest open
+   result: `union-heuristic-learned` beats A on the guard at `k = 10`, 15 and
+   20 with intervals apart, on positions the current agent plays into. It was
+   deferred to M8 because M8 might change what a column costs; M8 did not.
+   The measurement is a mirror of `oneply` with the union at `k = 15` against
+   `oneply` as shipped, and by D67's rule a change of provider or budget is
+   Alex's decision, not a drift. Note D71's arithmetic: a 5-point gap needs
+   about 1,500 games per arm.
+2. **A third and fourth team**, chosen to cover speed control and hazards.
+   M6 could not fit two of seven evaluation weights from two teams; M8 could
+   not measure fidelity's headroom on items because neither team holds one;
+   and D72 found the frozen pool has no opponent between `greedy` (which the
+   incumbent now beats 95%) and the incumbent, so every win-rate measurement
+   is a mirror or a rout. Teams are supplied by a human (D5).
 
-Either way: no engine, `k` and the union stay deferred no longer than that
-reading, and D58's head-to-head waits for a payoff model that won, which none
-did. Commit the secondary report with a one-paragraph D72 saying which reading
-it was.
+Deferred and still deferred: D58's belief head-to-head (waits for a payoff
+model that won; none did), the corpus and `make priors` on this machine (only
+needed for belief arms), and the C provider's stronger backend (Alex's call).
+The `k`/union question is no longer deferred by anything M8 did.
 
 The M7 next-action text that follows is superseded by the above and kept as
 the record of how M8 was chosen.

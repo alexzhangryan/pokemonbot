@@ -832,3 +832,21 @@ Two rows were measured twice, and the record says so. The first run's `sim-oracl
 Caveats the report carries and this entry repeats: the oracle is the ceiling of what a belief could supply, not a forecast of a belief-fed arm; neither checked-in team holds an item, so fidelity's headroom on items is unmeasured; weather duration is unobservable from poke-env's snapshot and the simulator gets it fresh; forced switches are answered by the analytic model by design. The clock: every arm stayed inside both limits; `twoply-oracle` is the expensive one at about 2 s per decision (p95 6 s on beta, one battle at 109 s of total thinking), because true-move columns make the child matrices wide.
 
 Consequences: `docs/engine-gate.md` and `data/eval/engine-gate.*.json` are the record; "What the switch bias costs" moves from open to measured (the depth gap above). The secondary measurement is in flight when this is written and is reported in `docs/engine-gate-greedy.md` with no verdict attached. If it too shows nothing apart from zero, the next question is not the payoff model but the search's *inputs* — the same question M4 (skill), M5 (belief) and M7 (imitation) each answered negatively — and the cheapest live candidates are the union at higher `k` on the current model and a third and fourth team (M6's finding that two teams cannot fit every weight). If it does show an effect, the arms that show it are the ones worth a proper, larger mirror.
+
+## D72. The gate's secondary measurement shows nothing apart either, and it had no headroom to show it in — 2026-09-13, Claude Code
+
+Context: D71's rule for the "neither clears" outcome was the pre-registered secondary measurement: `oneply` and the four gate arms against `greedy` (max-base-power), 200 games per arm per team, seed 0, as a check on whether the mirror was too insensitive to see an effect. `docs/engine-gate-greedy.md` is the report; it carries no verdict by design.
+
+| arm | alpha, vs `greedy` | beta, vs `greedy` |
+| --- | --- | --- |
+| `oneply` (incumbent) | 95.0% [91.0%, 97.3%] | 96.0% [92.3%, 98.0%] |
+| `oneply-oracle` | 91.5% [86.8%, 94.6%] | 94.5% [90.4%, 96.9%] |
+| `twoply` | 91.5% [86.8%, 94.6%] | 97.5% [94.3%, 98.9%] |
+| `twoply-oracle` | 88.5% [83.3%, 92.2%] | 96.0% [92.3%, 98.0%] |
+| `sim-oracle` | 89.0% [83.9%, 92.6%] | 97.0% [93.6%, 98.6%] |
+
+Decision: it is D71's first reading. No arm is apart from the incumbent, on either team, and on alpha every arm handed the truth or given depth or fidelity is *below* the incumbent by a few points inside overlapping intervals. Nothing here re-opens the engine question, and the next work is the search's inputs rather than its payoff model (D71's list: the union at higher `k` on the current model, and a third and fourth team).
+
+Rationale, with the limit that makes this check weaker than intended. D30 measured the one-ply agent at 82% against `greedy` on alpha and 56% on beta; that agent pruned with base power. The specified A (D61) moved it to 95% and 96%, so `greedy` no longer has the headroom the secondary measurement was chosen for: an arm cannot show a large gain over a baseline that already wins nineteen games in twenty. The check therefore says only that nothing *large* was hidden by the mirror; a 5-point effect is as invisible here as it was there. The frozen pool has no opponent between `greedy` and the incumbent, and building one is the same "more teams, more opponents" work the next action names. The alpha ordering (every enriched arm slightly below the incumbent) is within noise and is noted, not interpreted.
+
+Consequences: M8 closes with no engine and no provider change. `docs/engine-gate-greedy.md` and its JSON are committed. The frozen pool's lack of a mid-strength opponent is recorded as a limit of every future win-rate measurement, and a third and fourth team (M6's request) would also give the pool one.
