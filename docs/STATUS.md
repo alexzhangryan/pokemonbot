@@ -26,12 +26,14 @@ shows nothing apart from the incumbent either, and had no headroom to: the
 specified A already beats `greedy` 95% and 96%, up from D30's 82% and 56%. M8
 is closed. **Next action** is the search's inputs, not its payoff model.
 
-Two things landed after M8 closed, both at Alex's request (D73, D74): the
-agent's default team is now `regmb-rain`, the Maddo's Cup #9 winner with
-hand-chosen stat points, and the belief filter rules out abilities a silent
-switch-in would have announced (an Incineroar that lowers nobody's Attack
-has Blaze). Every number in this file was measured on `regmb-alpha` and
-`regmb-beta`; nothing has been measured on the new team yet.
+Three things landed after M8 closed, all at Alex's request (D73, D74, D75):
+the agent's default team is now `regmb-worlds`, Takuma Yamazaki's 2026
+World Championships winner with its published stat points (D75; `regmb-rain`,
+the Maddo's Cup #9 winner with hand-chosen points, stays checked in, D73),
+and the belief filter rules out abilities a silent switch-in would have
+announced (an Incineroar that lowers nobody's Attack has Blaze, D74). Every
+number in this file was measured on `regmb-alpha` and `regmb-beta`; nothing
+has been measured on the new teams yet.
 
 The M7 recap below stands as the record it was:
 
@@ -1249,7 +1251,7 @@ switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
 
-**Nothing.** The post-M8 commits (D73 team, D74 rule-out, the venv note) and
+**Nothing.** The post-M8 commits (D73 and D75 teams, D74 rule-out, the venv note) and
 the M8 commits are on `main` locally (`4094370`, `9698a7b`,
 `edd7b61`, `d421e28`, `e721612`, `265dca4`, `8f67609`, and the D72 commit
 carrying this file and the secondary report); whether they have been pushed is
@@ -1328,7 +1330,7 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 **M8 is closed with no engine (D71, D72). The next question is the search's
 inputs, and it is Alex's to order.** Two candidates, both cheaper than
 anything M8 built, and one limit that both would ease. Before either: the
-default team changed (D73), so the first measurement on it is `oneply`
+default team changed (D73, D75), so the first measurement on it is `oneply`
 against `greedy` and the mirror baselines, and the evaluation weights (fit
 on `regmb-alpha`, M6) may want refitting on self-play with it.
 
