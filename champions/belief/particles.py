@@ -130,6 +130,9 @@ class TeamConstraints:
     #: Items ruled out for a species because another species was seen holding
     #: them. Item Clause, propagated.
     excluded_items: dict[str, set[str]] = field(default_factory=dict)
+    #: Abilities ruled out for a species because a switch-in that would have
+    #: announced them stayed silent (`evidence.ANNOUNCED_ON_SWITCH_IN`).
+    excluded_abilities: dict[str, set[str]] = field(default_factory=dict)
 
     def add(self, reveal: Reveal) -> None:
         species = reveal.actor.species
@@ -142,6 +145,8 @@ class TeamConstraints:
             for other in list(self.moves) + list(self.item) + list(self.ability):
                 if other != species:
                     self.excluded_items.setdefault(other, set()).add(reveal.value)
+        elif reveal.kind == "ability" and reveal.excludes:
+            self.excluded_abilities.setdefault(species, set()).add(reveal.value)
         elif reveal.kind == "ability":
             self.ability[species] = reveal.value
 
@@ -168,14 +173,20 @@ class TeamConstraints:
             return False
         if hypothesis.item and hypothesis.item in self.excluded_items.get(species, ()):
             return False
+        if hypothesis.ability and hypothesis.ability in self.excluded_abilities.get(species, ()):
+            return False
         known_ability = self.ability.get(species)
         return not (known_ability is not None and hypothesis.ability != known_ability)
+
+    def allowed_ability(self, species: str, ability: str | None) -> bool:
+        return not (ability and ability in self.excluded_abilities.get(species, ()))
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "moves": {k: sorted(v) for k, v in self.moves.items() if v},
             "item": dict(self.item),
             "ability": dict(self.ability),
+            "excluded_abilities": {k: sorted(v) for k, v in self.excluded_abilities.items() if v},
         }
 
 
@@ -285,7 +296,15 @@ class ParticleFilter:
             item = self.constraints.item.get(species) or self._draw(marginals["item"])
             if item in self.constraints.excluded_items.get(species, ()):
                 item = None
-            ability = self.constraints.ability.get(species) or self._draw(marginals["ability"])
+            ability = self.constraints.ability.get(species) or self._draw(
+                {
+                    a: p
+                    for a, p in marginals["ability"].items()
+                    if self.constraints.allowed_ability(species, a)
+                }
+            )
+            if ability is None or not self.constraints.allowed_ability(species, ability):
+                ability = self._default_ability(species)
             moves = set(required)
             pool = {m: p for m, p in marginals["move"].items() if not learnset or m in learnset}
             while len(moves) < 4 and pool:
@@ -320,11 +339,16 @@ class ParticleFilter:
         )
 
     def _default_ability(self, species: str) -> str | None:
+        """The species' first legal ability that has not been ruled out."""
         entry = self.dex.species.get(species)
         if not entry:
             return None
         abilities = entry.get("abilities") or {}
-        return to_id(abilities.get("0")) or None
+        for key in sorted(abilities):
+            ability = to_id(abilities.get(key)) or None
+            if ability and self.constraints.allowed_ability(species, ability):
+                return ability
+        return None
 
     def _legal_moves(self, species: str) -> set[str]:
         learnset = self.dex.learnsets.get(species) or {}

@@ -55,6 +55,62 @@ TAILWIND_SPEED_FACTOR = 2.0
 _HP = re.compile(r"^(\d+)\s*/\s*(\d+)")
 _FAINTED = re.compile(r"^0(\s|$)")
 
+#: Abilities the simulator announces the moment their holder switches in, and
+#: the condition under which it does. Transcribed from `data/abilities.ts`
+#: at the pinned commit (`onStart` handlers that emit `-ability` or set a
+#: field effect), and deliberately short: an ability whose announcement
+#: depends on the opponent's team, the field or a once-per-battle flag
+#: (Frisk, Anticipation, Download, Trace, Screen Cleaner, Supersweet Syrup,
+#: Costar, Hospitality, Wind Rider, Protosynthesis ...) is left out, because
+#: a silence that has an innocent explanation rules nothing out.
+#:
+#: `"foe"`: announces when an adjacent foe is on the field (Intimidate loops
+#: `adjacentFoes()` and speaks on the first). `"always"`: announces
+#: unconditionally. `"weather"` / `"terrain"`: sets a field effect, which is
+#: silent only when the same one is already up -- so these are ruled out only
+#: when no weather or terrain at all was up at the switch.
+ANNOUNCED_ON_SWITCH_IN: dict[str, str] = {
+    "intimidate": "foe",
+    "pressure": "always",
+    "unnerve": "always",
+    "moldbreaker": "always",
+    "teravolt": "always",
+    "turboblaze": "always",
+    "airlock": "always",
+    "cloudnine": "always",
+    "darkaura": "always",
+    "fairyaura": "always",
+    "aurabreak": "always",
+    "vesselofruin": "always",
+    "tabletsofruin": "always",
+    "swordofruin": "always",
+    "beadsofruin": "always",
+    "neutralizinggas": "always",
+    "slowstart": "always",
+    "comatose": "always",
+    "drizzle": "weather",
+    "drought": "weather",
+    "sandstream": "weather",
+    "snowwarning": "weather",
+    "desolateland": "weather",
+    "primordialsea": "weather",
+    "deltastream": "weather",
+    "electricsurge": "terrain",
+    "grassysurge": "terrain",
+    "mistysurge": "terrain",
+    "psychicsurge": "terrain",
+}
+
+
+@dataclass(frozen=True)
+class _SwitchIn:
+    """One switch-in whose announcements are still being collected."""
+
+    actor: Actor
+    seq: int
+    weather_up: bool
+    terrain_up: bool
+
 
 @dataclass(frozen=True)
 class Actor:
@@ -88,8 +144,15 @@ class Reveal:
     actor: Actor
     kind: str  # "move" | "item" | "ability"
     value: str
-    #: How it was seen: "used", "item", "enditem", "mega", "attributed", "ability".
+    #: How it was seen: "used", "item", "enditem", "mega", "attributed", "ability";
+    #: or "absent", which is the opposite fact -- an ability that would have
+    #: announced itself on switch-in and did not, so the species does not have
+    #: it (`EvidenceBuilder._silent_switch_ins`).
     how: str = "used"
+
+    @property
+    def excludes(self) -> bool:
+        return self.how == "absent"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -230,6 +293,17 @@ class EvidenceBuilder:
     boosts: dict[str, dict[str, int]] = field(default_factory=dict)
     statuses: dict[str, str | None] = field(default_factory=dict)
     formes: dict[str, str] = field(default_factory=dict)
+    #: Terrain up, by id, from `-fieldstart`; weather is `weather` below.
+    terrain: str | None = None
+    #: Whether Neutralizing Gas is on the field, which silences every other
+    #: ability's announcement and so suspends the rule-out below.
+    neutralizing_gas: bool = False
+    #: Per slot: the switch-in whose window is open, the abilities announced
+    #: for that slot since it, and when the occupant last came in or fainted.
+    _switch_ins: dict[str, _SwitchIn] = field(default_factory=dict)
+    _announced: dict[str, set[str]] = field(default_factory=dict)
+    _switched_at: dict[str, int] = field(default_factory=dict)
+    _fainted_at: dict[str, int] = field(default_factory=dict)
     types: dict[str, tuple[str, ...]] = field(default_factory=dict)
     species_at: dict[str, Actor] = field(default_factory=dict)
     weather: str | None = None
@@ -247,7 +321,72 @@ class EvidenceBuilder:
         out: list[Evidence] = []
         for observation in observations:
             out.extend(self._one(observation))
+        out.extend(self._silent_switch_ins())
         return out
+
+    # -- what a switch-in did not say --------------------------------------
+
+    def _silent_switch_ins(self) -> list[Evidence]:
+        """Abilities ruled out by a switch-in that announced nothing.
+
+        An Incineroar that comes in and does not lower anyone's Attack does not
+        have Intimidate, and the belief should know it before that Pokemon has
+        used a move. The simulator announces every ability in
+        `ANNOUNCED_ON_SWITCH_IN` on switch-in under its stated condition, and
+        the announcement arrives in the same message batch as the switch, so
+        the end of a batch is where the silence becomes a fact. Emitted as a
+        `Reveal` with `how="absent"`, which `TeamConstraints` reads as an
+        exclusion rather than an identity.
+
+        Nothing is ruled out while Neutralizing Gas is up, or for a Mega forme
+        (whose ability is the forme's, not the registered one), or for a
+        species whose legal abilities the dex does not list.
+        """
+        out: list[Evidence] = []
+        pending, self._switch_ins = self._switch_ins, {}
+        if self.neutralizing_gas:
+            return out
+        for slot, arrival in pending.items():
+            species = arrival.actor.species
+            entry = self.dex.species.get(species or "")
+            if not species or not entry:
+                continue
+            if arrival.actor.forme and (self.dex.species.get(arrival.actor.forme) or {}).get(
+                "isMega"
+            ):
+                continue
+            legal = {to_id(name) for name in (entry.get("abilities") or {}).values()}
+            announced = self._announced.get(slot, set())
+            for ability in sorted(legal):
+                condition = ANNOUNCED_ON_SWITCH_IN.get(ability)
+                if condition is None or ability in announced:
+                    continue
+                if condition == "foe" and not self._foe_present(arrival):
+                    continue
+                if condition == "weather" and arrival.weather_up:
+                    continue
+                if condition == "terrain" and arrival.terrain_up:
+                    continue
+                out.append(
+                    Reveal(self._turn, arrival.seq, arrival.actor, "ability", ability, how="absent")
+                )
+        return out
+
+    def _foe_present(self, arrival: _SwitchIn) -> bool:
+        """Whether a foe stood on the field when this Pokemon came in: one that
+        had switched in before it and had not fainted before it."""
+        side = arrival.actor.side
+        for slot, actor in self.species_at.items():
+            if actor.side == side or not slot:
+                continue
+            came_in = self._switched_at.get(slot)
+            if came_in is None or came_in > arrival.seq:
+                continue
+            fainted = self._fainted_at.get(slot)
+            if fainted is not None and came_in < fainted < arrival.seq:
+                continue
+            return True
+        return False
 
     # -- per observation ------------------------------------------------
 
@@ -300,6 +439,17 @@ class EvidenceBuilder:
             else:
                 self.formes.pop(observation.slot, None)
             self.types.pop(observation.slot, None)
+            # The one who left took Neutralizing Gas with it, if it had it.
+            if "neutralizinggas" in self._announced.get(observation.slot, set()):
+                self.neutralizing_gas = False
+            self._announced[observation.slot] = set()
+            self._switched_at[observation.slot] = observation.seq
+            self._switch_ins[observation.slot] = _SwitchIn(
+                actor=Actor(actor.side, actor.slot, actor.species, forme=forme or None),
+                seq=observation.seq,
+                weather_up=self.weather is not None,
+                terrain_up=self.terrain is not None,
+            )
         self._pending_move = None
         return []
 
@@ -307,6 +457,9 @@ class EvidenceBuilder:
         if observation.slot:
             current = self.hp.get(observation.slot)
             self.hp[observation.slot] = (0, current[1] if current else 0)
+            self._fainted_at[observation.slot] = observation.seq
+            if "neutralizinggas" in self._announced.get(observation.slot, set()):
+                self.neutralizing_gas = False
         return []
 
     def _move(self, observation: parser.Observation, actor: Actor) -> list[Evidence]:
@@ -440,6 +593,10 @@ class EvidenceBuilder:
         ability = to_id(observation.value)
         if not ability:
             return []
+        if observation.slot:
+            self._announced.setdefault(observation.slot, set()).add(ability)
+        if ability == "neutralizinggas":
+            self.neutralizing_gas = True
         how = str(observation.detail.get("how") or "ability")
         return [Reveal(self._turn, observation.seq, actor, "ability", ability, how=how)]
 
@@ -452,6 +609,10 @@ class EvidenceBuilder:
             self.trick_room = True
         elif event == "fieldend" and "trickroom" in value:
             self.trick_room = False
+        elif event == "fieldstart" and value.endswith("terrain"):
+            self.terrain = value
+        elif event == "fieldend" and value.endswith("terrain"):
+            self.terrain = None
         elif event == "sidestart" and "tailwind" in value:
             self.tailwind.add(observation.side)
         elif event == "sideend" and "tailwind" in value:

@@ -43,6 +43,7 @@ from champions.belief.evaluate import (
     wilson,
 )
 from champions.belief.evidence import (
+    Actor,
     DamageEvidence,
     EvidenceBuilder,
     Reveal,
@@ -875,4 +876,93 @@ def _snapshot(dex: Dex) -> dict[str, Any]:
             "remaining": 2,
             "revealed": 2,
         },
+    }
+
+
+# ---------------------------------------------- ruling abilities out
+
+
+SILENT_SWITCH = """|start
+|switch|p1a: Metagross|Metagross, L50, M|207/207
+|switch|p1b: Milotic|Milotic, L50, F|202/202
+|switch|p2a: Incineroar|Incineroar, L50, M|100/100
+|switch|p2b: Garchomp|Garchomp, L50, M|100/100
+|turn|1
+"""
+
+LOUD_SWITCH = """|start
+|switch|p1a: Metagross|Metagross, L50, M|207/207
+|switch|p1b: Milotic|Milotic, L50, F|202/202
+|switch|p2a: Incineroar|Incineroar, L50, M|100/100
+|switch|p2b: Garchomp|Garchomp, L50, M|100/100
+|-ability|p2a: Incineroar|Intimidate|boost
+|-unboost|p1a: Metagross|atk|1
+|-unboost|p1b: Milotic|atk|1
+|turn|1
+"""
+
+
+def _absences(dex: Dex, log: str) -> set[tuple[str | None, str]]:
+    evidence = EvidenceBuilder(dex).feed(_observations(log))
+    return {(r.actor.species, r.value) for r in evidence if isinstance(r, Reveal) and r.excludes}
+
+
+def test_a_silent_switch_in_rules_out_intimidate(dex: Dex) -> None:
+    """The user's case: an Incineroar that comes in and lowers nobody's Attack
+    does not have Intimidate, so it has Blaze, before it has moved."""
+    assert ("incineroar", "intimidate") in _absences(dex, SILENT_SWITCH)
+
+
+def test_an_announced_ability_is_not_ruled_out(dex: Dex) -> None:
+    absences = _absences(dex, LOUD_SWITCH)
+    assert ("incineroar", "intimidate") not in absences
+    # Garchomp's abilities (Sand Veil, Rough Skin) announce nothing on
+    # switch-in, so silence says nothing about them.
+    assert not any(species == "garchomp" for species, _ in absences)
+
+
+def test_intimidate_needs_a_foe_to_stay_silent_about(dex: Dex) -> None:
+    """Their lead comes in before ours exist: no adjacent foe, no announcement,
+    nothing ruled out."""
+    log = """|start
+|switch|p2a: Incineroar|Incineroar, L50, M|100/100
+|switch|p2b: Garchomp|Garchomp, L50, M|100/100
+|turn|1
+"""
+    assert ("incineroar", "intimidate") not in _absences(dex, log)
+
+
+def test_neutralizing_gas_suspends_the_rule_out(dex: Dex) -> None:
+    log = """|start
+|switch|p1a: Weezing|Weezing, L50, M|180/180
+|-ability|p1a: Weezing|Neutralizing Gas
+|switch|p1b: Milotic|Milotic, L50, F|202/202
+|switch|p2a: Incineroar|Incineroar, L50, M|100/100
+|switch|p2b: Garchomp|Garchomp, L50, M|100/100
+|turn|1
+"""
+    assert ("incineroar", "intimidate") not in _absences(dex, log)
+
+
+def test_a_ruled_out_ability_eliminates_particles_and_survives_a_resample(
+    dex: Dex, prior: SetPrior
+) -> None:
+    """The prior above registers Incineroar with Intimidate only, so the
+    rule-out kills every particle; the filter has to come back with a set that
+    respects it rather than with nothing."""
+    population = _filter(dex, prior)
+    absent = Reveal(1, 1, Actor("p2", "p2a", "incineroar"), "ability", "intimidate", how="absent")
+    population.observe([absent], _context())
+
+    assert population.constraints.excluded_abilities["incineroar"] == {"intimidate"}
+    assert any(p.alive for p in population.particles)
+    for particle in population.particles:
+        if particle.alive:
+            assert particle.sets["incineroar"].ability != "intimidate"
+    assert population.most_likely("incineroar").ability == "blaze"
+    assert "intimidate" not in {
+        entry["value"] for entry in population.marginals("incineroar")["ability"]
+    }
+    assert population.summary()["constraints"]["excluded_abilities"] == {
+        "incineroar": ["intimidate"]
     }
