@@ -57,6 +57,10 @@ from champions.dex.stats import (
 #: function over it by scanning is both exact and free.
 POINT_VALUES = tuple(range(MAX_POINTS_PER_STAT + 1))
 
+#: Base Speed at or above which an attacking spread is assumed to max Speed
+#: rather than HP (`SpreadBelief.preferred_stats`).
+FAST_ENOUGH_BASE_SPEED = 70
+
 
 @dataclass
 class SpreadBelief:
@@ -194,18 +198,32 @@ class SpreadBelief:
         layer exists to replace.
 
         So the allocation starts at the lower bounds, which the resource
-        constraint guarantees are affordable together, and spends whatever is
-        left in proportion to each stat's remaining slack. Unconstrained that is
-        11 in every stat -- the mean of a uniform allocation, which is the right
-        thing to believe about a spread nothing has been learned about -- and as
-        evidence narrows a stat, the budget it frees moves to the others.
+        constraint guarantees are affordable together, then spends the budget
+        the way registered spreads spend it (D85): 66 points under a cap of 32
+        is two maxed stats and two points over, and the nature -- which the
+        open sheets label, so the particle carries it -- says which stat is
+        one of the two. The nature's raised stat is maxed first; the partner
+        is Speed for an attacker with the base Speed to use it and HP
+        otherwise, the better offence for a Speed nature, and HP for a
+        defensive one. Whatever the box leaves unspendable there goes to the
+        other stats in proportion to their slack, which is what the whole
+        budget did before the live games showed the uniform guess costing
+        a fifth of an attacker's main stat.
         """
         allocation = dict(self.lower)
         budget = MAX_POINTS_TOTAL - sum(allocation.values())
         if budget <= 0:
             return allocation
 
-        slack = {s: self.upper[s] - self.lower[s] for s in STAT_IDS}
+        for stat_id in self.preferred_stats():
+            room = min(self.upper[stat_id], MAX_POINTS_PER_STAT) - allocation[stat_id]
+            spend = max(0, min(room, budget))
+            allocation[stat_id] += spend
+            budget -= spend
+            if budget <= 0:
+                return allocation
+
+        slack = {s: self.upper[s] - allocation[s] for s in STAT_IDS}
         total_slack = sum(slack.values())
         if total_slack <= 0:
             return allocation
@@ -214,6 +232,25 @@ class SpreadBelief:
             share = min(slack[stat_id], int(budget * slack[stat_id] / total_slack))
             allocation[stat_id] += share
         return allocation
+
+    def preferred_stats(self) -> tuple[str, str]:
+        """The two stats a registered spread of this nature most likely maxes."""
+        plus = str(self.nature_entry.get("plus") or "")
+        minus = str(self.nature_entry.get("minus") or "")
+        base = self.base_stats
+        offence = "atk" if int(base.get("atk", 0)) >= int(base.get("spa", 0)) else "spa"
+        if minus == offence:
+            offence = "spa" if offence == "atk" else "atk"
+        fast = int(base.get("spe", 0)) >= FAST_ENOUGH_BASE_SPEED
+        if plus in ("atk", "spa"):
+            return plus, ("spe" if fast and minus != "spe" else "hp")
+        if plus == "spe":
+            return "spe", offence
+        if plus == "hp":
+            return "hp", ("def" if int(base.get("def", 0)) >= int(base.get("spd", 0)) else "spd")
+        if plus in ("def", "spd"):
+            return plus, "hp"
+        return offence, ("spe" if fast and minus != "spe" else "hp")
 
     def stats(self) -> dict[str, int]:
         """All six derived stats, from one legal allocation."""

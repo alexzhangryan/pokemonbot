@@ -44,6 +44,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from champions.formats import FORMAT_ID, lender
+
 DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "eval"
 
 #: Feature weights, in log odds. These are the fallback: hand chosen, not fit.
@@ -59,7 +61,28 @@ BOOTSTRAP_WEIGHTS: dict[str, float] = {
     "boost_advantage": 0.18,
     "speed_control": 0.35,
     "hazard_advantage": 0.12,
+    "speed_advantage": 0.40,
 }
+
+#: Features added after the M6 fit, with hand-set weights that a fitted file
+#: written before they existed does not carry. `load_model` fills them in and
+#: says so on the model's `source`, so a number built on one is never mistaken
+#: for a fitted one. They exist because the first live games (D85) were lost
+#: to Trick Room, which the fitted features could not express: a position's
+#: value under Trick Room is a question about who moves first, and until
+#: `speed_advantage` nothing in the vector asked it. Removed by the next
+#: `make fit-eval`, which fits every feature `features` emits.
+SUPPLEMENTARY_WEIGHTS: dict[str, float] = {
+    "speed_advantage": BOOTSTRAP_WEIGHTS["speed_advantage"],
+}
+
+#: Points assumed on an unrevealed Pokemon's Speed when ordering it for the
+#: evaluation. Half the cap rather than the payoff model's pessimistic 32:
+#: pessimism has a sign for damage (assume they hit hard) and none for speed
+#: once Trick Room can reverse it, so the central guess is the only one that
+#: does not bias the feature one way under one field and the other way under
+#: the other.
+ASSUMED_SPEED_POINTS = 16
 
 #: Statuses weighted by how much of a Pokemon they take out of the game. Sleep
 #: and freeze remove turns outright; the rest are attrition. These are the
@@ -74,12 +97,12 @@ STATUS_COST: dict[str, float] = {
     "PSN": 0.15,
 }
 
-#: Tailwind is the only speed control this scores. Trick Room is deliberately
-#: absent: it is a field effect that helps whichever side is slower, so its value
-#: is an interaction between the field and the two teams' speeds rather than an
-#: advantage to whoever set it. A linear model over side-differences cannot
-#: express that, and giving it a fixed sign would be worse than omitting it. M6
-#: can learn the interaction; until then the omission is the honest option.
+#: Tailwind is the only speed control this scores as a side condition. Trick
+#: Room is deliberately absent here: it is a field effect that helps whichever
+#: side is slower, so its value is an interaction between the field and the
+#: two teams' speeds rather than an advantage to whoever set it. A linear
+#: model over side-differences cannot express that as a condition; it can as
+#: a comparison, which is `speed_advantage` (`_speed_advantage`, D85).
 SPEED_CONTROL_SIDE_CONDITIONS = {"TAILWIND"}
 HAZARDS = {"STEALTH_ROCK", "SPIKES", "TOXIC_SPIKES", "STICKY_WEB"}
 
@@ -115,7 +138,7 @@ class Model:
         return self.platt_a * raw + self.platt_b
 
 
-def load_model(format_id: str = "gen9championsvgc2026regmb") -> Model:
+def load_model(format_id: str = FORMAT_ID) -> Model:
     """The fitted model if M6 has been run, the hand-written one otherwise.
 
     Missing weights are not an error. The agent has to run before the fit does:
@@ -124,16 +147,31 @@ def load_model(format_id: str = "gen9championsvgc2026regmb") -> Model:
     So the fallback is the bootstrap, loudly uncalibrated.
     """
     path = WEIGHTS_PATH(format_id)
+    lent_from = None
+    if not path.is_file():
+        # A new regulation on the same mod borrows its predecessor's fit and
+        # says so (`champions.formats.LINEAGE`, D80).
+        previous = lender(format_id)
+        if previous is not None and WEIGHTS_PATH(previous).is_file():
+            path, lent_from = WEIGHTS_PATH(previous), previous
     if not path.is_file():
         return Model(weights=dict(BOOTSTRAP_WEIGHTS), calibrated=False, source="bootstrap")
     payload = json.loads(path.read_text(encoding="utf-8"))
     platt = payload.get("platt", {})
+    source = payload.get("source")
+    if lent_from is not None:
+        source = f"{source or path.name} (fit on {lent_from}, lent to {format_id})"
+    weights = {str(k): float(v) for k, v in payload["weights"].items()}
+    missing = {k: v for k, v in SUPPLEMENTARY_WEIGHTS.items() if k not in weights}
+    if missing:
+        weights.update(missing)
+        source = f"{source or path.name} (+ hand-set {', '.join(sorted(missing))})"
     return Model(
-        weights={str(k): float(v) for k, v in payload["weights"].items()},
+        weights=weights,
         platt_a=float(platt.get("a", 1.0)),
         platt_b=float(platt.get("b", 0.0)),
         calibrated=True,
-        source=payload.get("source"),
+        source=source,
         fitted_at=payload.get("fitted_at"),
     )
 
@@ -250,6 +288,62 @@ def _speed_control(conditions: dict[str, Any]) -> float:
     return float(any(name in SPEED_CONTROL_SIDE_CONDITIONS for name in conditions))
 
 
+def _ordering_speed(view: dict[str, Any], conditions: dict[str, Any]) -> float | None:
+    """Speed as the turn order reads it: stat, stage, paralysis, Tailwind.
+
+    Our side carries the exact stat; theirs is base plus `ASSUMED_SPEED_POINTS`
+    plus the level-50 constant of `docs/02` section 1. Written here rather
+    than imported from the payoff model, which imports this module. None for
+    a view that carries neither, such as one rebuilt from a replay log; the
+    pair is then left out of the average rather than guessed at.
+    """
+    stats = view.get("stats") if view.get("known") else None
+    base = view.get("base_stats") or {}
+    if stats and stats.get("spe") is not None:
+        speed = float(stats["spe"])
+    elif base.get("spe") is not None:
+        speed = float(int(base["spe"]) + ASSUMED_SPEED_POINTS + 20)
+    else:
+        return None
+    stage = int((view.get("boosts") or {}).get("spe", 0))
+    speed *= (2 + stage) / 2 if stage >= 0 else 2 / (2 - stage)
+    if view.get("status") == "PAR":
+        speed *= 0.5
+    if "TAILWIND" in conditions:
+        speed *= 2.0
+    return speed
+
+
+def _speed_advantage(snapshot: dict[str, Any]) -> float:
+    """Who moves first, averaged over the pairs on the field, in [-1, 1].
+
+    Each of our active Pokemon against each of theirs: +1 if ours moves
+    first, -1 if theirs does, 0 on a tie, with Trick Room reversing the
+    comparison. This is the interaction the docstring on
+    `SPEED_CONTROL_SIDE_CONDITIONS` says a linear model cannot express as a
+    side difference; expressed as a comparison it can.
+    """
+    ours = [p for p in snapshot["ours"]["active"] if p is not None and not p.get("fainted")]
+    theirs = [p for p in snapshot["theirs"]["active"] if p is not None and not p.get("fainted")]
+    if not ours or not theirs:
+        return 0.0
+    trick_room = "TRICK_ROOM" in (snapshot.get("fields") or {})
+    total = 0.0
+    pairs = 0
+    for mine in ours:
+        speed = _ordering_speed(mine, snapshot.get("side_conditions") or {})
+        for foe in theirs:
+            other = _ordering_speed(foe, snapshot.get("opponent_side_conditions") or {})
+            if speed is None or other is None:
+                continue
+            pairs += 1
+            if speed == other:
+                continue
+            first = speed < other if trick_room else speed > other
+            total += 1.0 if first else -1.0
+    return total / pairs if pairs else 0.0
+
+
 def _hazard_count(conditions: dict[str, Any]) -> float:
     return float(sum(v for name, v in conditions.items() if name in HAZARDS))
 
@@ -290,6 +384,7 @@ def features(snapshot: dict[str, Any], picked_team_size: int = 4) -> dict[str, f
         "status_advantage": _status_cost(theirs) - _status_cost(ours),
         "boost_advantage": _boost_total(ours) - _boost_total(theirs),
         "speed_control": tailwind,
+        "speed_advantage": _speed_advantage(snapshot),
         "hazard_advantage": _hazard_count(snapshot["opponent_side_conditions"])
         - _hazard_count(snapshot["side_conditions"]),
         # A side with nothing left has lost; this is what makes the terminal

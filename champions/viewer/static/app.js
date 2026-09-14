@@ -72,6 +72,17 @@ const ui = {
   liveBadge: document.getElementById("live-badge"),
   follow: document.getElementById("follow"),
   gotoLive: document.getElementById("goto-live"),
+  phase: document.getElementById("phase"),
+  ladderGroup: document.getElementById("ladder-group"),
+  ladderLabel: document.getElementById("ladder-label"),
+  ladderStop: document.getElementById("ladder-stop"),
+  ladderResume: document.getElementById("ladder-resume"),
+  ladderStartForm: document.getElementById("ladder-start-form"),
+  ladderGames: document.getElementById("ladder-games"),
+  ladderStart: document.getElementById("ladder-start"),
+  ratingGroup: document.getElementById("rating-group"),
+  rating: document.getElementById("rating"),
+  eloValue: document.getElementById("elo-value"),
   showdown: document.getElementById("showdown"),
   simDot: document.getElementById("sim-dot"),
   simState: document.getElementById("sim-state"),
@@ -95,11 +106,14 @@ const ui = {
   layout: document.getElementById("layout"),
   empty: document.getElementById("empty"),
   turnList: document.getElementById("turn-list"),
+  gameList: document.getElementById("game-list"),
   theirs: document.getElementById("side-theirs"),
   ours: document.getElementById("side-ours"),
   conditions: document.getElementById("conditions"),
   log: document.getElementById("log"),
+  review: document.getElementById("review"),
   chosen: document.getElementById("chosen"),
+  analysis: document.getElementById("analysis"),
   timing: document.getElementById("timing"),
   strategy: document.getElementById("strategy"),
   candidates: document.getElementById("candidates"),
@@ -109,6 +123,7 @@ const ui = {
   sceneToggle: document.getElementById("scene-toggle"),
   sceneShow: document.getElementById("scene-show"),
   sceneSpeed: document.getElementById("scene-speed"),
+  sceneVolume: document.getElementById("scene-volume"),
 };
 
 let socket = null;
@@ -118,9 +133,16 @@ let selected = null;
 /* Following means "always show the newest decision". Scrubbing turns it off,
  * because a view that yanks itself away mid-read is worse than a stale one. */
 let following = true;
+// What the ladder script says it is doing between battles (`status.json` in
+// the trace directory, served on /api/status). Null when nothing wrote one.
+let ladderStatus = null;
 let liveStream = false;
 let battleStart = null;
 let battleEnd = null;
+/* The coach's game-scope `analysis` event, when the file is a review
+ * (`scripts/review.py`). Null for a plain trace, and every review surface
+ * below renders nothing in that case, so the live view is unchanged. */
+let gameAnalysis = null;
 let battleId = null;
 let showdownUrl = null;
 /* Set once the reader picks a trace by hand. Until then the viewer follows
@@ -129,6 +151,21 @@ let showdownUrl = null;
  * explicit choice it stays put, because silently jumping away from the trace
  * someone is reading is worse than making them pick again. */
 let pinned = false;
+// The listing as last polled, by trace id, and which file is actually open
+// (a finished game opens as its review when the coach has written one).
+let traceIndex = new Map();
+let openedId = null;
+// The bot's ladder account, from the server's status (`.env`), if any.
+let account = null;
+
+/* What to open for a listed trace: the coach's review of it when there is
+ * one and the game is over, else the trace itself. One entry per game in the
+ * list, the reviewed copy behind it (D84). */
+function openIdFor(traceId) {
+  const trace = traceIndex.get(traceId);
+  if (trace && trace.review && !trace.live) return trace.review;
+  return traceId;
+}
 /* The battle currently on screen, as opposed to which of its two agent-view
  * files. Auto-follow keys on this; see loadTraceList. */
 let currentBattle = null;
@@ -141,6 +178,9 @@ let sceneReady = false;
 let sceneSent = 0;
 let sceneHidden = false;
 let sceneSpeed = "normal";
+// Showdown's renderer plays cries and music at 50 by default, which is loud
+// next to a silent instrument panel. Percent, 0 mutes.
+let sceneVolume = 30;
 
 // -------------------------------------------------------------------- util
 
@@ -232,6 +272,7 @@ function fold(all) {
   let current = null;
   battleStart = null;
   battleEnd = null;
+  gameAnalysis = null;
 
   for (const event of all) {
     const type = event.type;
@@ -250,6 +291,21 @@ function fold(all) {
     if (type === "battle_end") {
       battleEnd = payload;
       continue;
+    }
+    /* The coach's overlay (M9, `docs/07-observability.md` section 2). Three
+     * scopes: the game summary, the preview pseudo-turn, and one per decision.
+     * The per-decision one is emitted right after its turn's `equilibrium`, so
+     * it attaches to `current` like any other event of that turn. */
+    if (type === "analysis") {
+      if (payload.scope === "game") {
+        gameAnalysis = payload;
+        continue;
+      }
+      if (payload.scope === "preview") {
+        const preview = grouped.find((point) => point.kind === "preview");
+        if (preview) preview.analysis = payload;
+        continue;
+      }
     }
     if (type === "turn_start") {
       current = {
@@ -271,6 +327,7 @@ function fold(all) {
     else if (type === "timing") current.timing = payload;
     else if (type === "equilibrium") current.equilibrium = payload;
     else if (type === "belief") current.belief = payload;
+    else if (type === "analysis") current.analysis = payload;
   }
 
   /* The same turn number can produce several decisions: a fainted slot forces a
@@ -304,6 +361,265 @@ function renderMeta() {
   add("vs", battleStart.opponent_username);
   add("format", battleStart.format_id);
   if (battleEnd) add("result", battleEnd.result);
+  if (gameAnalysis) {
+    add(
+      "reviewed",
+      `${pts(gameAnalysis.ex_ante_loss_total)} pts ex-ante over ${gameAnalysis.scored} decisions`
+    );
+  }
+}
+
+// ------------------------------------------------------------- the review
+
+/* Win-probability points, the unit every coach number is in. */
+const pts = (value) =>
+  value === null || value === undefined ? "n/a" : (Number(value) * 100).toFixed(1);
+const pct = (value) =>
+  value === null || value === undefined ? "n/a" : `${(Number(value) * 100).toFixed(0)}%`;
+
+/* Chess.com's vocabulary, because it is the one players already read. The
+ * glyphs are the annotation marks; the classes carry the colour. */
+const LABEL_MARKS = {
+  best: "★",
+  solid: "✓",
+  inaccuracy: "?!",
+  mistake: "?",
+  blunder: "??",
+};
+
+const TAG_TITLES = {
+  forced: "forced: every alternative lost badly",
+  read: "read: the opponent chose the specific counter",
+  gamble: "gamble: low equilibrium weight, and it paid off",
+  unlucky: "unlucky: a fine decision, a bad roll",
+  lucky: "lucky: better than the play deserved",
+};
+
+function labelBadge(label) {
+  const badge = el("span", `label-badge label-${label || "none"}`);
+  badge.append(el("span", "mark", LABEL_MARKS[label] || "·"), ` ${label || "unscored"}`);
+  return badge;
+}
+
+function tagChips(tags) {
+  const chips = el("span", "tags");
+  for (const tag of tags || []) {
+    const chip = el("span", `tag tag-${tag}`, tag);
+    chip.title = TAG_TITLES[tag] || tag;
+    chips.appendChild(chip);
+  }
+  return chips;
+}
+
+/* Jump to a turn from the summary, the way a chess review's critical moves are
+ * links into the move list. */
+function jumpTo(turn) {
+  const point = points.find((p) => p.kind === "turn" && p.turn === turn);
+  if (!point) return;
+  following = false;
+  select(point);
+}
+
+function renderReview(point) {
+  ui.review.replaceChildren();
+  if (!gameAnalysis) return;
+  const g = gameAnalysis;
+
+  const box = el("div", "review");
+  const head = el("div", "review-head");
+  head.append(el("span", "review-title", "Review"));
+  const info = g.information || {};
+  head.append(
+    el(
+      "span",
+      "hint",
+      `ex-ante ${info.ante || "?"} · ex-post ${info.post || "?"}${
+        g.calibrated ? "" : " · evaluation uncalibrated"
+      }`
+    )
+  );
+  box.appendChild(head);
+
+  const row = el("div", "timing");
+  const stat = (value, key, tone) => {
+    const cell = el("div", "stat");
+    cell.appendChild(el("div", `v${tone ? ` ${tone}` : ""}`, value));
+    cell.appendChild(el("div", "k", key));
+    row.appendChild(cell);
+  };
+  stat(pts(g.ex_ante_loss_total), "ex-ante loss, total", Number(g.ex_ante_loss_total) > 0.3 ? "warn" : "ok");
+  stat(pts(g.ex_ante_loss_mean), "per decision");
+  stat(pts(g.ex_post_loss_total), "ex-post loss, total");
+  stat(`${g.scored ?? 0}/${g.decisions ?? 0}`, "scored");
+  box.appendChild(row);
+
+  const counts = el("div", "label-counts");
+  for (const label of ["best", "solid", "inaccuracy", "mistake", "blunder"]) {
+    const n = (g.classifications || {})[label] || 0;
+    const cell = el("span", `count label-${label}${n ? "" : " zero"}`);
+    cell.append(el("span", "mark", LABEL_MARKS[label]), ` ${n} ${label}`);
+    counts.appendChild(cell);
+  }
+  box.appendChild(counts);
+
+  const tags = Object.entries(g.tags || {}).filter(([, n]) => n);
+  if (tags.length) {
+    const line = el("div", "known");
+    line.append("tags ");
+    for (const [tag, n] of tags) {
+      const chip = el("span", `tag tag-${tag}`, `${tag} ×${n}`);
+      chip.title = TAG_TITLES[tag] || tag;
+      line.appendChild(chip);
+    }
+    box.appendChild(line);
+  }
+
+  const critical = (title, entries, key) => {
+    if (!entries || !entries.length) return;
+    const line = el("div", "critical");
+    line.append(el("span", "belief-label", title));
+    for (const entry of entries) {
+      const button = el("button", "ghost small jump", `turn ${entry.turn} · ${pts(entry[key])}`);
+      button.type = "button";
+      button.addEventListener("click", () => jumpTo(entry.turn));
+      line.appendChild(button);
+    }
+    box.appendChild(line);
+  };
+  critical("avoidable", g.critical_by_loss, "ex_ante_loss");
+  critical("swings", g.critical_by_drop, "drop");
+
+  const bands = g.bands || {};
+  box.appendChild(
+    el(
+      "div",
+      "hint",
+      bands.source && bands.source !== "hand-set"
+        ? `bands ${bands.source}`
+        : "thresholds hand-set (champions/coach/classify.py) until calibrated"
+    )
+  );
+  ui.review.appendChild(box);
+}
+
+/* The per-decision half of the review: the label, the tags, the two losses
+ * and what they decompose into. Nothing here is computed; every number is read
+ * off the coach's event, the same rule as the eval bar. */
+function renderAnalysis(point) {
+  ui.analysis.replaceChildren();
+  const a = point.analysis;
+  if (!a) return;
+
+  if (point.kind === "preview") {
+    const box = el("div", "analysis");
+    box.appendChild(el("h2", null, "Preview review"));
+    const line = el("div", "known");
+    line.append(
+      "brought ",
+      el("b", null, (a.bring || []).join(", ") || "unknown"),
+      " · led ",
+      el("b", null, (a.leads || []).join(", ") || "unknown"),
+      " · opponent showed ",
+      el("b", null, (a.opponent_bring_observed || []).join(", ") || "nobody")
+    );
+    box.appendChild(line);
+    const pending = pendingBlock(a.pending, "Bring-4 verdict");
+    if (a.reason) pending.appendChild(el("div", "pending-note", a.reason));
+    box.appendChild(pending);
+    ui.analysis.appendChild(box);
+    return;
+  }
+
+  const box = el("div", "analysis");
+  const head = el("h2", null, "Review");
+  head.appendChild(labelBadge(a.classification));
+  head.appendChild(tagChips(a.tags));
+  box.appendChild(head);
+
+  const row = el("div", "timing");
+  const stat = (value, key, tone) => {
+    const cell = el("div", "stat");
+    cell.appendChild(el("div", `v${tone ? ` ${tone}` : ""}`, value));
+    cell.appendChild(el("div", "k", key));
+    row.appendChild(cell);
+  };
+  const ante = a.ex_ante_loss;
+  const post = a.ex_post_loss;
+  stat(pts(ante), "ex-ante loss", ante === null ? null : ante >= 0.15 ? "danger" : ante >= 0.05 ? "warn" : "ok");
+  stat(pts(post), "ex-post loss", post === null ? null : post >= 0.15 ? "danger" : post >= 0.05 ? "warn" : null);
+  stat(pct(a.game_value), "game value");
+  const luck = a.luck;
+  stat(
+    luck === null || luck === undefined ? "n/a" : `${luck > 0 ? "−" : "+"}${pts(Math.abs(luck))}`,
+    "luck",
+    luck === null || luck === undefined ? null : luck >= 0.1 ? "danger" : luck <= -0.1 ? "ok" : null
+  );
+  box.appendChild(row);
+
+  const line = (label, value) => {
+    if (value === null || value === undefined) return;
+    const known = el("div", "known");
+    known.append(`${label} `, el("b", null, value));
+    box.appendChild(known);
+  };
+  line("played", a.played_label || "unrecorded");
+  line("equilibrium best", a.best);
+  line("opponent played", a.opponent_played);
+  line("best after the fact", a.best_ex_post);
+  if (a.expected_value !== null && a.expected_value !== undefined) {
+    line("expected → realised", `${pct(a.expected_value)} → ${pct(a.realized_value)}`);
+  }
+
+  if (Array.isArray(a.opponent_equilibrium) && a.opponent_equilibrium.length) {
+    const table = el("table");
+    const thead = el("thead");
+    const tr = el("tr");
+    tr.append(el("th", null, "their equilibrium"), el("th", null, "weight"));
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    const body = el("tbody");
+    for (const entry of a.opponent_equilibrium) {
+      const r = el("tr");
+      if (entry.label === a.opponent_played) r.classList.add("is-chosen");
+      r.append(el("td", null, entry.label), el("td", "num", pct(entry.probability)));
+      body.appendChild(r);
+    }
+    table.appendChild(body);
+    box.appendChild(scroller(table));
+  }
+
+  if (Array.isArray(a.rolls) && a.rolls.length > 1) {
+    const table = el("table");
+    const thead = el("thead");
+    const tr = el("tr");
+    tr.append(el("th", null, "roll branch"), el("th", null, "probability"), el("th", null, "value"));
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    const body = el("tbody");
+    for (const branch of a.rolls) {
+      const r = el("tr");
+      r.append(
+        el("td", null, (branch.faints || []).length ? `faints: ${branch.faints.join(", ")}` : "no faint"),
+        el("td", "num", pct(branch.probability)),
+        el("td", "num", pct(branch.value))
+      );
+      body.appendChild(r);
+    }
+    table.appendChild(body);
+    box.appendChild(scroller(table));
+  }
+
+  if (a.explanation) box.appendChild(el("p", "explanation", a.explanation));
+
+  const info = a.information || {};
+  const foot = el("div", "hint");
+  foot.textContent = `${a.n_rows ?? "?"} rows × ${a.n_columns ?? "?"} columns · ${
+    a.model || "?"
+  } · ex-ante ${info.ante || "?"}, ex-post ${info.post || "?"}${
+    a.calibrated ? "" : " · evaluation uncalibrated"
+  }`;
+  box.appendChild(foot);
+  ui.analysis.appendChild(box);
 }
 
 function renderTurnList() {
@@ -320,12 +636,26 @@ function renderTurnList() {
       row.appendChild(el("span", "what", (point.payload.selected || []).join(" ") || "bring 4"));
     } else {
       row.appendChild(el("span", "n", point.repeat > 1 ? `${point.turn}.${point.repeat}` : point.turn));
-      row.appendChild(el("span", "what", actionLabel(point.equilibrium) || "…"));
+      const what = point.analysis && point.analysis.played_label
+        ? point.analysis.played_label
+        : actionLabel(point.equilibrium) || "…";
+      row.appendChild(el("span", "what", what));
       /* The clock is a correctness surface, not a performance one: VGC Timer
        * auto-loses an inactive player, so a slow turn is flagged in the spine
        * where it cannot be missed. */
       if (point.timing && (point.timing.exceeded_45s || point.timing.watchdog_fired)) {
         row.classList.add("slow");
+      }
+      /* A reviewed turn carries its mark in the spine, the way a chess move
+       * list does: the label glyph, and a letter per tag. */
+      if (point.analysis) {
+        const a = point.analysis;
+        row.classList.add("reviewed", `label-${a.classification || "none"}`);
+        const mark = el("span", "mark", LABEL_MARKS[a.classification] || "·");
+        const tags = a.tags || [];
+        if (tags.length) mark.append(el("span", "tag-letters", tags.map((t) => t[0].toUpperCase()).join("")));
+        mark.title = [a.classification || "unscored", ...tags.map((t) => TAG_TITLES[t] || t)].join("\n");
+        row.appendChild(mark);
       }
     }
 
@@ -341,7 +671,8 @@ function renderTurnList() {
     row.type = "button";
     row.disabled = true;
     row.appendChild(el("span", "n", "END"));
-    row.appendChild(el("span", "what", `${battleEnd.result} · ${battleEnd.turns} turns`));
+    const summary = gameAnalysis ? ` · ${pts(gameAnalysis.ex_ante_loss_total)} pts lost` : "";
+    row.appendChild(el("span", "what", `${battleEnd.result} · ${battleEnd.turns} turns${summary}`));
     ui.turnList.appendChild(row);
   }
 
@@ -597,6 +928,43 @@ function renderStrategy(point) {
 
   ui.strategy.appendChild(el("h2", null, "Strategy"));
 
+  /* A reviewed turn has the equilibrium the coach re-solved offline with the
+   * pruning removed. It is the honest mixed strategy for the position, so it
+   * is shown here in place of the live agent's pending block. */
+  const review = point.analysis;
+  if (review && Array.isArray(review.equilibrium) && review.equilibrium.length) {
+    const table = el("table");
+    const thead = el("thead");
+    const tr = el("tr");
+    tr.append(el("th", null, "re-solved offline"), el("th", null, "weight"), el("th", null, "value"));
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    const body = el("tbody");
+    for (const entry of review.equilibrium) {
+      const r = el("tr");
+      if (entry.label === review.played_label) r.classList.add("is-chosen");
+      r.append(
+        el("td", null, entry.label),
+        el("td", "num", pct(entry.probability)),
+        el("td", "num", pct(entry.ante_value))
+      );
+      body.appendChild(r);
+    }
+    table.appendChild(body);
+    ui.strategy.appendChild(scroller(table));
+    const note = el("div", "known");
+    note.append(
+      "game value ",
+      el("b", null, pct(review.game_value)),
+      review.is_pure ? " · pure" : " · mixed",
+      review.recorded && review.recorded.game_value !== null && review.recorded.game_value !== undefined
+        ? ` · the live agent solved ${pct(review.recorded.game_value)} at k = ${review.recorded.k ?? "?"}`
+        : ""
+    );
+    ui.strategy.appendChild(note);
+    return;
+  }
+
   if (Array.isArray(eq.mixed_strategy) && eq.mixed_strategy.length) {
     const table = el("table");
     const body = el("tbody");
@@ -611,11 +979,54 @@ function renderStrategy(point) {
     return;
   }
 
+  /* The one-ply agent puts the solved game on its scored `candidates` event:
+   * the payoff matrix, both sides' equilibrium mixes and the game value. That
+   * is the live strategy, so it is shown here rather than the pending block
+   * the equilibrium event still names. */
+  const solved = point.candidates && Array.isArray(point.candidates.payoff) ? point.candidates : null;
+  if (solved) {
+    const line = el("div", "known");
+    const support = Array.isArray(solved.support) ? solved.support.length : null;
+    line.append(
+      "game value ",
+      el("b", null, pct(solved.game_value)),
+      solved.is_pure ? " \u00b7 pure" : " \u00b7 mixed",
+      support !== null ? ` \u00b7 ${plural(support, "action")} in support` : "",
+      solved.k ? ` \u00b7 k = ${solved.k}` : "",
+      solved.model ? ` \u00b7 ${solved.model}` : ""
+    );
+    ui.strategy.appendChild(line);
+
+    const theirs = solved.opponent_joint || [];
+    const mix = solved.opponent_equilibrium || [];
+    const rows = theirs
+      .map((action, i) => ({ label: action.label || action.message || `column ${i + 1}`, weight: Number(mix[i] || 0) }))
+      .filter((row) => row.weight > 0.005)
+      .sort((a, b) => b.weight - a.weight);
+    if (rows.length) {
+      const table = el("table");
+      const thead = el("thead");
+      const tr = el("tr");
+      tr.append(el("th", null, "their expected reply"), el("th", null, "weight"));
+      thead.appendChild(tr);
+      table.appendChild(thead);
+      const body = el("tbody");
+      for (const row of rows) {
+        const r = el("tr");
+        r.append(el("td", null, row.label), el("td", "num", pct(row.weight)));
+        body.appendChild(r);
+      }
+      table.appendChild(body);
+      ui.strategy.appendChild(scroller(table));
+    }
+    return;
+  }
+
   const line = el("div", "known");
   line.append(
     "policy ",
     el("b", null, eq.strategy || "unknown"),
-    eq.value !== null && eq.value !== undefined ? ` · value ${eq.value}` : ""
+    eq.value !== null && eq.value !== undefined ? ` · value ${pct(eq.value)}` : ""
   );
   ui.strategy.appendChild(line);
   ui.strategy.appendChild(pendingBlock(eq.pending || ["mixed_strategy"], null));
@@ -659,6 +1070,65 @@ function renderCandidates(point) {
   const chosenMessage = point.equilibrium ? point.equilibrium.chosen : null;
   const joint = candidates.joint || [];
   if (!joint.length) return;
+
+  /* Scored: the search has run and each row carries what the bot thinks of
+   * it. `score` is the row's expected win probability against the opponent's
+   * equilibrium mix, `worst` its minimum over the opponent's columns, `weight`
+   * how often the equilibrium plays it, `policy` the prior that ranked it
+   * before any of that was computed. Sorted by what the bot would play. */
+  if (Array.isArray(candidates.payoff) && candidates.payoff.length) {
+    const mix = candidates.opponent_equilibrium || [];
+    const scored = joint.map((action, i) => {
+      const row = candidates.payoff[i] || [];
+      const score = row.reduce((sum, cell, j) => sum + Number(cell) * Number(mix[j] || 0), 0);
+      const worst = row.length ? Math.min(...row.map(Number)) : null;
+      return {
+        action,
+        score,
+        worst,
+        weight: Number(action.equilibrium_probability || 0),
+        policy: typeof action.policy_score === "number" ? action.policy_score : null,
+      };
+    });
+    scored.sort((a, b) => b.weight - a.weight || b.score - a.score);
+
+    const head2 = el("div", "hint");
+    head2.textContent = `${scored.length} scored against ${mix.length} opponent replies \u00b7 score = expected win probability vs their mix`;
+    ui.candidates.appendChild(head2);
+
+    const table = el("table", "scored");
+    const thead = el("thead");
+    const headRow = el("tr");
+    headRow.append(
+      el("th", null, "joint action"),
+      el("th", "num", "score"),
+      el("th", "num", "worst"),
+      el("th", "num", "weight"),
+      el("th", "num", "policy")
+    );
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const body = el("tbody");
+    for (const entry of scored.slice(0, MAX_CANDIDATE_ROWS)) {
+      const tr = el("tr");
+      if (chosenMessage && entry.action.message === chosenMessage) tr.classList.add("is-chosen");
+      if (entry.weight > 0.005) tr.classList.add("in-support");
+      tr.append(
+        el("td", null, entry.action.label),
+        el("td", "num", pct(entry.score)),
+        el("td", "num", entry.worst === null ? "\u2014" : pct(entry.worst)),
+        el("td", "num", entry.weight > 0.0005 ? pct(entry.weight) : "\u00b7"),
+        el("td", "num", entry.policy === null ? "\u2014" : entry.policy.toFixed(2))
+      );
+      body.appendChild(tr);
+    }
+    table.appendChild(body);
+    ui.candidates.appendChild(scroller(table));
+    if (scored.length > MAX_CANDIDATE_ROWS) {
+      ui.candidates.appendChild(el("div", "more", `${scored.length - MAX_CANDIDATE_ROWS} more`));
+    }
+    return;
+  }
 
   const table = el("table");
   const thead = el("thead");
@@ -882,6 +1352,50 @@ function renderEval(point) {
     : `log odds ${odds === null ? "decided" : odds.toFixed(2)} · hand-weighted, not a probability`;
 
   strip.append(head, bar, note);
+
+  /* The whole game, when the file is a review: the coach's curve with the
+   * selected turn marked, so scrubbing the spine walks a line rather than a
+   * number. Drawn as SVG from the event; nothing is recomputed. */
+  const curve = gameAnalysis && Array.isArray(gameAnalysis.curve) ? gameAnalysis.curve : null;
+  if (curve && curve.length > 1) strip.appendChild(evalCurve(curve, point.kind === "turn" ? point.turn : null));
+}
+
+function evalCurve(curve, currentTurn) {
+  const NS = "http://www.w3.org/2000/svg";
+  const width = 100;
+  const height = 28;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "eval-curve");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+
+  const x = (index) => (index / (curve.length - 1)) * width;
+  const y = (value) => (1 - Math.max(0, Math.min(1, Number(value)))) * (height - 2) + 1;
+
+  const half = document.createElementNS(NS, "line");
+  half.setAttribute("x1", "0");
+  half.setAttribute("x2", String(width));
+  half.setAttribute("y1", String(y(0.5)));
+  half.setAttribute("y2", String(y(0.5)));
+  half.setAttribute("class", "half");
+  svg.appendChild(half);
+
+  const path = document.createElementNS(NS, "path");
+  path.setAttribute(
+    "d",
+    curve.map((c, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(2)},${y(c.win_prob).toFixed(2)}`).join(" ")
+  );
+  svg.appendChild(path);
+
+  const index = curve.findIndex((c) => c.turn === currentTurn);
+  if (index >= 0) {
+    const dot = document.createElementNS(NS, "circle");
+    dot.setAttribute("cx", x(index).toFixed(2));
+    dot.setAttribute("cy", y(curve[index].win_prob).toFixed(2));
+    dot.setAttribute("r", "1.6");
+    svg.appendChild(dot);
+  }
+  return svg;
 }
 
 // --------------------------------------------------------- Showdown scene
@@ -962,12 +1476,23 @@ function setSceneSpeed(speed) {
   }
 }
 
+function setSceneVolume(volume) {
+  sceneVolume = Math.max(0, Math.min(100, Number(volume) || 0));
+  postScene({ kind: "battle-volume", volume: sceneVolume });
+  try {
+    localStorage.setItem("champions.volume", String(sceneVolume));
+  } catch {
+    // Storage unavailable; the choice just does not persist.
+  }
+}
+
 window.addEventListener("message", (event) => {
   if (event.source !== ui.sceneFrame.contentWindow) return;
   if (!event.data || event.data.kind !== "battle-ready") return;
   sceneReady = true;
   sceneSent = 0;
   setSceneSpeed(sceneSpeed);
+  setSceneVolume(sceneVolume);
   renderScene(selected);
 });
 
@@ -999,7 +1524,9 @@ function select(point) {
   renderConditions(point.state);
   renderEval(point);
   renderLog(point.log);
+  renderReview(point);
   renderChosen(point);
+  renderAnalysis(point);
   renderTiming(point);
   renderStrategy(point);
   renderCandidates(point);
@@ -1009,9 +1536,147 @@ function select(point) {
   ui.follow.hidden = following || !liveStream;
 }
 
+/* What the bot is doing, read off the trace. A turn's events land in order --
+ * `turn_start`, then the search's, then `equilibrium` -- so a live trace whose
+ * newest turn has no equilibrium yet is a bot thinking, and one whose newest
+ * turn has one is a bot waiting on the opponent. Between battles the trace is
+ * silent and the ladder script's status file says what is happening. */
+function phaseOf() {
+  const now = Date.now() / 1000;
+  const since = (t) => (typeof t === "number" ? ` \u00b7 ${Math.max(0, Math.round(now - t))}s` : "");
+  const ladder = ladderStatus && ladderStatus.phase ? ladderStatus : null;
+  const ladderText = () => {
+    if (!ladder) return null;
+    const n = ladder.game && ladder.of ? ` (${ladder.game}/${ladder.of})` : "";
+    if (ladder.phase === "searching") return { text: `searching${n}${since(ladder.t)}`, tone: "busy" };
+    if (ladder.phase === "reviewing") return { text: `coach reviewing${n}${since(ladder.t)}`, tone: "busy" };
+    if (ladder.phase === "done") return { text: "ladder run finished", tone: "idle" };
+    if (ladder.phase === "battle") return { text: `in battle${n}`, tone: "live" };
+    return null;
+  };
+
+  if (!events.length) return ladderText() || { text: "waiting for a battle", tone: "idle" };
+  if (battleEnd) {
+    const after = ladderText();
+    if (after && after.tone !== "live") return after;
+    return { text: `battle over \u00b7 ${battleEnd.result || "ended"}`, tone: "idle" };
+  }
+  if (!liveStream) return { text: "replay", tone: "idle" };
+
+  const last = points.length ? points[points.length - 1] : null;
+  if (!last) return { text: "team preview", tone: "thinking" };
+  if (last.kind === "preview") return { text: "waiting for turn 1", tone: "live" };
+  if (!last.equilibrium) return { text: `thinking \u00b7 turn ${last.turn}${since(last.events[0].t)}`, tone: "thinking" };
+  const decided = last.events.find((e) => e.type === "equilibrium");
+  return { text: `waiting for opponent \u00b7 turn ${last.turn}${since(decided && decided.t)}`, tone: "live" };
+}
+
+function renderPhase() {
+  const phase = phaseOf();
+  const stopping =
+    ladderStatus && ladderStatus.stop_requested && ladderStatus.phase !== "done"
+      ? " \u00b7 then stop"
+      : "";
+  ui.phase.textContent = phase.text + stopping;
+  ui.phase.className = `badge ${phase.tone}`;
+}
+
+/* The ladder run's own controls. It is not a subprocess of the viewer, so the
+ * only lever is a flag file it reads between games (D82). */
+/* The bot's rating and rank. Who to ask about: the ladder run's status file
+ * names the account and format while a run is on; otherwise a rated battle's
+ * trace does (`battle_end.rating` is null for anything unrated, and self-play
+ * names are not ladder accounts). Polled every minute and again when a battle
+ * ends, which is when the number moves. */
+let ratingKey = null;
+let ratingFetchedAt = 0;
+
+function ratingSubject() {
+  if (account && account.username && account.format) {
+    return { user: account.username, format: account.format };
+  }
+  if (ladderStatus && ladderStatus.username && ladderStatus.format) {
+    return { user: ladderStatus.username, format: ladderStatus.format };
+  }
+  if (battleStart && battleEnd && battleEnd.rating !== null && battleEnd.rating !== undefined) {
+    return { user: battleStart.player_username, format: battleStart.format_id };
+  }
+  return null;
+}
+
+function renderRating(data) {
+  if (!data || data.rated === false || data.error) {
+    ui.ratingGroup.hidden = true;
+    return;
+  }
+  ui.eloValue.textContent = typeof data.elo === "number" ? String(Math.round(data.elo)) : "\u2014";
+  const parts = [];
+  if (typeof data.rank === "number") parts.push(`rank #${data.rank}`);
+  else if (data.rank === null) parts.push(`not in top ${data.top || 500}`);
+  if (typeof data.gxe === "number") parts.push(`GXE ${data.gxe.toFixed(1)}%`);
+  if (typeof data.w === "number" && typeof data.l === "number") parts.push(`${data.w}\u2013${data.l}`);
+  ui.rating.textContent = parts.join(" \u00b7 ");
+  ui.ratingGroup.title = [
+    data.username ? `${data.username} on ${data.format}` : "",
+    typeof data.rpr === "number" ? `Glicko estimate ${Math.round(data.rpr)}` : "",
+    "Showdown's own numbers; rank is the position in the published top 500",
+  ]
+    .filter(Boolean)
+    .join(" \u00b7 ");
+  ui.ratingGroup.hidden = typeof data.elo !== "number";
+}
+
+async function pollRating(force) {
+  const subject = ratingSubject();
+  if (!subject) {
+    ui.ratingGroup.hidden = true;
+    ratingKey = null;
+    return;
+  }
+  const key = `${subject.user}|${subject.format}`;
+  const stale = Date.now() - ratingFetchedAt > 60000;
+  if (!force && key === ratingKey && !stale) return;
+  ratingKey = key;
+  ratingFetchedAt = Date.now();
+  try {
+    const params = new URLSearchParams({ user: subject.user, format: subject.format });
+    renderRating(await api(`/api/ladder?${params}`));
+  } catch {
+    // The site is unreachable or slow; the last reading stays up.
+  }
+}
+
+function renderLadder() {
+  const ladder = ladderStatus && ladderStatus.phase ? ladderStatus : null;
+  const active = Boolean(ladder && ladder.phase !== "done");
+  // With an account configured the group is always there: the start form
+  // when nothing is running, the run's own controls while it is (D87).
+  const canStart = Boolean(account && account.username);
+  ui.ladderGroup.hidden = !active && !canStart;
+  ui.ladderStartForm.hidden = active || !canStart;
+  ui.ladderStop.hidden = !active || Boolean(ladder && ladder.stop_requested);
+  ui.ladderResume.hidden = !active || !(ladder && ladder.stop_requested);
+  if (!active) {
+    ui.ladderLabel.textContent = canStart ? "idle" : "";
+    return;
+  }
+  const untilStopped = ladder.of && ladder.of >= 100000;
+  const n = ladder.game && ladder.of ? (untilStopped ? `game ${ladder.game}` : `game ${ladder.game}/${ladder.of}`) : "";
+  const what = { searching: "searching", battle: "in battle", reviewing: "coach reviewing" }[ladder.phase] || ladder.phase;
+  ui.ladderLabel.textContent = `${n} \u00b7 ${what}`;
+}
+
+let ratedEndSeen = null;
+
 function refresh() {
   points = fold(events);
   renderMeta();
+  renderPhase();
+  if (battleEnd && battleEnd !== ratedEndSeen) {
+    ratedEndSeen = battleEnd;
+    // The rating moves at the end of a rated game; fetch it fresh then.
+    if (battleEnd.rating !== null && battleEnd.rating !== undefined) pollRating(true);
+  }
 
   if (!points.length) {
     ui.layout.hidden = true;
@@ -1080,6 +1745,11 @@ function fillAgents(agents) {
 
 function renderStatus(status) {
   fillAgents(status.agents);
+  ladderStatus = status.live || null;
+  account = status.account || null;
+  renderPhase();
+  renderLadder();
+  pollRating(false);
 
   const sim = status.showdown || {};
   const state = sim.state || "off";
@@ -1261,9 +1931,11 @@ function setLive(isLive) {
   ui.liveBadge.textContent = isLive ? "live" : "replay";
   ui.liveBadge.className = `badge ${isLive ? "live" : "idle"}`;
   ui.follow.hidden = following || !isLive;
+  renderPhase();
 }
 
 function openTrace(traceId) {
+  openedId = traceId;
   if (socket) {
     socket.onclose = null;
     socket.close();
@@ -1312,6 +1984,56 @@ function openTrace(traceId) {
   history.replaceState(null, "", url);
 }
 
+/* The games list in the side pane: one row per game, newest first, with who
+ * it was against and how it went. The self-play case writes one file per
+ * side of a battle and both are listed, since they are two views. */
+function renderGameList(traces, currentId) {
+  ui.gameList.replaceChildren();
+  const games = traces.filter((trace) => !trace.is_review);
+  if (!games.length) {
+    ui.gameList.appendChild(el("div", "game-empty", "no games yet"));
+    return;
+  }
+  for (const trace of games) {
+    const row = el("button", "game-row");
+    row.type = "button";
+    row.dataset.trace = trace.id;
+    if (trace.id === currentId) row.classList.add("is-current");
+
+    const who = el("span", "who");
+    who.append(
+      el("span", "us", trace.player || trace.agent || trace.id),
+      el("span", "vs", " vs "),
+      el("b", null, trace.opponent || "?")
+    );
+    row.appendChild(who);
+
+    let tone = "pending";
+    let text = "waiting";
+    if (trace.live && !trace.result) {
+      tone = "live";
+      text = "in progress";
+    } else if (trace.result) {
+      tone = trace.result;
+      text = trace.result;
+    }
+    const status = el("span", `game-status ${tone}`, text);
+    if (trace.review) status.title = "reviewed by the coach";
+    row.appendChild(status);
+    if (trace.review) row.appendChild(el("span", "game-reviewed", "coach"));
+    row.title = `${trace.id}${trace.turns ? ` \u00b7 ${trace.turns} turns` : ""}`;
+
+    row.addEventListener("click", () => {
+      pinned = true;
+      currentBattle = trace.battle_id;
+      ui.picker.value = trace.id;
+      openTrace(openIdFor(trace.id));
+      renderGameList(traces, trace.id);
+    });
+    ui.gameList.appendChild(row);
+  }
+}
+
 async function loadTraceList() {
   let data;
   try {
@@ -1324,22 +2046,27 @@ async function loadTraceList() {
 
   const previous = ui.picker.value;
   ui.picker.replaceChildren();
+  traceIndex = new Map(data.traces.map((trace) => [trace.id, trace]));
+  // Reviews ride behind their game (D84); the list and the picker hold games.
+  const listed = data.traces.filter((trace) => !trace.is_review);
 
-  if (!data.traces.length) {
+  if (!listed.length) {
     ui.picker.appendChild(el("option", null, "no traces yet"));
     ui.picker.disabled = true;
+    renderGameList(data.traces, null);
     return;
   }
   ui.picker.disabled = false;
 
-  for (const trace of data.traces) {
+  for (const trace of listed) {
     const option = el("option", null, `${trace.live ? "● " : ""}${trace.id}`);
     option.value = trace.id;
     ui.picker.appendChild(option);
   }
 
   const wanted = new URL(location.href).searchParams.get("trace");
-  const ids = data.traces.map((trace) => trace.id);
+  const ids = listed.map((trace) => trace.id);
+  data = { ...data, traces: listed };
 
   /* Follow battles, not files.
    *
@@ -1371,8 +2098,13 @@ async function loadTraceList() {
   ui.picker.value = target;
   if (target !== previous) {
     currentBattle = newestBattle;
-    openTrace(target);
+    openTrace(openIdFor(target));
+  } else if (openedId === target && openIdFor(target) !== target) {
+    // The game on screen has finished and the coach has written its review:
+    // show the review in place of the plain trace (D84).
+    openTrace(openIdFor(target));
   }
+  renderGameList(data.traces, target);
 
   /* If a battle is being written to and it is not the one on screen, say so.
    *
@@ -1384,6 +2116,18 @@ async function loadTraceList() {
   const liveElsewhere = data.traces.find(
     (trace) => trace.live && trace.battle_id !== currentBattle
   );
+  /* A reader who has not pinned anything and whose battle has ended is
+   * waiting for the next one: take them there. The ladder writes a new file
+   * per game, and "click the button every game" is not following live. */
+  if (liveElsewhere && !pinned && !liveStream) {
+    following = true;
+    currentBattle = liveElsewhere.battle_id;
+    ui.picker.value = liveElsewhere.id;
+    openTrace(openIdFor(liveElsewhere.id));
+    renderGameList(data.traces, liveElsewhere.id);
+    ui.gotoLive.hidden = true;
+    return;
+  }
   ui.gotoLive.hidden = !liveElsewhere;
   ui.gotoLive.dataset.trace = liveElsewhere ? liveElsewhere.id : "";
 }
@@ -1392,7 +2136,7 @@ async function loadTraceList() {
 
 ui.picker.addEventListener("change", () => {
   pinned = true;
-  openTrace(ui.picker.value);
+  openTrace(openIdFor(ui.picker.value));
 });
 
 ui.follow.addEventListener("click", () => {
@@ -1407,7 +2151,7 @@ ui.gotoLive.addEventListener("click", () => {
   following = true;
   currentBattle = null;
   ui.picker.value = target;
-  openTrace(target);
+  openTrace(openIdFor(target));
   ui.gotoLive.hidden = true;
 });
 
@@ -1454,7 +2198,51 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
 });
 
+ui.ladderStop.addEventListener("click", async () => {
+  ui.ladderStop.disabled = true;
+  try {
+    await api("/api/live/stop", {});
+    await pollStatus();
+  } finally {
+    ui.ladderStop.disabled = false;
+  }
+});
+ui.ladderStart.addEventListener("click", async () => {
+  ui.ladderStart.disabled = true;
+  try {
+    const games = Number(ui.ladderGames.value) || 0;
+    await api("/api/live/start", { games });
+    ladderStatus = { phase: "searching", game: 1, of: games || 100000, t: Date.now() / 1000 };
+    renderLadder();
+    renderPhase();
+  } catch (error) {
+    alert(`could not start the ladder run: ${error.message || error}`);
+  } finally {
+    ui.ladderStart.disabled = false;
+  }
+});
+
+ui.ladderResume.addEventListener("click", async () => {
+  ui.ladderResume.disabled = true;
+  try {
+    await api("/api/live/resume", {});
+    await pollStatus();
+  } finally {
+    ui.ladderResume.disabled = false;
+  }
+});
+
 ui.sceneSpeed.addEventListener("change", () => setSceneSpeed(ui.sceneSpeed.value));
+ui.sceneVolume.addEventListener("input", () => setSceneVolume(ui.sceneVolume.value));
+try {
+  const savedVolume = localStorage.getItem("champions.volume");
+  if (savedVolume !== null && savedVolume !== "") {
+    sceneVolume = Math.max(0, Math.min(100, Number(savedVolume) || 0));
+    ui.sceneVolume.value = String(sceneVolume);
+  }
+} catch {
+  // Storage unavailable; the default volume it is.
+}
 try {
   const saved = localStorage.getItem("champions.speed");
   if (saved) {
@@ -1479,5 +2267,8 @@ pollStatus();
 
 /* New battles write new files, so the list has to keep discovering them; the
  * events themselves arrive over the socket, not from this poll. */
-setInterval(loadTraceList, 1500);
+setInterval(loadTraceList, 1000);
 setInterval(pollStatus, 1200);
+// The pill carries elapsed seconds, so it ticks even when nothing arrives.
+setInterval(renderPhase, 1000);
+setInterval(() => pollRating(false), 15000);

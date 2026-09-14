@@ -11,7 +11,7 @@ PYTHON := .venv/Scripts/python.exe
 else
 PYTHON := .venv/bin/python
 endif
-FORMAT_ID := gen9championsvgc2026regmb
+FORMAT_ID := gen9championsvgc2026regmc
 PORT ?= 8090
 GAMES ?= 50
 SEED ?= 0
@@ -22,7 +22,7 @@ EVAL_TRACES ?= runs/m6-selfplay
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
         scrape scrape-full corpus priors eval-belief eval-games fit-eval fit-policy discard \
-        llm-smoke discard-llm gate
+        llm-smoke discard-llm gate review calibrate-coach ladder-live viewer-live ladder-summary
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -52,6 +52,11 @@ help:
 	@echo "make llm-smoke     exercise the language-model provider (C) against local Ollama"
 	@echo "make discard-llm   run the pruning guard on C only (LIMIT=$(or $(LIMIT),20), needs Ollama)"
 	@echo "make gate          run the M8 engine gate (GATE_GAMES=$(or $(GATE_GAMES),200) per arm per team)"
+	@echo "make review        review a game with the coach (GAME=trace .jsonl, replay .log, or replay id/URL)"
+	@echo "make calibrate-coach  fit the coach's label bands and check its loss against rating (CAL_GAMES=80)"
+	@echo "make ladder-live   play rated games on the official ladder with adaptive-belief, the coach between games (LIVE_GAMES=10; account in .env)"
+	@echo "make viewer-live   watch the live ladder games as they are played (runs/live/)"
+	@echo "make ladder-summary  the record so far from the live ladder's ledger"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -189,3 +194,32 @@ discard-llm:
 gate:
 	$(PYTHON) scripts/engine_gate.py --games $(or $(GATE_GAMES),200) --port $(PORT) \
 	  --seed $(SEED) $(GATE_ARGS)
+
+# M9, the coach (`docs/specs/2026-09-13-coach.md`, D76). Re-solves every turn
+# of a finished game offline and writes the analysis overlay beside it. GAME
+# defaults to the newest trace under traces/; a replay id or URL is fetched.
+# `REVIEW_ARGS="--side alice --opponent-team data/teams/regmb-alpha.txt --llm"`.
+review:
+	$(PYTHON) scripts/review.py $(or $(GAME),$(TRACES)) $(REVIEW_ARGS)
+
+# The coach's calibration (`docs/06-coach-and-evaluation.md` sections 2 and 8,
+# D77): the label bands fitted on the top rating quartile, and whether ex-ante
+# loss tracks rating where ex-post loss does not. Needs the corpus (`make
+# scrape`). About a second a turn; CAL_GAMES games from both sides.
+calibrate-coach:
+	$(PYTHON) scripts/calibrate_coach.py --limit $(or $(CAL_GAMES),80) --seed $(SEED) $(CAL_ARGS)
+
+# The official ladder. Needs a registered account in .env (see .env.example);
+# one battle at a time, the coach reviewing each before the next is searched,
+# traces under runs/live/. `LIVE_ARGS="--agent adaptive --no-review"`.
+ladder-live:
+	$(PYTHON) scripts/ladder_live.py $(or $(LIVE_GAMES),10) --team $(or $(TEAM),regmb-worlds) $(LIVE_ARGS)
+
+# The viewer on the live ladder's traces, in a second terminal while
+# `make ladder-live` plays. No local simulator: the games are on the official
+# server, and the viewer only tails the files the bot writes.
+viewer-live:
+	$(PYTHON) scripts/viewer.py $(or $(LIVE_TRACES),runs/live) --no-server --port $(VIEWER_PORT) $(VIEWER_ARGS)
+
+ladder-summary:
+	$(PYTHON) scripts/ladder_live.py --summary $(LIVE_ARGS)

@@ -15,17 +15,19 @@ from poke_env.ps_client import AccountConfiguration
 from poke_env.ps_client.server_configuration import ServerConfiguration
 
 from champions.agents import commands
+from champions.agents.adaptive import AdaptiveAgent
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
-from champions.agents.belief_agent import BeliefAgent
+from champions.agents.belief_agent import AdaptiveBeliefAgent, BeliefAgent
 from champions.agents.language_agent import LanguageAgent
 from champions.agents.oneply import OnePlyAgent
 from champions.agents.oracle import OraclePlyAgent, SimOracleAgent, TwoPlyOracleAgent
 from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
+from champions.formats import FORMAT_ID as _FORMAT_ID
 from champions.teams import DEFAULT, available_teams, load_team
 from champions.trace.validate import validate_trace_file
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = _FORMAT_ID
 
 # Showdown reports a rejected action back over the protocol rather than raising,
 # so an agent sending illegal orders looks like a clean run unless these are
@@ -84,10 +86,12 @@ AGENTS = {
     "greedy": MaxBasePowerAgent,
     "oneply": OnePlyAgent,
     "twoply": TwoPlyAgent,
+    "adaptive": AdaptiveAgent,
     "oneply-oracle": OraclePlyAgent,
     "twoply-oracle": TwoPlyOracleAgent,
     "sim-oracle": SimOracleAgent,
     "belief": BeliefAgent,
+    "adaptive-belief": AdaptiveBeliefAgent,
     "llm": LanguageAgent,
 }
 
@@ -104,7 +108,10 @@ def build_agent(kind: str, **kwargs: Any) -> TracingPlayer:
     except KeyError:
         raise ValueError(f"unknown agent {kind!r}; expected one of {sorted(AGENTS)}") from None
     if issubclass(agent_class, NEEDS_DEX):
-        kwargs["dex"] = Dex.load(FORMAT_ID)
+        # The dex for the format being played, not the default: the live
+        # ladder passes `--format`, and a dex for another format would price
+        # the wrong pool (D80).
+        kwargs["dex"] = Dex.load(kwargs.get("battle_format", FORMAT_ID))
     return agent_class(**kwargs)
 
 

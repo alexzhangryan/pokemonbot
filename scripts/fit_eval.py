@@ -55,7 +55,7 @@ from champions.search import fit as fitting
 from champions.search import positions
 from champions.search.evaluate import WEIGHTS_PATH, format_key
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 DEFAULT_TRACES = Path("runs/m6-selfplay")
 REPORT_PATH = Path("docs/eval-calibration.md")
 

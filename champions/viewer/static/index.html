@@ -12,12 +12,23 @@
         <span class="mark">CHAMPIONS</span>
         <span class="sub">bot viewer</span>
       </div>
-      <select id="trace-picker" title="Which battle to watch"></select>
+      <!-- The battle on screen. Hidden: the games list in the side pane is
+           the control now, and this stays the one place the choice is kept. -->
+      <select id="trace-picker" title="Which battle to watch" hidden></select>
       <div id="battle-meta" class="meta"></div>
+      <div class="spacer"></div>
+      <!-- The bot's standing on the official ladder, from the site's public
+           JSON (D83). Front and centre: it is the one number a session is for. -->
+      <div id="rating-group" class="elo" hidden title="">
+        <span class="elo-key">current Elo</span>
+        <b id="elo-value">—</b>
+        <span id="rating" class="elo-sub"></span>
+      </div>
       <div class="spacer"></div>
       <button id="showdown" class="ghost" title="Open the real Showdown client beside this window">
         Showdown &#8599;
       </button>
+      <div id="phase" class="badge idle" title="What the bot is doing right now">waiting for a battle</div>
       <button id="goto-live" class="primary" hidden>Live battle &#8595;</button>
       <button id="follow" class="ghost" hidden>Jump to latest</button>
       <div id="live-badge" class="badge idle" title="Whether the trace on screen is still being written">no trace</div>
@@ -66,6 +77,27 @@
            the whole run. They were one button for a while, and it was the wrong
            one: wanting out of a game is common and wanting out of a run is not.
       -->
+      <!-- A ladder run started outside the viewer (`make ladder-live`). The
+           viewer cannot kill it and should not: the one thing it can ask is
+           "finish this game, then stop", which the run reads between games. -->
+      <div class="bar-group" id="ladder-group" hidden>
+        <span class="bar-label">ladder</span>
+        <span id="ladder-label" class="bar-state"></span>
+        <button id="ladder-stop" class="ghost small" title="Let the current game finish, then stop the run">
+          stop after this game
+        </button>
+        <button id="ladder-resume" class="ghost small" hidden title="Keep playing after this game">
+          cancel stop
+        </button>
+        <!-- Starting a run from the page (D87): the same script `make
+             ladder-live` runs, detached, so closing the page forfeits nothing.
+             Blank means play until the stop button. -->
+        <span id="ladder-start-form" hidden>
+          <input id="ladder-games" type="number" min="1" placeholder="games (blank: until stopped)" title="How many games; blank plays until you press stop">
+          <button id="ladder-start" class="primary small" title="Start playing rated games with the adaptive belief agent">play ladder</button>
+        </span>
+      </div>
+
       <div class="bar-group grow" id="run-group">
         <span id="run-label" class="bar-state dim">no run</span>
         <button
@@ -92,6 +124,11 @@
     <main id="layout">
       <!-- The spine: one row per decision, click to scrub. -->
       <section id="turns" class="pane">
+        <!-- Every game in the directory, newest first: who it was against and
+             how it went. Click to open; a finished game opens as its review
+             once the coach has written one (D84). -->
+        <h2>Games</h2>
+        <div id="game-list"></div>
         <h2>Turns</h2>
         <div id="turn-list"></div>
       </section>
@@ -124,6 +161,8 @@
                 <option value="normal" selected>normal</option>
                 <option value="slow">slow</option>
               </select>
+              <label for="scene-volume">volume</label>
+              <input id="scene-volume" type="range" min="0" max="100" step="5" value="30" title="Sound volume (0 mutes)" />
               <button id="scene-toggle" class="ghost" title="Hide the battle animation">hide</button>
             </div>
           </div>
@@ -140,7 +179,13 @@
       </section>
 
       <section id="decision" class="pane">
+        <!-- The coach's overlay (M9), rendered here (M10): the game summary
+             with its critical turns as jump links, then per decision the
+             label, the tags and the two losses. Both stay empty for a trace
+             the coach has not reviewed. -->
+        <div id="review"></div>
         <div id="chosen"></div>
+        <div id="analysis"></div>
         <div id="timing"></div>
         <div id="strategy"></div>
         <div id="candidates"></div>

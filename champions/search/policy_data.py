@@ -152,6 +152,54 @@ def decisions_from_log(
     )
 
 
+@dataclass(frozen=True)
+class SlotChoice:
+    """One active slot at one turn start: what it could do, and what it did.
+
+    The coach's seam (`docs/specs/2026-09-13-coach.md` section 5.2). Every
+    slot with a Pokemon in it yields one of these, whether or not the log
+    recorded its choice; `chosen` is None when it did not. `decisions_from_record`
+    is the same walk keeping only the labelled ones and attaching features.
+    """
+
+    turn: int
+    side: str
+    slot: int
+    options: tuple[dict[str, Any], ...]
+    chosen: int | None
+    snapshot: dict[str, Any]
+
+
+def slot_choices(
+    record: ReplayRecord,
+    log: str,
+    dex: Dex,
+    revealed_moves_fallback: bool = False,
+) -> Iterator[SlotChoice]:
+    """Every occupied slot's choice set at every turn start, both sides."""
+    movesets = _movesets(record, revealed_moves_fallback)
+    if not movesets:
+        return
+
+    lines = log.splitlines()
+    brought = {side: set(record.brought(side)) for side in SIDES}
+    choices = _choices(record.actions, lines)
+
+    for turn, views in turn_states(lines, dex):
+        if turn < 1:
+            continue
+        for side in SIDES:
+            snapshot = views[side]
+            for slot in range(len(SLOT_LETTERS)):
+                active = _active(snapshot, slot)
+                if active is None:
+                    continue
+                options = _options(snapshot, side, slot, active, movesets, brought[side], dex)
+                action = choices.get((turn, side, slot))
+                chosen = _match(options, action, side) if action is not None else None
+                yield SlotChoice(turn, side, slot, tuple(options), chosen, snapshot)
+
+
 def decisions_from_record(
     record: ReplayRecord,
     log: str,
@@ -164,48 +212,32 @@ def decisions_from_record(
     reconstruction, and reconstruction is by far the expensive half, so the
     record it filtered on is passed straight through rather than re-derived.
     """
-    movesets = _movesets(record, revealed_moves_fallback)
-    if not movesets:
-        return
-
-    lines = log.splitlines()
-    brought = {side: set(record.brought(side)) for side in SIDES}
-    choices = _choices(record.actions, lines)
     players = dict(zip(SIDES, record.players, strict=True))
     ratings = dict(zip(SIDES, record.ratings, strict=True))
 
-    for turn, views in turn_states(lines, dex):
-        if turn < 1:
+    boards: dict[tuple[int, str], Any] = {}
+    for choice in slot_choices(record, log, dex, revealed_moves_fallback):
+        if choice.chosen is None:
             continue
-        for side in SIDES:
-            snapshot = views[side]
-            board = None
-            for slot in range(len(SLOT_LETTERS)):
-                key = (turn, side, slot)
-                if key not in choices:
-                    continue
-                active = _active(snapshot, slot)
-                if active is None:
-                    continue
-                options = _options(snapshot, side, slot, active, movesets, brought[side], dex)
-                chosen = _match(options, choices[key], side)
-                if chosen is None:
-                    continue
-                if board is None:
-                    board = board_for(snapshot, dex)
-                yield Decision(
-                    battle_id=record.replay_id,
-                    player=players[side],
-                    side=side,
-                    turn=turn,
-                    slot=slot,
-                    options=tuple(options),
-                    chosen=chosen,
-                    features=np.stack([option_features(snapshot, slot, o, board) for o in options]),
-                    snapshot=snapshot,
-                    sheets_revealed=record.sheets_revealed,
-                    rating=ratings[side],
-                )
+        key = (choice.turn, choice.side)
+        board = boards.get(key)
+        if board is None:
+            board = boards[key] = board_for(choice.snapshot, dex)
+        yield Decision(
+            battle_id=record.replay_id,
+            player=players[choice.side],
+            side=choice.side,
+            turn=choice.turn,
+            slot=choice.slot,
+            options=choice.options,
+            chosen=choice.chosen,
+            features=np.stack(
+                [option_features(choice.snapshot, choice.slot, o, board) for o in choice.options]
+            ),
+            snapshot=choice.snapshot,
+            sheets_revealed=record.sheets_revealed,
+            rating=ratings[choice.side],
+        )
 
 
 # -- what the player knew ----------------------------------------------------

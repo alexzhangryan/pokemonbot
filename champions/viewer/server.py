@@ -26,8 +26,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import subprocess
+import sys
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +41,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from champions.viewer.control import Supervisor
+from champions.teams import DEFAULT
+from champions.viewer.control import FORMAT_ID, Supervisor
+from champions.viewer.ladder import LadderLookup
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -65,13 +70,28 @@ class TraceFile:
         stat = self.path.stat()
         head = _first_event(self.path)
         payload = head.get("payload", {}) if head else {}
+        # The tail says how it ended, if it has. One more short read.
+        tail = _last_event(self.path)
+        ended = tail.get("payload", {}) if tail and tail.get("type") == "battle_end" else None
+        # The coach's overlay is a copy of this trace with the analysis
+        # interleaved, written beside it (D76). A listing names it so the
+        # client can open the reviewed copy in place of the plain one (D84).
+        is_review = self.trace_id.endswith(".review")
+        review_path = self.path.with_name(self.path.name[: -len(".jsonl")] + ".review.jsonl")
         return {
             "id": self.trace_id,
             "battle_id": head.get("battle_id") if head else self.trace_id,
             "format_id": payload.get("format_id"),
             "agent": payload.get("agent"),
             "strategy": payload.get("strategy"),
+            "player": payload.get("player_username"),
             "opponent": payload.get("opponent_username"),
+            "result": ended.get("result") if ended else None,
+            "turns": ended.get("turns") if ended else None,
+            "is_review": is_review,
+            "review": f"{self.trace_id}.review"
+            if not is_review and review_path.is_file()
+            else None,
             "size_bytes": stat.st_size,
             "modified": stat.st_mtime,
             "live": (now - stat.st_mtime) < LIVE_WINDOW_S,
@@ -99,6 +119,8 @@ def create_app(
     showdown_port: int = 8090,
     supervisor: Supervisor | None = None,
     autostart_showdown: bool = True,
+    ladder: LadderLookup | None = None,
+    launch_ladder: LadderLauncher | None = None,
 ) -> FastAPI:
     """The viewer, and the control panel that starts what it displays.
 
@@ -110,6 +132,8 @@ def create_app(
     root = Path(trace_dir).resolve()
     root.mkdir(parents=True, exist_ok=True)
     boss = supervisor or Supervisor(trace_dir=root, showdown_port=showdown_port)
+    ratings = ladder or LadderLookup()
+    launcher = launch_ladder or start_ladder_run
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -164,9 +188,61 @@ def create_app(
 
     # -- control ---------------------------------------------------------
 
+    stop_flag = root / "stop"
+
     @app.get("/api/status")
     def status() -> JSONResponse:
-        return JSONResponse(boss.status())
+        # What a ladder run says it is doing between battles, if one is
+        # writing the file (`scripts/ladder_live.py`, D81). The trace cannot
+        # say "searching for a game": there is no trace yet.
+        live = _read_status_file(root / "status.json")
+        if live is not None:
+            live["stop_requested"] = stop_flag.is_file()
+        return JSONResponse({**boss.status(), "live": live, "account": _account()})
+
+    # The ladder run is not the viewer's subprocess, so the viewer cannot end
+    # it and should not try. What it can do is leave a flag the run checks
+    # between games: finish this one, then stop (D82).
+    @app.post("/api/live/stop")
+    def live_stop() -> JSONResponse:
+        stop_flag.write_text("stop after the current game\n", encoding="utf-8")
+        return JSONResponse({"stop_requested": True})
+
+    @app.post("/api/live/resume")
+    def live_resume() -> JSONResponse:
+        stop_flag.unlink(missing_ok=True)
+        return JSONResponse({"stop_requested": False})
+
+    # Start a ladder run from the page (D87): `scripts/ladder_live.py` as a
+    # detached process writing to this directory, so closing the viewer does
+    # not forfeit a game. `games` of 0 means until the stop button.
+    @app.post("/api/live/start")
+    def live_start(body: dict[str, Any] | None = None) -> JSONResponse:
+        body = body or {}
+        live = _read_status_file(root / "status.json")
+        if live is not None and live.get("phase") != "done":
+            raise HTTPException(status_code=409, detail="a ladder run is already active")
+        if _account() is None:
+            raise HTTPException(status_code=409, detail="no ladder account in .env")
+        try:
+            games = int(body.get("games") or 0)
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=400, detail="games must be a number") from error
+        agent = str(body.get("agent") or DEFAULT_LADDER_AGENT)
+        team = str(body.get("team") or DEFAULT_TEAM)
+        stop_flag.unlink(missing_ok=True)
+        pid = launcher(root, games if games > 0 else UNTIL_STOPPED, agent, team)
+        return JSONResponse(
+            {"started": True, "pid": pid, "games": games, "agent": agent, "team": team}
+        )
+
+    # The bot's rating and rank on the official ladder, from the site's public
+    # JSON, cached a minute (`champions/viewer/ladder.py`, D83).
+    @app.get("/api/ladder")
+    async def ladder_rating(user: str, format: str) -> JSONResponse:
+        if not user.strip() or not format.strip():
+            raise HTTPException(status_code=400, detail="user and format are required")
+        return JSONResponse(await ratings.lookup(user, format))
 
     @app.post("/api/showdown/start")
     async def showdown_start() -> JSONResponse:
@@ -282,6 +358,95 @@ def read_events(path: Path) -> list[dict[str, Any]]:
     return events
 
 
+def _last_event(path: Path, window: int = 65536) -> dict[str, Any] | None:
+    """The last complete line's event, reading only the file's tail."""
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            handle.seek(max(0, size - window))
+            data = handle.read()
+    except OSError:
+        return None
+    lines = [line for line in data.split(b"\n") if line.strip()]
+    if not data.endswith(b"\n") and lines:
+        lines.pop()  # a partial line still being written
+    for raw in reversed(lines):
+        try:
+            return dict(json.loads(raw.decode("utf-8")))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+    return None
+
+
+#: What a run from the page plays when the page does not say.
+DEFAULT_LADDER_AGENT = "adaptive-belief"
+DEFAULT_TEAM = DEFAULT
+#: "Until stopped": a game count the stop flag will end long before.
+UNTIL_STOPPED = 100_000
+
+LadderLauncher = Callable[[Path, int, str, str], int]
+
+
+def start_ladder_run(root: Path, games: int, agent: str, team: str) -> int:
+    """`scripts/ladder_live.py`, detached, its output in `<root>/ladder.log`.
+
+    Detached rather than a child of the viewer (`Supervisor` runs are
+    children, and are meant to die with it): a ladder game is rated, and
+    closing the page must not forfeit one. Returns the process id.
+    """
+    script = Path(__file__).resolve().parent.parent.parent / "scripts" / "ladder_live.py"
+    log = root / "ladder.log"
+    command = [
+        sys.executable,
+        str(script),
+        str(games),
+        "--agent",
+        agent,
+        "--team",
+        team,
+        "--trace-dir",
+        str(root),
+    ]
+    flags: dict[str, Any] = {}
+    if os.name == "nt":
+        flags["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
+    else:
+        flags["start_new_session"] = True
+    with log.open("ab") as handle:
+        process = subprocess.Popen(
+            command,
+            cwd=str(script.parent.parent),
+            stdin=subprocess.DEVNULL,
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+            **flags,
+        )
+    return int(process.pid)
+
+
+DETACHED_PROCESS = 0x00000008
+
+
+def _account() -> dict[str, str] | None:
+    """The bot's ladder account, from `.env` in the working directory: the
+    username only, never the password. The viewer shows this account's
+    rating whatever is on screen (D84)."""
+    path = Path(".env")
+    if not path.is_file():
+        return None
+    try:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if line.startswith("PS_USERNAME=") or line.startswith("export PS_USERNAME="):
+                value = line.split("=", 1)[1].strip().strip("\"'")
+                if value:
+                    return {"username": value, "format": FORMAT_ID}
+    except OSError:
+        return None
+    return None
+
+
 def _first_event(path: Path) -> dict[str, Any] | None:
     with path.open(encoding="utf-8") as handle:
         for line in handle:
@@ -326,6 +491,15 @@ async def tail_events(
             yield {"kind": "heartbeat", "live": True, "age_s": age, "events": []}
         drained = True
         await asyncio.sleep(poll_interval_s)
+
+
+def _read_status_file(path: Path) -> dict[str, Any] | None:
+    """The ladder's status file as a dict, or None if absent or mid-write."""
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
 
 
 def _age_s(path: Path) -> float | None:

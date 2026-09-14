@@ -49,7 +49,7 @@ from scripts.selfplay import AGENTS
 AGENT_NAMES = frozenset(AGENTS)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 
 # Enough recent output to explain a failure, not so much that a long run keeps
 # it all in memory.

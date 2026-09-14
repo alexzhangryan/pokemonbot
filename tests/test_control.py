@@ -90,7 +90,7 @@ def test_status_reports_the_simulator_and_the_absence_of_a_run(
     assert body["run"] is None
     assert body["showdown"]["port"] == 8099
     assert body["showdown"]["state"] in {"off", "external"}
-    assert body["format_id"] == "gen9championsvgc2026regmb"
+    assert body["format_id"] == "gen9championsvgc2026regmc"
 
 
 def test_only_one_run_at_a_time(
@@ -116,7 +116,7 @@ def test_hosting_a_bot_returns_what_the_page_needs_to_hand_over_a_challenge(
     detail = client.post("/api/run/host", json={"agent": "greedy"}).json()["detail"]
 
     assert detail["username"] == "champbot"
-    assert detail["format_id"] == "gen9championsvgc2026regmb"
+    assert detail["format_id"] == "gen9championsvgc2026regmc"
     assert detail["showdown_url"].endswith("8099")
     assert detail["team_file"].endswith(".txt")
 

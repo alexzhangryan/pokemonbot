@@ -37,7 +37,7 @@ from champions.preview.value import (  # noqa: E402
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 
 
 def main() -> int:

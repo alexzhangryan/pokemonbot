@@ -45,7 +45,7 @@ from champions.search.learned import LearnedPolicy, UnionPolicy
 from champions.search.payoff import TurnModel, payoff_matrix
 from champions.search.policy import BasePowerPolicy, HeuristicPolicy
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 DEFAULT_TRACES = Path("runs/m6-selfplay")
 DEFAULT_KS = (5, 10, 15, 20)
 REPORT_PATH = Path("docs/pruning-guard.md")

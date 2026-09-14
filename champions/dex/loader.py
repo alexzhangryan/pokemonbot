@@ -8,7 +8,7 @@ numbers from poke-env is reading the wrong ones; it reads them from here
 instead.
 
 The dump is content-hashed and gitignored. Regenerate with:
-    python scripts/build_dex.py gen9championsvgc2026regmb
+    python scripts/build_dex.py gen9championsvgc2026regmc
 """
 
 from __future__ import annotations

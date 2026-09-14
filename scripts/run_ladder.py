@@ -21,6 +21,7 @@ from pathlib import Path
 
 from poke_env.ps_client import AccountConfiguration
 
+from champions.agents.adaptive import AdaptiveAgent
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
 from champions.agents.belief_agent import BeliefAgent, BeliefMovesOnly, BeliefStatsOnly
 from champions.agents.oneply import OnePlyAgent
@@ -40,6 +41,8 @@ ARMS: dict[str, tuple[type[TracingPlayer], str]] = {
     "oneply": (OnePlyAgent, "one-ply"),
     # M8, the depth arm: the same agent one ply deeper on the same model.
     "twoply": (TwoPlyAgent, "two-ply"),
+    # M11: one ply under an allocated budget, two when the answer is close.
+    "adaptive": (AdaptiveAgent, "adaptive"),
     # M8, the oracle arms: handed the opponent's registered sets
     # (`docs/specs/2026-09-13-engine-gate.md` section 3). `--opponent-team`
     # names the team they are told about; it defaults to the arm's own team,

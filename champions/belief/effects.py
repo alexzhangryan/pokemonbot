@@ -131,6 +131,20 @@ MULTISCALE = frozenset({"multiscale", "shadowshield"})
 SUPER_EFFECTIVE_DAMPENERS = frozenset({"solidrock", "filter", "prismarmor"})
 SUPER_EFFECTIVE_DAMPENER = 3072 / 4096
 
+#: Abilities that turn the user's Normal-type moves into another type and
+#: raise their power by 4915/4096 (1.2x): Mega Gardevoir's Hyper Voice is a
+#: Fairy spread move, Mega Salamence's Hyper Voice and Double-Edge are Flying.
+#: Both are common in Reg M-C, and a model that read them as Normal had a
+#: Ghost immune to the hit that swept it (D87). Normalize is the same
+#: mechanism the other way.
+TYPE_CHANGING_ABILITIES: dict[str, str] = {
+    "pixilate": "Fairy",
+    "aerilate": "Flying",
+    "refrigerate": "Ice",
+    "galvanize": "Electric",
+}
+TYPE_CHANGE_BOOST = 4915 / 4096
+
 #: Abilities granting a type immunity. Absorbing the hit entirely is a large
 #: effect and a simple one, so it is here rather than in the unmodelled bucket.
 IMMUNITY_ABILITIES: dict[str, str] = {
@@ -189,6 +203,7 @@ DAMAGE_AFFECTING_ABILITIES = frozenset(
         "aerilate",
         "analytic",
         "angershell",
+        "auraguard",
         "battery",
         "battlearmor",
         "battlebond",
@@ -462,6 +477,8 @@ class SetEffects:
     stab_override: float | None = None
     ignore_burn: bool = False
     immune: bool = False
+    #: The type the move actually has, when the attacker's ability changed it.
+    type_override: str | None = None
     modelled: tuple[str, ...] = ()
     #: Hypothesised item or ability that carries an effect this module does not
     #: know about. The caller widens its tolerance rather than pretending to 1.0.
@@ -500,6 +517,15 @@ def attacker_effects(
     ignore_burn = False
 
     move_type = str(move.get("type") or "")
+    type_override: str | None = None
+    ability = hypothesis.ability
+    if (
+        ability in TYPE_CHANGING_ABILITIES
+        and move_type.lower() == "normal"
+        and str(move.get("category") or "") != "Status"
+    ):
+        move_type = type_override = TYPE_CHANGING_ABILITIES[ability]
+        base_power.append(TYPE_CHANGE_BOOST)
     effectiveness = chart.effectiveness(move_type, list(defender_types))
 
     item = hypothesis.item
@@ -525,9 +551,10 @@ def attacker_effects(
         else:
             unmodelled.append(item)
 
-    ability = hypothesis.ability
     if ability:
-        if ability in ATTACK_DOUBLING_ABILITIES:
+        if ability in TYPE_CHANGING_ABILITIES:
+            modelled.append(ability)
+        elif ability in ATTACK_DOUBLING_ABILITIES:
             attack.append(2.0)
             modelled.append(ability)
         elif ability == GUTS:
@@ -551,6 +578,7 @@ def attacker_effects(
         speed_modifiers=tuple(speed),
         stab_override=stab_override,
         ignore_burn=ignore_burn,
+        type_override=type_override,
         modelled=tuple(modelled),
         unmodelled=tuple(unmodelled),
     )

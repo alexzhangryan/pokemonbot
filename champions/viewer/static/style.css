@@ -161,6 +161,14 @@ button:focus-visible {
   flex: 1;
 }
 
+/* The bar's buttons and pills keep their shape; the picker and the meta are
+   what give way when the bar gets tight. */
+#topbar button,
+#topbar .badge {
+  flex: none;
+  white-space: nowrap;
+}
+
 button.ghost {
   font: 11px var(--sans);
   background: transparent;
@@ -235,6 +243,46 @@ button.ghost:hover {
   align-items: center;
   gap: var(--s2);
   min-width: 0;
+}
+
+/* The bot's ladder standing, centred in the top bar (D83). */
+.elo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  flex: none;
+  white-space: nowrap;
+  padding: 3px var(--s3);
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.elo[hidden] {
+  display: none;
+}
+
+.elo-key {
+  font: 10px var(--sans);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+#elo-value {
+  font: 600 18px/1 var(--mono);
+  color: var(--accent);
+}
+
+.elo-sub {
+  font: 11px var(--mono);
+  color: var(--ink-dim);
+}
+
+/* `display: flex` above beats the user agent's `[hidden]`, so say it. */
+.bar-group[hidden] {
+  display: none;
 }
 
 .bar-group.grow {
@@ -434,6 +482,40 @@ button.ghost:disabled {
 }
 
 /* Header pills reuse the live badge's vocabulary. */
+#phase {
+  max-width: 34ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#phase.thinking {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+#phase.thinking::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: phase-pulse 1s ease-in-out infinite;
+}
+
+@keyframes phase-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .badge.ok {
   color: var(--ok);
   border-color: color-mix(in srgb, var(--ok) 40%, transparent);
@@ -489,6 +571,110 @@ button.ghost:disabled {
 
 #turns h2 {
   padding: 0 var(--s4);
+}
+
+/* ------------------------------------------------------------- games list */
+
+#game-list {
+  max-height: 38vh;
+  overflow-y: auto;
+  margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+
+.game-empty {
+  padding: 0 var(--s4) var(--s3);
+  font: 11px var(--mono);
+  color: var(--ink-faint);
+}
+
+.game-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--s2);
+  width: 100%;
+  padding: 6px var(--s3) 6px calc(var(--s4) - 3px);
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--ink-dim);
+  font: 12px var(--sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-row:hover {
+  background: var(--raised);
+}
+
+.game-row.is-current {
+  border-left-color: var(--accent);
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.game-row .who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 11px var(--mono);
+}
+
+.game-row .who .us {
+  color: var(--ink-faint);
+}
+
+.game-row .who b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.game-status {
+  font: 9px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.game-status.live {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.game-status.win {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.game-status.loss {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.game-status.tie {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+
+.game-reviewed {
+  grid-column: 1 / -1;
+  font: 9px var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ours);
+}
+
+#trace-picker[hidden] {
+  display: none;
 }
 
 /* ------------------------------------------------------------ turn spine */
@@ -939,6 +1125,13 @@ button.ghost:disabled {
   color: var(--ink-faint);
 }
 
+#scene-volume {
+  width: 72px;
+  margin: 0;
+  accent-color: var(--ink-faint);
+  cursor: pointer;
+}
+
 #scene-speed {
   font: 11px var(--mono);
   background: var(--panel);
@@ -1122,6 +1315,17 @@ td {
   border-bottom: 1px solid var(--line-soft);
   color: var(--ink-dim);
   vertical-align: top;
+}
+
+table.scored td.num,
+table.scored th.num {
+  text-align: right;
+  white-space: nowrap;
+  padding-right: var(--s2);
+}
+
+table.scored tr.in-support td {
+  color: var(--ink);
 }
 
 tr.is-chosen td {
@@ -1422,9 +1626,66 @@ td.na {
 
 /* Narrow windows: the viewer is meant to sit beside Showdown, so it has to
  * survive half a screen. The columns stack rather than compress. */
+/* Half a screen. The viewer's usual seat is beside an editor at roughly
+   960px, and stacking the decision pane under the field there cut the scene
+   off and left both halves too short to read. Three narrow columns keep the
+   whole page in view; each pane scrolls in its own column. The top bar drops
+   its prose so the pills stay whole. */
 @media (max-width: 1180px) {
   #layout {
-    grid-template-columns: 152px minmax(0, 1fr);
+    grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.05fr);
+  }
+
+  .pane {
+    padding: var(--s3);
+  }
+
+  /* The bot is always us: at this width the row is the opponent and the result. */
+  .game-row .who .us,
+  .game-row .who .vs {
+    display: none;
+  }
+
+  #turns h2 {
+    padding: 0 var(--s3);
+  }
+
+  #topbar {
+    gap: var(--s2);
+    padding: 0 var(--s3);
+  }
+
+  .brand .sub,
+  #battle-meta {
+    display: none;
+  }
+
+  #trace-picker {
+    max-width: 240px;
+  }
+
+  .badge {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  #phase {
+    max-width: 36ch;
+  }
+
+  #bar {
+    gap: var(--s2) var(--s3);
+  }
+
+  .bar-state {
+    max-width: 240px;
+  }
+}
+
+/* Narrower than half a screen: stack the decision pane under the field. */
+@media (max-width: 880px) {
+  #layout {
+    grid-template-columns: 124px minmax(0, 1fr);
     /* Explicit fractions with a zero minimum, not `auto`: the decision column
        is by far the tallest content, and an auto-sized second row takes the
        whole viewport and crushes the field and the spine to nothing. Each pane
@@ -1459,4 +1720,222 @@ td.na {
   .slots {
     grid-template-columns: 1fr;
   }
+}
+
+/* ------------------------------------------------------------- the review
+ *
+ * The coach (M9) writes an overlay of analysis events; this is how they look
+ * (M10). One vocabulary, borrowed from chess annotation: a mark per label in
+ * the spine and the panel, a letter per tag. The colours are the ones already
+ * on the page: ok for best, our blue for solid, warn and danger for the rest.
+ * Nothing here appears on a trace the coach has not reviewed.
+ */
+
+.review,
+.analysis {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s3);
+  background: var(--panel);
+}
+
+.review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.review-title {
+  font: 10px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.review .timing {
+  margin-bottom: var(--s3);
+}
+
+.label-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  font: 11px var(--mono);
+  margin-bottom: var(--s2);
+}
+
+.label-counts .count.zero {
+  color: var(--ink-faint);
+}
+
+.mark {
+  font-weight: 700;
+}
+
+.label-best,
+.label-best .mark {
+  color: var(--ok);
+}
+
+.label-solid,
+.label-solid .mark {
+  color: var(--ours);
+}
+
+.label-inaccuracy,
+.label-inaccuracy .mark {
+  color: var(--warn);
+}
+
+.label-mistake,
+.label-mistake .mark {
+  color: #e86a3a;
+}
+
+.label-blunder,
+.label-blunder .mark {
+  color: var(--danger);
+}
+
+.label-none,
+.label-none .mark {
+  color: var(--ink-faint);
+}
+
+.label-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-left: var(--s2);
+  padding: 2px 7px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  font: 11px var(--mono);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.tags {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: var(--s2);
+}
+
+.tag {
+  font: 10px var(--mono);
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  background: var(--raised);
+}
+
+.tag-read,
+.tag-unlucky {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.tag-gamble,
+.tag-lucky {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.tag-forced {
+  border-color: var(--ink-faint);
+}
+
+.critical {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.critical .belief-label {
+  flex: 0 0 auto;
+}
+
+button.jump {
+  font: 11px var(--mono);
+}
+
+.turn-row.reviewed {
+  grid-template-columns: 34px 1fr auto;
+}
+
+.turn-row .mark {
+  font: 11px var(--mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.turn-row .tag-letters {
+  margin-left: 3px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.analysis h2 {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.analysis .timing {
+  margin: var(--s2) 0 var(--s3);
+}
+
+.analysis .known {
+  font: 11px var(--mono);
+  color: var(--ink-dim);
+  margin-top: 4px;
+}
+
+.analysis .known b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.analysis .table-scroll {
+  margin-top: var(--s3);
+}
+
+.explanation {
+  margin: var(--s3) 0 var(--s2);
+  padding: var(--s3);
+  border-left: 3px solid var(--line);
+  font: 12px/1.55 var(--sans);
+  color: var(--ink);
+}
+
+.eval-curve {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin-top: var(--s2);
+}
+
+.eval-curve path {
+  fill: none;
+  stroke: var(--ours);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.eval-curve .half {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.eval-curve circle {
+  fill: var(--accent);
 }

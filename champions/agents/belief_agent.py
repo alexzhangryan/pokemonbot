@@ -35,6 +35,7 @@ from typing import Any
 
 from poke_env.battle import AbstractBattle
 
+from champions.agents.adaptive import AdaptiveAgent
 from champions.agents.oneply import OnePlyAgent
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.priors import PriorNotBuiltError
@@ -84,8 +85,20 @@ class BeliefAgent(OnePlyAgent):
                 self.dex,
                 hypothesis=BeliefHypothesis(belief=belief),
                 effects=BeliefEffects(belief),
+                place_incoming=True,
             )
         return self._models[tag]
+
+    def _believed_ability(self, battle: AbstractBattle) -> Callable[[str], str | None] | None:
+        belief = self.belief_for(battle)
+        if belief is None:
+            return None
+
+        def ability(species: str) -> str | None:
+            hypothesis = belief.set_for(species)
+            return hypothesis.ability if hypothesis is not None else None
+
+        return ability
 
     def _believed_moves(self, battle: AbstractBattle) -> Callable[[str], list[str]] | None:
         belief = self.belief_for(battle)
@@ -125,3 +138,24 @@ class BeliefMovesOnly(BeliefAgent):
 
     def _turn_model(self, battle: AbstractBattle) -> TurnModel:
         return self._model
+
+
+class AdaptiveBeliefAgent(BeliefAgent, AdaptiveAgent):
+    """The clock-allocated, escalating agent (M11) on the belief's seams (D87).
+
+    `BeliefAgent` supplies `_turn_model`, `_believed_moves` and
+    `_believed_ability`; `AdaptiveAgent` supplies the budget and the second
+    ply on close positions, and builds its two-ply model from those same
+    seams. Nothing here but the order of the bases: the belief's overrides
+    have to win, and the adaptive agent's `_estimate` has to be the one that
+    runs. M8 measured the extra ply as not apart under a model that gave a
+    status move no effect; this is the arm that re-measures it under D85's.
+    """
+
+    strategy = "adaptive-belief"
+    payoff_model = "analytic-adaptive"
+    opponent_model = "belief-particles"
+
+    def _battle_finished_callback(self, battle: AbstractBattle) -> None:
+        self._two_ply.pop(battle.battle_tag, None)
+        super()._battle_finished_callback(battle)

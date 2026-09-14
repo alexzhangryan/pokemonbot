@@ -20,7 +20,7 @@ from typing import Protocol
 
 from champions.search.oracle import SimServer
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 
 
 @dataclass(frozen=True)

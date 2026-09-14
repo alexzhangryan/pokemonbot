@@ -21,7 +21,7 @@ from pathlib import Path
 from champions.search.oracle import SimServer
 from champions.teams import ALPHA, BETA, load_team
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SHOWDOWN_COMMIT_FILE = REPO_ROOT / "vendor" / "SHOWDOWN_COMMIT"
 

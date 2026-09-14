@@ -469,3 +469,36 @@ def test_a_fainted_slot_scores_without_reaching_for_a_pokemon_that_is_not_there(
     action = _act(PASS, _move(dex, "icebeam", 1))
 
     assert _score(policy, state, action) > 0.0
+
+
+def test_the_row_set_is_not_all_one_move() -> None:
+    """D87: no (slot, move) fills more than half the budget."""
+    from champions.search.policy import ScoredAction, diversify
+
+    def row(a: str, b: str, score: float) -> ScoredAction:
+        slots = [{"kind": "move", "move": a}, {"kind": "move", "move": b}]
+        return ScoredAction({"message": f"{a}|{b}|{score}", "slots": slots}, score, ())
+
+    ranked = [row("fakeout", f"m{i}", 10 - i) for i in range(8)] + [
+        row("closecombat", f"m{i}", 1 - i * 0.1) for i in range(8)
+    ]
+    kept = diversify(ranked, 8)
+    assert len(kept) == 8
+    assert sum(r.action["slots"][0]["move"] == "fakeout" for r in kept) == 4
+    assert kept[0].score == 10, "the ranking's order is kept where the cap allows"
+    # With nothing else to take, the skipped rows fill the tail.
+    only = diversify([row("fakeout", f"m{i}", 10 - i) for i in range(8)], 8)
+    assert len(only) == 8
+
+
+def test_a_status_move_at_our_own_partner_is_disqualified() -> None:
+    from champions.dex.loader import Dex
+    from champions.search.policy import _misaimed_status
+
+    dex = Dex.load("gen9championsvgc2026regmc")
+    assert _misaimed_status(dex.moves["encore"], {"kind": "move", "target": -2})
+    assert _misaimed_status(dex.moves["willowisp"], {"kind": "move", "target": -1})
+    assert not _misaimed_status(dex.moves["encore"], {"kind": "move", "target": 1})
+    assert not _misaimed_status(dex.moves["helpinghand"], {"kind": "move", "target": -2})
+    assert not _misaimed_status(dex.moves["healpulse"], {"kind": "move", "target": -2})
+    assert not _misaimed_status(dex.moves["protect"], {"kind": "move", "target": 0})

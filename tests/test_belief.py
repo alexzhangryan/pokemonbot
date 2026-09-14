@@ -61,7 +61,7 @@ from champions.protocol import parser
 from champions.search.payoff import OpponentHypothesis
 from champions.search.policy import opponent_candidates
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 VENDOR = REPO_ROOT / "vendor" / "showdown" / "data"
 
 
@@ -966,3 +966,35 @@ def test_a_ruled_out_ability_eliminates_particles_and_survives_a_resample(
     assert population.summary()["constraints"]["excluded_abilities"] == {
         "incineroar": ["intimidate"]
     }
+
+
+def test_an_unobserved_spread_is_two_maxed_stats_chosen_by_the_nature(dex: Dex) -> None:
+    """D85: 66 points under a cap of 32 is two maxed stats; the nature names one."""
+    modest = {"plus": "spa", "minus": "atk"}
+    glimmora = SpreadBelief.unconstrained(dex.species["glimmora"]["baseStats"], "modest", modest)
+    allocation = glimmora.allocation()
+    assert allocation["spa"] == 32 and allocation["spe"] == 32, "a fast special attacker"
+    assert sum(allocation.values()) <= MAX_POINTS_TOTAL
+
+    adamant = {"plus": "atk", "minus": "spa"}
+    kingambit = SpreadBelief.unconstrained(
+        dex.species["kingambit"]["baseStats"], "adamant", adamant
+    )
+    allocation = kingambit.allocation()
+    assert allocation["atk"] == 32 and allocation["hp"] == 32, "a slow physical attacker"
+
+    careful = {"plus": "spd", "minus": "spa"}
+    incineroar = SpreadBelief.unconstrained(
+        dex.species["incineroar"]["baseStats"], "careful", careful
+    )
+    allocation = incineroar.allocation()
+    assert allocation["spd"] == 32 and allocation["hp"] == 32, "a defensive nature"
+
+    # Evidence that caps a preferred stat sends the budget elsewhere.
+    capped = SpreadBelief.unconstrained(dex.species["glimmora"]["baseStats"], "modest", modest)
+    capped.upper["spa"] = 10
+    capped.tighten()
+    allocation = capped.allocation()
+    assert allocation["spa"] == 10 and allocation["spe"] == 32
+    assert sum(allocation.values()) <= MAX_POINTS_TOTAL
+    assert all(capped.lower[s] <= allocation[s] <= capped.upper[s] for s in STAT_IDS)

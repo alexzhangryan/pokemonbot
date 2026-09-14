@@ -32,7 +32,7 @@ from champions.belief.priors import SetPrior
 from champions.corpus.store import CorpusStore
 from champions.dex.loader import Dex
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 DEFAULT_DATABASE = Path("data/corpus.sqlite")
 TEAM_DIR = Path("data/teams")
 

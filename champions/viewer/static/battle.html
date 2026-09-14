@@ -109,6 +109,10 @@
         slow: { fade: 500, shown: 1000 },
       };
       var speed = "normal";
+      // Percent, 0 mutes. The parent sends its preference on ready and on
+      // every change; until then Showdown's default (50) would apply, so
+      // start quieter than that.
+      var volume = 30;
 
       function fail(message) {
         statusEl.hidden = false;
@@ -149,6 +153,13 @@
         var frame = document.getElementById("frame");
         var scale = Math.min(window.innerWidth / 640, window.innerHeight / 360);
         frame.style.transform = "scale(" + scale + ")";
+      }
+
+      function applyVolume() {
+        if (!window.BattleSound) return;
+        BattleSound.setBgmVolume(volume);
+        BattleSound.setEffectVolume(volume);
+        BattleSound.setMute(volume <= 0);
       }
 
       function applySpeed() {
@@ -258,6 +269,11 @@
           applySpeed();
           return;
         }
+        if (data.kind === "battle-volume") {
+          volume = Math.max(0, Math.min(100, Number(data.volume) || 0));
+          applyVolume();
+          return;
+        }
         if (data.kind !== "battle") return;
 
         if (!window.Battle) {
@@ -285,6 +301,7 @@
       document.body.className = "dark";
       loadScripts(0, function () {
         fit();
+        applyVolume();
         statusEl.hidden = true;
         if (pending) {
           if (pending.viewpoint) viewpoint = pending.viewpoint;

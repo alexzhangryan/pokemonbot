@@ -1,17 +1,19 @@
 """Append-only JSONL trace writer, one file per battle. See docs/07-observability.md.
 
-Trace.emit() is synchronous and only enqueues, so it never blocks the decision
-critical path; a background asyncio task drains the queue and does the actual
-file I/O.
+Trace.emit() is synchronous and writes the line before it returns, flushed, so
+a reader tailing the file sees an event the moment the agent emits it. It used
+to enqueue for a background task to drain, which kept file I/O off the decision
+path in principle and in practice held every event of a turn until the search
+next yielded the event loop -- the viewer saw the turn only once the bot had
+mostly decided it (D81). An append and flush of a few kilobytes is well under
+a millisecond, which `tests/test_trace.py` holds it to.
 """
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import itertools
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from champions.trace.schema import TraceEvent
 
@@ -37,8 +39,7 @@ class Trace:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
         self._seq_counter = itertools.count()
-        self._queue: asyncio.Queue[TraceEvent] = asyncio.Queue()
-        self._drain_task = asyncio.create_task(self._drain())
+        self._handle: IO[str] | None = None
 
     def emit(self, event_type: str, payload: dict[str, Any]) -> None:
         event = TraceEvent(
@@ -47,21 +48,20 @@ class Trace:
             type=event_type,
             payload=payload,
         )
-        self._queue.put_nowait(event)
-
-    async def _drain(self) -> None:
-        with self.path.open("a", encoding="utf-8") as f:
-            while True:
-                event = await self._queue.get()
-                f.write(event.to_line())
-                f.flush()
-                self._queue.task_done()
+        if self._handle is None:
+            # Opened on the first event rather than in the constructor, so a
+            # trace that never emits (a battle that never starts) leaves no
+            # empty file for the viewer to list.
+            self._handle = self.path.open("a", encoding="utf-8")
+        self._handle.write(event.to_line())
+        self._handle.flush()
 
     async def close(self) -> None:
-        await self._queue.join()
-        self._drain_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await self._drain_task
+        """Release the file. Async for the callers that bridge to poke-env's
+        loop to do it; there is nothing left to wait for."""
+        if self._handle is not None:
+            self._handle.close()
+            self._handle = None
 
 
 def read_events(path: Path | str) -> list[TraceEvent]:

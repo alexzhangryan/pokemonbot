@@ -4,11 +4,11 @@ Project context for Claude Code. Read `docs/` for the full design. This file is 
 
 ## What this is
 
-An agent and coach for Pokemon Champions doubles, Regulation Set M-B.
+An agent and coach for Pokemon Champions doubles, Regulation Set M-C (M-B until 2026-09-09, D80).
 
 The target is the game Pokemon Champions. Pokemon Showdown is a proxy for execution and evaluation only. Where the two differ, follow Champions.
 
-Current milestone: M8 is closed (D71, D72); `docs/STATUS.md` says what is next. `docs/09-m0-tasks.md` is the M0 task list, kept as the record.
+Current milestone: M9 (the coach, D76), M10 (the review rendered in the viewer) and M11 (the clock allocated, D77) are built; `docs/STATUS.md` says what is next. `docs/09-m0-tasks.md` is the M0 task list, kept as the record.
 
 ## Non-obvious constraints
 
@@ -16,9 +16,9 @@ These are the ones that silently corrupt everything downstream if missed.
 
 1. Champions is not mechanically Generation 9. The stat formula at level 50 is linear: `HP = base + points + 75` and `stat = (base + points + 20) * nature`. Roughly 250 moves and 250 items carry overrides in the `champions` mod. Terastallization is disabled, Mega Evolution is back, PP is capped at 20 base and always maxed, and paralysis, sleep, and freeze are rebalanced. Never use `@smogon/calc` or any mainline damage formula. See `docs/02-mechanics-deltas.md`.
 
-2. Always decline Open Team Sheets. Showdown's Reg M-B prompts for it at team preview. Champions has no such mechanism, so accepting produces an agent that does not transfer. The prompt must be handled explicitly or the agent stalls at preview.
+2. Always decline Open Team Sheets. Showdown's Reg M-C prompts for it at team preview. Champions has no such mechanism, so accepting produces an agent that does not transfer. The prompt must be handled explicitly or the agent stalls at preview.
 
-3. Reg M-A and Reg M-B use different Showdown mods (`championsregma` and `champions`). Key everything by format ID, never by a global constant. Regulation M-B expires 2026-09-09, so nothing hardcodes the legal pool.
+3. Each regulation is its own Showdown format and old ones are frozen into their own mods (`championsregmb` for M-B; M-C is the live `champions` mod). Key everything by format ID, never by a global constant; the default lives in `champions/formats.py`, and `LINEAGE` there says which predecessor a new regulation may borrow fitted artifacts from. Regulations expire (M-B did on 2026-09-09), so nothing hardcodes the legal pool.
 
 4. Pin the Showdown commit hash. The mod is under active development and an unpinned dependency turns a mechanics change into an unexplained regression.
 
@@ -96,3 +96,6 @@ tests/
 | What does candidate pruning throw away | `docs/pruning-guard.md` |
 | Did the learned candidate prior learn anything | `docs/policy-prior.md` |
 | Is depth or payoff fidelity worth building, and was an engine justified | `docs/engine-gate.md`, `docs/specs/2026-09-13-engine-gate.md` |
+| How does the coach score a turn, and what do its labels mean | `docs/specs/2026-09-13-coach.md`, `champions/coach/classify.py` |
+| Are the coach's bands calibrated, and does its loss track skill | `docs/coach-calibration.md` |
+| How is the clock allocated | `champions/search/clock.py`, `champions/agents/adaptive.py`, D77 |

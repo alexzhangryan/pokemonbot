@@ -2,7 +2,7 @@
 
     python scripts/scrape_replays.py                    # incremental, both formats
     python scripts/scrape_replays.py --full             # walk back to the first replay
-    python scripts/scrape_replays.py --format gen9championsvgc2026regmbbo3 --max-replays 200
+    python scripts/scrape_replays.py --format gen9championsvgc2026regmcbo3 --max-replays 200
     python scripts/scrape_replays.py --reparse          # rebuild tables from stored logs
     python scripts/scrape_replays.py --stats            # what the corpus currently holds
 

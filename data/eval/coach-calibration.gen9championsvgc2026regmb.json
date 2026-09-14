@@ -1,0 +1,4593 @@
+{
+ "started": "2026-09-14T04:11:53.394131+00:00",
+ "finished": "2026-09-14T04:30:40.027615+00:00",
+ "seed": 0,
+ "corpus_format": "gen9championsvgc2026regmbbo3",
+ "views": [
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677677909",
+   "side": "p1",
+   "rating": 1294,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.05420461699455351,
+   "ex_post_mean": 0.01257761262463127,
+   "losses": [
+    0.04551650247584782,
+    0.2786184030973595,
+    0.0,
+    0.0002677055145801077,
+    0.00043384604522023196,
+    0.00039124483431340895
+   ],
+   "off_support": [
+    0.04551650247584782,
+    0.2786184030973595,
+    0.0002677055145801077,
+    0.00043384604522023196,
+    0.00039124483431340895
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677677909",
+   "side": "p2",
+   "rating": 1349,
+   "decisions": 9,
+   "scored": 7,
+   "ex_ante_mean": 0.0007695334319330576,
+   "ex_post_mean": 0.018578753165578745,
+   "losses": [
+    0.003084290097054354,
+    0.0,
+    0.002302443926477049,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.003084290097054354,
+    0.002302443926477049
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 5,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677819256",
+   "side": "p1",
+   "rating": 1070,
+   "decisions": 3,
+   "scored": 3,
+   "ex_ante_mean": 0.002945201783631076,
+   "ex_post_mean": 0.0010595234104389673,
+   "losses": [
+    0.008835605350893228,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.008835605350893228
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677819256",
+   "side": "p2",
+   "rating": 1048,
+   "decisions": 2,
+   "scored": 1,
+   "ex_ante_mean": 0.07689958643989181,
+   "ex_post_mean": 0.06666127741507732,
+   "losses": [
+    0.07689958643989181
+   ],
+   "off_support": [
+    0.07689958643989181
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677745349",
+   "side": "p1",
+   "rating": 1120,
+   "decisions": 1,
+   "scored": 1,
+   "ex_ante_mean": 0.033964545863567897,
+   "ex_post_mean": 0.00987175164946541,
+   "losses": [
+    0.033964545863567897
+   ],
+   "off_support": [
+    0.033964545863567897
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677745349",
+   "side": "p2",
+   "rating": 1061,
+   "decisions": 1,
+   "scored": 1,
+   "ex_ante_mean": 0.05539192689131145,
+   "ex_post_mean": 0.08563608867722339,
+   "losses": [
+    0.05539192689131145
+   ],
+   "off_support": [
+    0.05539192689131145
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677787323",
+   "side": "p1",
+   "rating": 1334,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.00154319430750125,
+   "ex_post_mean": 0.004202459416575888,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0038579857687529584,
+    0.0038579857687530694,
+    0.0,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.0038579857687529584,
+    0.0038579857687530694
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677787323",
+   "side": "p2",
+   "rating": 1358,
+   "decisions": 4,
+   "scored": 1,
+   "ex_ante_mean": 0.02395408817038358,
+   "ex_post_mean": 0.02708158270223404,
+   "losses": [
+    0.02395408817038358
+   ],
+   "off_support": [
+    0.02395408817038358
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677710926",
+   "side": "p1",
+   "rating": 1000,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 0.024048014592659372,
+   "ex_post_mean": 0.003319374227204593,
+   "losses": [
+    0.07016143143555831,
+    0.0012490777273954645,
+    0.0007335346150243449
+   ],
+   "off_support": [
+    0.07016143143555831,
+    0.0012490777273954645,
+    0.0007335346150243449
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677710926",
+   "side": "p2",
+   "rating": 1070,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 0.22842130722009904,
+   "ex_post_mean": 0.139580819189252,
+   "losses": [
+    0.046712254779578744,
+    0.4927555815643176,
+    0.14579608531640087
+   ],
+   "off_support": [
+    0.046712254779578744,
+    0.4927555815643176,
+    0.14579608531640087
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759684",
+   "side": "p1",
+   "rating": 1282,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.010172705703786422,
+   "ex_post_mean": 0.00740549121704905,
+   "losses": [
+    0.008092758072907658,
+    0.001599134453921347,
+    0.002621383510822417,
+    0.044650494475079294,
+    0.0024316698981632356,
+    0.0016407938118245813
+   ],
+   "off_support": [
+    0.008092758072907658,
+    0.001599134453921347,
+    0.002621383510822417,
+    0.044650494475079294,
+    0.0024316698981632356,
+    0.0016407938118245813
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759684",
+   "side": "p2",
+   "rating": 1205,
+   "decisions": 7,
+   "scored": 5,
+   "ex_ante_mean": 0.013123784432629714,
+   "ex_post_mean": 0.03108712446083941,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16,
+    0.013040336592963997,
+    1.1102230246251565e-16,
+    0.052578585570184355
+   ],
+   "off_support": [
+    0.013040336592963997,
+    0.052578585570184355
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677901381",
+   "side": "p1",
+   "rating": 1105,
+   "decisions": 8,
+   "scored": 8,
+   "ex_ante_mean": 0.04183739696247865,
+   "ex_post_mean": 0.04207789362679531,
+   "losses": [
+    0.032542462504636216,
+    0.059448626394411286,
+    0.07924366321457066,
+    0.05125565838250723,
+    0.04612120280405918,
+    0.05155417700024589,
+    0.014533385399398746,
+    0.0
+   ],
+   "off_support": [
+    0.032542462504636216,
+    0.059448626394411286,
+    0.07924366321457066,
+    0.05125565838250723,
+    0.04612120280405918,
+    0.05155417700024589,
+    0.014533385399398746
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 3,
+    "mistake": 4,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677901381",
+   "side": "p2",
+   "rating": 1042,
+   "decisions": 7,
+   "scored": 5,
+   "ex_ante_mean": 0.0317322654144333,
+   "ex_post_mean": 0.0026267230686020547,
+   "losses": [
+    0.02949482135353798,
+    0.06646165486749045,
+    0.05784077021232814,
+    0.0,
+    0.004864080638809942
+   ],
+   "off_support": [
+    0.02949482135353798,
+    0.06646165486749045,
+    0.05784077021232814,
+    0.004864080638809942
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677667716",
+   "side": "p1",
+   "rating": 1291,
+   "decisions": 3,
+   "scored": 2,
+   "ex_ante_mean": 0.0055710525478903095,
+   "ex_post_mean": 0.004752297766506708,
+   "losses": [
+    1.1102230246251565e-16,
+    0.011142105095780508
+   ],
+   "off_support": [
+    0.011142105095780508
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677667716",
+   "side": "p2",
+   "rating": 1138,
+   "decisions": 4,
+   "scored": 4,
+   "ex_ante_mean": 0.002985706084087436,
+   "ex_post_mean": 0.015888749923083978,
+   "losses": [
+    0.007491896924535335,
+    0.004450927411814409,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.007491896924535335,
+    0.004450927411814409
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677892614",
+   "side": "p1",
+   "rating": 1096,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.00016991528869494398,
+   "ex_post_mean": 0.005598892894215157,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16,
+    9.076883165237692e-05,
+    0.0005902152962903306,
+    0.00016859231553190135
+   ],
+   "off_support": [
+    9.076883165237692e-05,
+    0.0005902152962903306,
+    0.00016859231553190135
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677892614",
+   "side": "p2",
+   "rating": 1297,
+   "decisions": 5,
+   "scored": 3,
+   "ex_ante_mean": 0.05164461116092095,
+   "ex_post_mean": 0.053478016696853446,
+   "losses": [
+    0.0,
+    0.029104959451594636,
+    0.12582887403116821
+   ],
+   "off_support": [
+    0.029104959451594636,
+    0.12582887403116821
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677907310",
+   "side": "p1",
+   "rating": 1107,
+   "decisions": 1,
+   "scored": 1,
+   "ex_ante_mean": 0.0,
+   "ex_post_mean": 0.021616016602330368,
+   "losses": [
+    0.0
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677907310",
+   "side": "p2",
+   "rating": 1113,
+   "decisions": 1,
+   "scored": 0,
+   "ex_ante_mean": null,
+   "ex_post_mean": null,
+   "losses": [],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677703561",
+   "side": "p1",
+   "rating": 1038,
+   "decisions": 4,
+   "scored": 4,
+   "ex_ante_mean": 0.009311159609949604,
+   "ex_post_mean": 0.02817706122255481,
+   "losses": [
+    0.0024461469977485883,
+    0.0027056001674797825,
+    0.02173817564767544,
+    0.010354715626894606
+   ],
+   "off_support": [
+    0.0024461469977485883,
+    0.0027056001674797825,
+    0.02173817564767544,
+    0.010354715626894606
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677703561",
+   "side": "p2",
+   "rating": 1083,
+   "decisions": 3,
+   "scored": 2,
+   "ex_ante_mean": 0.002420238844983935,
+   "ex_post_mean": 0.009986286967322788,
+   "losses": [
+    0.0,
+    0.00484047768996787
+   ],
+   "off_support": [
+    0.00484047768996787
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677692129",
+   "side": "p1",
+   "rating": 1206,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.0042252219366265996,
+   "ex_post_mean": 0.010209234141776519,
+   "losses": [
+    0.017512138221853824,
+    0.0,
+    0.001230527906210921,
+    0.0004963064856925437,
+    0.0018871370693757106
+   ],
+   "off_support": [
+    0.017512138221853824,
+    0.001230527906210921,
+    0.0004963064856925437,
+    0.0018871370693757106
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677692129",
+   "side": "p2",
+   "rating": 1127,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.07302092765692733,
+   "ex_post_mean": 0.051931773318235154,
+   "losses": [
+    0.030536532891988877,
+    0.028718142557516146,
+    0.02749412107986471,
+    0.27835584175526684,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.030536532891988877,
+    0.028718142557516146,
+    0.02749412107986471,
+    0.27835584175526684
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677734723",
+   "side": "p1",
+   "rating": 1092,
+   "decisions": 7,
+   "scored": 7,
+   "ex_ante_mean": 0.0035227243686799365,
+   "ex_post_mean": 0.016332827619582047,
+   "losses": [
+    0.01895427872733846,
+    0.0033581469617176563,
+    0.0007897641808131128,
+    0.0,
+    0.0012010565412843288,
+    0.00018357348444331123,
+    0.00017225068516268927
+   ],
+   "off_support": [
+    0.01895427872733846,
+    0.0033581469617176563,
+    0.0007897641808131128,
+    0.0012010565412843288,
+    0.00018357348444331123,
+    0.00017225068516268927
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677734723",
+   "side": "p2",
+   "rating": 1055,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.07686530662097373,
+   "ex_post_mean": 0.1323722082984745,
+   "losses": [
+    0.001856803938508289,
+    0.023965344095239094,
+    0.027933505828754646,
+    0.003391999146189928,
+    0.23099954409766738,
+    0.17304464261948305
+   ],
+   "off_support": [
+    0.001856803938508289,
+    0.023965344095239094,
+    0.027933505828754646,
+    0.003391999146189928,
+    0.23099954409766738,
+    0.17304464261948305
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 2
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677664478",
+   "side": "p1",
+   "rating": 1332,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.00031899551397960674,
+   "ex_post_mean": 0.0023786078115821487,
+   "losses": [
+    0.0007512537475876657,
+    0.0008878770240415834,
+    0.0002724064925508918,
+    0.0,
+    2.4358196974993973e-06,
+    0.0
+   ],
+   "off_support": [
+    0.0007512537475876657,
+    0.0008878770240415834,
+    0.0002724064925508918,
+    2.4358196974993973e-06
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677664478",
+   "side": "p2",
+   "rating": 1288,
+   "decisions": 7,
+   "scored": 4,
+   "ex_ante_mean": 0.190554989291011,
+   "ex_post_mean": 0.18293592423508645,
+   "losses": [
+    0.12440851934111319,
+    2.220446049250313e-16,
+    0.5101163797669764,
+    0.12769505805595416
+   ],
+   "off_support": [
+    0.12440851934111319,
+    0.5101163797669764,
+    0.12769505805595416
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 2,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677757267",
+   "side": "p1",
+   "rating": 1282,
+   "decisions": 6,
+   "scored": 4,
+   "ex_ante_mean": 0.10143170263808075,
+   "ex_post_mean": 0.12104709334362564,
+   "losses": [
+    0.01038102926029405,
+    0.0020564153584585743,
+    0.3932893659335704,
+    0.0
+   ],
+   "off_support": [
+    0.01038102926029405,
+    0.0020564153584585743,
+    0.3932893659335704
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677757267",
+   "side": "p2",
+   "rating": 1205,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.0041238680252285494,
+   "ex_post_mean": 0.010080154732968794,
+   "losses": [
+    0.012247488392711836,
+    0.008371851733430913,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.012247488392711836,
+    0.008371851733430913
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 2,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677831932",
+   "side": "p1",
+   "rating": 1156,
+   "decisions": 8,
+   "scored": 8,
+   "ex_ante_mean": 0.0001812744730333854,
+   "ex_post_mean": 0.030036651687866494,
+   "losses": [
+    0.0,
+    0.0,
+    0.0014501957842667501,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.0014501957842667501
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 6,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677831932",
+   "side": "p2",
+   "rating": 1207,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.0022526627091538445,
+   "ex_post_mean": 0.003210373031489059,
+   "losses": [
+    0.0,
+    0.0,
+    0.0,
+    0.0037122119425867517,
+    0.0035750979513179404,
+    0.006228666361018376
+   ],
+   "off_support": [
+    0.0037122119425867517,
+    0.0035750979513179404,
+    0.006228666361018376
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 1,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677817401",
+   "side": "p1",
+   "rating": 1070,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.007865660436864208,
+   "ex_post_mean": 0.013959324160064512,
+   "losses": [
+    0.020233519340061235,
+    0.002994958381796864,
+    0.01541679872138968,
+    0.0,
+    0.0006830257410732621
+   ],
+   "off_support": [
+    0.020233519340061235,
+    0.002994958381796864,
+    0.01541679872138968,
+    0.0006830257410732621
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677817401",
+   "side": "p2",
+   "rating": 1048,
+   "decisions": 4,
+   "scored": 2,
+   "ex_ante_mean": 5.551115123125783e-17,
+   "ex_post_mean": 0.0019356453643413762,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677723038",
+   "side": "p1",
+   "rating": 1429,
+   "decisions": 5,
+   "scored": 3,
+   "ex_ante_mean": 0.07932682854043571,
+   "ex_post_mean": 0.027991905419540514,
+   "losses": [
+    0.00990929609778135,
+    0.22807118952352579,
+    0.0
+   ],
+   "off_support": [
+    0.00990929609778135,
+    0.22807118952352579
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677723038",
+   "side": "p2",
+   "rating": 1439,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.0011292209251511976,
+   "ex_post_mean": 0.006489590272587243,
+   "losses": [
+    0.005646104625755544,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16,
+    0.0,
+    2.220446049250313e-16
+   ],
+   "off_support": [
+    0.005646104625755544
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677730375",
+   "side": "p1",
+   "rating": 1185,
+   "decisions": 12,
+   "scored": 11,
+   "ex_ante_mean": 0.003879332448063004,
+   "ex_post_mean": 0.004886309541939976,
+   "losses": [
+    0.014340621989708535,
+    0.0,
+    0.0,
+    0.0,
+    1.1102230246251565e-16,
+    0.0,
+    0.004326975467461525,
+    0.01914137394826021,
+    0.004863685523262662,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.014340621989708535,
+    0.004326975467461525,
+    0.01914137394826021,
+    0.004863685523262662
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 5,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677730375",
+   "side": "p2",
+   "rating": 1156,
+   "decisions": 12,
+   "scored": 10,
+   "ex_ante_mean": 0.0022153105296000342,
+   "ex_post_mean": 0.01051804627480235,
+   "losses": [
+    0.014991873946033518,
+    0.00716123134996649,
+    0.0,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16,
+    0.0,
+    0.0,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.014991873946033518,
+    0.00716123134996649
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 7,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677803536",
+   "side": "p1",
+   "rating": 1095,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.018186565178679948,
+   "ex_post_mean": 0.002513091838494186,
+   "losses": [
+    0.06842731794484702,
+    0.0019862671231862805,
+    0.0023326756466864884,
+    0.0
+   ],
+   "off_support": [
+    0.06842731794484702,
+    0.0019862671231862805,
+    0.0023326756466864884
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677803536",
+   "side": "p2",
+   "rating": 1088,
+   "decisions": 5,
+   "scored": 2,
+   "ex_ante_mean": 0.0,
+   "ex_post_mean": 0.11763462807001679,
+   "losses": [
+    0.0,
+    0.0
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737123",
+   "side": "p1",
+   "rating": 1092,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.00283922203676501,
+   "ex_post_mean": 0.012102296426217463,
+   "losses": [
+    0.01135688814705993,
+    0.0,
+    0.0,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.01135688814705993
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737123",
+   "side": "p2",
+   "rating": 1055,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.04483432278997304,
+   "ex_post_mean": 0.02309470628309901,
+   "losses": [
+    0.14745076139121582,
+    0.0001964035239552242,
+    0.0028650159936667308,
+    0.028825110251054387
+   ],
+   "off_support": [
+    0.14745076139121582,
+    0.0001964035239552242,
+    0.0028650159936667308,
+    0.028825110251054387
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655400",
+   "side": "p1",
+   "rating": 1102,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.03894916952432309,
+   "ex_post_mean": 0.06987116868240731,
+   "losses": [
+    0.0,
+    0.000507749718099415,
+    0.0,
+    0.15528892837919295
+   ],
+   "off_support": [
+    0.000507749718099415,
+    0.15528892837919295
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655400",
+   "side": "p2",
+   "rating": 1108,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.017868556155551097,
+   "ex_post_mean": 0.019017162456445247,
+   "losses": [
+    0.032478745198007086,
+    0.0,
+    0.056864035579748395,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.032478745198007086,
+    0.056864035579748395
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677828910",
+   "side": "p1",
+   "rating": 1133,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.004671620085201563,
+   "ex_post_mean": 0.015314938929570124,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0016020972088812702,
+    0.0,
+    0.031099243387529563,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.0016020972088812702,
+    0.031099243387529563
+   ],
+   "labels": {
+    "best": 4,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677828910",
+   "side": "p2",
+   "rating": 1088,
+   "decisions": 7,
+   "scored": 4,
+   "ex_ante_mean": 0.06892935375347531,
+   "ex_post_mean": 0.03309716595398793,
+   "losses": [
+    0.13371984519648072,
+    0.018850469783646462,
+    0.12314710003377394,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.13371984519648072,
+    0.018850469783646462,
+    0.12314710003377394
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677787638",
+   "side": "p1",
+   "rating": 1202,
+   "decisions": 9,
+   "scored": 9,
+   "ex_ante_mean": 0.012474193673318023,
+   "ex_post_mean": 0.012818661637784223,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0,
+    0.012341627631096808,
+    0.008042821809537526,
+    0.025604922531805907,
+    0.024555312996198397,
+    0.04172305809122345,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.012341627631096808,
+    0.008042821809537526,
+    0.025604922531805907,
+    0.024555312996198397,
+    0.04172305809122345
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 3,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677787638",
+   "side": "p2",
+   "rating": 1131,
+   "decisions": 9,
+   "scored": 7,
+   "ex_ante_mean": 0.03256125086409919,
+   "ex_post_mean": 0.0414248672565196,
+   "losses": [
+    0.04647415323544257,
+    0.05959614500675681,
+    0.006558523347606315,
+    0.10321248493768087,
+    0.004249215881169666,
+    0.0017014465524514133,
+    0.0061367870875866926
+   ],
+   "off_support": [
+    0.04647415323544257,
+    0.05959614500675681,
+    0.006558523347606315,
+    0.10321248493768087,
+    0.004249215881169666,
+    0.0017014465524514133,
+    0.0061367870875866926
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 5,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677827285",
+   "side": "p1",
+   "rating": 1273,
+   "decisions": 5,
+   "scored": 2,
+   "ex_ante_mean": 0.025140380703651988,
+   "ex_post_mean": 0.018720868788646428,
+   "losses": [
+    0.0,
+    0.050280761407303975
+   ],
+   "off_support": [
+    0.050280761407303975
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677827285",
+   "side": "p2",
+   "rating": 1347,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.0030177811213737194,
+   "ex_post_mean": 0.03570725330940718,
+   "losses": [
+    0.009623769391609027,
+    0.0054651362152593475,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16,
+    0.0
+   ],
+   "off_support": [
+    0.009623769391609027,
+    0.0054651362152593475
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677716279",
+   "side": "p1",
+   "rating": 1149,
+   "decisions": 7,
+   "scored": 7,
+   "ex_ante_mean": 0.006655583279773035,
+   "ex_post_mean": 0.005084614584198288,
+   "losses": [
+    0.026221434277884925,
+    0.008350140688557883,
+    0.004675386684158567,
+    8.538365400434511e-05,
+    0.005913258871637073,
+    0.0013434787821684502,
+    0.0
+   ],
+   "off_support": [
+    0.026221434277884925,
+    0.008350140688557883,
+    0.004675386684158567,
+    8.538365400434511e-05,
+    0.005913258871637073,
+    0.0013434787821684502
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677716279",
+   "side": "p2",
+   "rating": 1048,
+   "decisions": 6,
+   "scored": 3,
+   "ex_ante_mean": 0.035170364673592545,
+   "ex_post_mean": 0.03453653716113558,
+   "losses": [
+    0.0730307569119878,
+    0.0,
+    0.032480337108789836
+   ],
+   "off_support": [
+    0.0730307569119878,
+    0.032480337108789836
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677657549",
+   "side": "p1",
+   "rating": 1100,
+   "decisions": 7,
+   "scored": 7,
+   "ex_ante_mean": 0.011206767081705458,
+   "ex_post_mean": 0.003414128116492258,
+   "losses": [
+    0.06345074571082654,
+    0.009243893382805402,
+    0.0043572722014972864,
+    0.0,
+    0.0,
+    0.0,
+    0.0013954582768089807
+   ],
+   "off_support": [
+    0.06345074571082654,
+    0.009243893382805402,
+    0.0043572722014972864,
+    0.0013954582768089807
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677657549",
+   "side": "p2",
+   "rating": 1136,
+   "decisions": 8,
+   "scored": 4,
+   "ex_ante_mean": 0.03881562773587763,
+   "ex_post_mean": 0.10346619039692356,
+   "losses": [
+    0.0,
+    0.0761622061805105,
+    1.1102230246251565e-16,
+    0.0791003047629999
+   ],
+   "off_support": [
+    0.0761622061805105,
+    0.0791003047629999
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677708688",
+   "side": "p1",
+   "rating": 1159,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.026134157335165904,
+   "ex_post_mean": 0.02492142349783244,
+   "losses": [
+    0.0,
+    3.0834730268769484e-05,
+    0.009251965365770332,
+    0.03150181447460865,
+    0.03387531423135237,
+    0.1082791725441612,
+    0.0
+   ],
+   "off_support": [
+    3.0834730268769484e-05,
+    0.009251965365770332,
+    0.03150181447460865,
+    0.03387531423135237,
+    0.1082791725441612
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 4,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677708688",
+   "side": "p2",
+   "rating": 1337,
+   "decisions": 7,
+   "scored": 5,
+   "ex_ante_mean": 0.001556354349449829,
+   "ex_post_mean": 0.002261634302986404,
+   "losses": [
+    0.0,
+    0.007781771747249033,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.007781771747249033
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 3,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677838608",
+   "side": "p1",
+   "rating": 1144,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.005165983844626254,
+   "ex_post_mean": 0.005375255865027651,
+   "losses": [
+    0.024712942919240977,
+    0.0,
+    0.0,
+    0.0011169763038902936,
+    0.0
+   ],
+   "off_support": [
+    0.024712942919240977,
+    0.0011169763038902936
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677838608",
+   "side": "p2",
+   "rating": 1155,
+   "decisions": 6,
+   "scored": 2,
+   "ex_ante_mean": 0.16346955501931415,
+   "ex_post_mean": 0.0,
+   "losses": [
+    0.3269391100386283,
+    0.0
+   ],
+   "off_support": [
+    0.3269391100386283
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677826027",
+   "side": "p1",
+   "rating": 1273,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.00260958296211658,
+   "ex_post_mean": 0.0006152196467753926,
+   "losses": [
+    0.008671774558278722,
+    0.001766557290187598,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.008671774558278722,
+    0.001766557290187598
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677826027",
+   "side": "p2",
+   "rating": 1347,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.1403042188889933,
+   "ex_post_mean": 0.19084110189452835,
+   "losses": [
+    0.0,
+    0.5612168755559731,
+    0.0,
+    5.551115123125783e-17
+   ],
+   "off_support": [
+    0.5612168755559731
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677794760",
+   "side": "p1",
+   "rating": 1076,
+   "decisions": 13,
+   "scored": 12,
+   "ex_ante_mean": 0.0030063217178622295,
+   "ex_post_mean": 0.03560376406948442,
+   "losses": [
+    0.009896767721779498,
+    0.0,
+    0.0,
+    0.005859632663532843,
+    0.007567868345662809,
+    0.0,
+    0.0,
+    0.01099377599847473,
+    0.0,
+    0.0,
+    0.0017578158848967629,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.009896767721779498,
+    0.005859632663532843,
+    0.007567868345662809,
+    0.01099377599847473,
+    0.0017578158848967629
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 5,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677794760",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 14,
+   "scored": 14,
+   "ex_ante_mean": 0.0060989703756119595,
+   "ex_post_mean": 0.011879456611204051,
+   "losses": [
+    0.006744832371201492,
+    0.0027478303728833975,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.017343514811528626,
+    0.058549407702953915,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.006744832371201492,
+    0.0027478303728833975,
+    0.017343514811528626,
+    0.058549407702953915
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 10,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759245",
+   "side": "p1",
+   "rating": 1422,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.06283360602855553,
+   "ex_post_mean": 0.033303480358446234,
+   "losses": [
+    0.34374484895038193,
+    0.0,
+    0.0029306507487305566,
+    0.012015913603569794,
+    0.018310222868650916,
+    0.0
+   ],
+   "off_support": [
+    0.34374484895038193,
+    0.0029306507487305566,
+    0.012015913603569794,
+    0.018310222868650916
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759245",
+   "side": "p2",
+   "rating": 1471,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.008245444610525676,
+   "ex_post_mean": 0.012668138089007842,
+   "losses": [
+    0.03387908204753631,
+    0.003155654401780339,
+    0.004192486603311729,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.03387908204753631,
+    0.003155654401780339,
+    0.004192486603311729
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677839909",
+   "side": "p1",
+   "rating": 1052,
+   "decisions": 7,
+   "scored": 4,
+   "ex_ante_mean": 0.00772883620118428,
+   "ex_post_mean": 0.02288216825813691,
+   "losses": [
+    0.0,
+    0.0,
+    0.00934466715061888,
+    0.021570677654118242
+   ],
+   "off_support": [
+    0.00934466715061888,
+    0.021570677654118242
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677839909",
+   "side": "p2",
+   "rating": 1117,
+   "decisions": 6,
+   "scored": 4,
+   "ex_ante_mean": 0.04185712199068417,
+   "ex_post_mean": 0.02972745812278435,
+   "losses": [
+    0.1458406983748335,
+    0.017882367667541366,
+    0.003705421920361829,
+    0.0
+   ],
+   "off_support": [
+    0.1458406983748335,
+    0.017882367667541366,
+    0.003705421920361829
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677694001",
+   "side": "p1",
+   "rating": 1206,
+   "decisions": 6,
+   "scored": 6,
+   "ex_ante_mean": 0.0074751835950082985,
+   "ex_post_mean": 0.006288302492614399,
+   "losses": [
+    0.0023251344721025857,
+    0.008495858208373508,
+    0.007203141658395862,
+    0.02182503339274411,
+    0.005001933838433725,
+    0.0
+   ],
+   "off_support": [
+    0.0023251344721025857,
+    0.008495858208373508,
+    0.007203141658395862,
+    0.02182503339274411,
+    0.005001933838433725
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677694001",
+   "side": "p2",
+   "rating": 1127,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.043574919666449025,
+   "ex_post_mean": 0.03859245818870083,
+   "losses": [
+    0.0433208220232123,
+    0.07842165149884384,
+    1.1102230246251565e-16,
+    0.05255720514373985
+   ],
+   "off_support": [
+    0.0433208220232123,
+    0.07842165149884384,
+    0.05255720514373985
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677840408",
+   "side": "p1",
+   "rating": 1190,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.044843729996006075,
+   "ex_post_mean": 0.052626063992283645,
+   "losses": [
+    0.05088587837812686,
+    0.09838989108323537,
+    0.008745844898183863,
+    0.01770421789994625,
+    0.04849281772053804
+   ],
+   "off_support": [
+    0.05088587837812686,
+    0.09838989108323537,
+    0.008745844898183863,
+    0.01770421789994625,
+    0.04849281772053804
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677840408",
+   "side": "p2",
+   "rating": 1093,
+   "decisions": 5,
+   "scored": 2,
+   "ex_ante_mean": 0.004660498651750056,
+   "ex_post_mean": 0.0008631194689012744,
+   "losses": [
+    0.002357541682672659,
+    0.006963455620827452
+   ],
+   "off_support": [
+    0.002357541682672659,
+    0.006963455620827452
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677705161",
+   "side": "p1",
+   "rating": 1344,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.09250043849516738,
+   "ex_post_mean": 0.11007089735294746,
+   "losses": [
+    0.019156472733748542,
+    0.2344783934775727,
+    0.128603424505629,
+    0.08026390175888665,
+    0.0
+   ],
+   "off_support": [
+    0.019156472733748542,
+    0.2344783934775727,
+    0.128603424505629,
+    0.08026390175888665
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 2,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677705161",
+   "side": "p2",
+   "rating": 1315,
+   "decisions": 6,
+   "scored": 6,
+   "ex_ante_mean": 0.001269269031666187,
+   "ex_post_mean": 0.0010453575199724564,
+   "losses": [
+    0.0,
+    0.004206259824810266,
+    0.0025654786713918964,
+    0.0008438756937949599,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.004206259824810266,
+    0.0025654786713918964,
+    0.0008438756937949599
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677835729",
+   "side": "p1",
+   "rating": 1382,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.008941660053775224,
+   "ex_post_mean": 0.04149818390833884,
+   "losses": [
+    0.0,
+    0.031221818827918746,
+    0.004544821387182152,
+    0.0
+   ],
+   "off_support": [
+    0.031221818827918746,
+    0.004544821387182152
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677835729",
+   "side": "p2",
+   "rating": 1457,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.0014131522866539792,
+   "ex_post_mean": 0.0013684300196960542,
+   "losses": [
+    0.0,
+    0.004764954025607504,
+    0.0,
+    0.0008876551210084127
+   ],
+   "off_support": [
+    0.004764954025607504,
+    0.0008876551210084127
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677802338",
+   "side": "p1",
+   "rating": 1068,
+   "decisions": 11,
+   "scored": 9,
+   "ex_ante_mean": 0.005707583031430646,
+   "ex_post_mean": 0.01482846322896425,
+   "losses": [
+    0.044163472786246105,
+    0.00179866341104995,
+    0.0,
+    0.005406111085579646,
+    0.0,
+    1.1102230246251565e-16,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.044163472786246105,
+    0.00179866341104995,
+    0.005406111085579646
+   ],
+   "labels": {
+    "best": 3,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677802338",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 11,
+   "scored": 10,
+   "ex_ante_mean": 0.02949668584082567,
+   "ex_post_mean": 0.058710054912903195,
+   "losses": [
+    0.0,
+    0.0,
+    0.28685490796481145,
+    1.1102230246251565e-16,
+    0.0,
+    1.1102230246251565e-16,
+    0.0,
+    0.0,
+    0.008111950443445037,
+    0.0
+   ],
+   "off_support": [
+    0.28685490796481145,
+    0.008111950443445037
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 8,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677728541",
+   "side": "p1",
+   "rating": 1185,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.021839070381030706,
+   "ex_post_mean": 0.026362938355638132,
+   "losses": [
+    0.004390967522436617,
+    0.025489517227530123,
+    0.10115393753621738,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.004390967522436617,
+    0.025489517227530123,
+    0.10115393753621738
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677728541",
+   "side": "p2",
+   "rating": 1156,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.001369401766637875,
+   "ex_post_mean": 0.02616617178673657,
+   "losses": [
+    0.00808452175162333,
+    0.0001208122569784642,
+    1.1076591225345211e-05,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.00808452175162333,
+    0.0001208122569784642,
+    1.1076591225345211e-05
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677812890",
+   "side": "p1",
+   "rating": 1101,
+   "decisions": 9,
+   "scored": 4,
+   "ex_ante_mean": 0.01955340157473348,
+   "ex_post_mean": 0.012990165100348422,
+   "losses": [
+    0.014044366627694482,
+    0.0,
+    0.0,
+    0.06416923967123944
+   ],
+   "off_support": [
+    0.014044366627694482,
+    0.06416923967123944
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677812890",
+   "side": "p2",
+   "rating": 1111,
+   "decisions": 9,
+   "scored": 9,
+   "ex_ante_mean": 0.01328276583812841,
+   "ex_post_mean": 0.011108745291882006,
+   "losses": [
+    0.020712529888180065,
+    0.019623249478473603,
+    0.03074432341020439,
+    0.011408309253389204,
+    0.010378265642134399,
+    0.012690801080717184,
+    0.0035883080243528376,
+    0.006483876283884915,
+    0.003915229481819105
+   ],
+   "off_support": [
+    0.020712529888180065,
+    0.019623249478473603,
+    0.03074432341020439,
+    0.011408309253389204,
+    0.010378265642134399,
+    0.012690801080717184,
+    0.0035883080243528376,
+    0.006483876283884915,
+    0.003915229481819105
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 9,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677815670",
+   "side": "p1",
+   "rating": 1101,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.018681837747175942,
+   "ex_post_mean": 0.009811640242366788,
+   "losses": [
+    0.01610730428454632,
+    0.07355793843093716,
+    0.0,
+    0.011183738155499112,
+    0.015567681401027156,
+    0.007930811994012688,
+    0.0064253899642091605
+   ],
+   "off_support": [
+    0.01610730428454632,
+    0.07355793843093716,
+    0.011183738155499112,
+    0.015567681401027156,
+    0.007930811994012688,
+    0.0064253899642091605
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 5,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677815670",
+   "side": "p2",
+   "rating": 1111,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.014405128750975845,
+   "ex_post_mean": 0.01415592770221652,
+   "losses": [
+    0.017506444019421585,
+    0.020637528180910802,
+    1.1102230246251565e-16,
+    0.008624096970447748,
+    0.018466161795014924,
+    0.0211965415400599
+   ],
+   "off_support": [
+    0.017506444019421585,
+    0.020637528180910802,
+    0.008624096970447748,
+    0.018466161795014924,
+    0.0211965415400599
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677754579",
+   "side": "p1",
+   "rating": 1337,
+   "decisions": 6,
+   "scored": 6,
+   "ex_ante_mean": 0.006139128802803521,
+   "ex_post_mean": 0.03692280605811706,
+   "losses": [
+    0.03088312529088999,
+    0.005951647525930914,
+    0.0,
+    0.0,
+    0.0,
+    2.220446049250313e-16
+   ],
+   "off_support": [
+    0.03088312529088999,
+    0.005951647525930914
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677754579",
+   "side": "p2",
+   "rating": 1298,
+   "decisions": 6,
+   "scored": 4,
+   "ex_ante_mean": 0.0017256540542266718,
+   "ex_post_mean": 0.004358673810626379,
+   "losses": [
+    0.005146081269692626,
+    0.0009390831931872512,
+    0.00081745175402681,
+    0.0
+   ],
+   "off_support": [
+    0.005146081269692626,
+    0.0009390831931872512,
+    0.00081745175402681
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677785997",
+   "side": "p1",
+   "rating": 1202,
+   "decisions": 4,
+   "scored": 1,
+   "ex_ante_mean": 0.0,
+   "ex_post_mean": 0.026960449593545488,
+   "losses": [
+    0.0
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677785997",
+   "side": "p2",
+   "rating": 1131,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.014781719688770224,
+   "ex_post_mean": 0.021262293027575707,
+   "losses": [
+    0.06088574143172698,
+    0.011689379119081855,
+    1.1102230246251565e-16,
+    0.0013334778930421676,
+    0.0
+   ],
+   "off_support": [
+    0.06088574143172698,
+    0.011689379119081855,
+    0.0013334778930421676
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677763502",
+   "side": "p1",
+   "rating": 1101,
+   "decisions": 3,
+   "scored": 1,
+   "ex_ante_mean": 0.13780645736422126,
+   "ex_post_mean": 0.10112486033907786,
+   "losses": [
+    0.13780645736422126
+   ],
+   "off_support": [
+    0.13780645736422126
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677763502",
+   "side": "p2",
+   "rating": 1169,
+   "decisions": 3,
+   "scored": 3,
+   "ex_ante_mean": 0.013271226867941355,
+   "ex_post_mean": 0.0055612226023934825,
+   "losses": [
+    0.020288494090140885,
+    0.013041630379627911,
+    0.006483556134055268
+   ],
+   "off_support": [
+    0.020288494090140885,
+    0.013041630379627911,
+    0.006483556134055268
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677727792",
+   "side": "p1",
+   "rating": 1000,
+   "decisions": 8,
+   "scored": 4,
+   "ex_ante_mean": 0.028218994133954456,
+   "ex_post_mean": 0.02976329890779411,
+   "losses": [
+    0.011947069154366163,
+    0.03248168036711652,
+    0.0,
+    0.06844722701433514
+   ],
+   "off_support": [
+    0.011947069154366163,
+    0.03248168036711652,
+    0.06844722701433514
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677727792",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 7,
+   "scored": 3,
+   "ex_ante_mean": 0.0022934646736486597,
+   "ex_post_mean": 0.01039509922097052,
+   "losses": [
+    0.0,
+    0.006880394020945979,
+    0.0
+   ],
+   "off_support": [
+    0.006880394020945979
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677681245",
+   "side": "p1",
+   "rating": 1294,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.02525988227143499,
+   "ex_post_mean": 0.010565577726473627,
+   "losses": [
+    0.008139080599124826,
+    0.01135688814706004,
+    0.002905819945306809,
+    0.097201411585366,
+    0.048748268151768026,
+    0.0029125434834791353,
+    0.005555163987940093
+   ],
+   "off_support": [
+    0.008139080599124826,
+    0.01135688814706004,
+    0.002905819945306809,
+    0.097201411585366,
+    0.048748268151768026,
+    0.0029125434834791353,
+    0.005555163987940093
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 6,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677681245",
+   "side": "p2",
+   "rating": 1349,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.0068212155226393305,
+   "ex_post_mean": 0.013754558864267685,
+   "losses": [
+    0.01135688814705993,
+    0.0,
+    0.0,
+    0.023611086968019612,
+    0.005959318020756443,
+    0.0
+   ],
+   "off_support": [
+    0.01135688814705993,
+    0.023611086968019612,
+    0.005959318020756443
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677929438",
+   "side": "p1",
+   "rating": 1108,
+   "decisions": 2,
+   "scored": 2,
+   "ex_ante_mean": 0.01961637918125414,
+   "ex_post_mean": 0.011843740294133931,
+   "losses": [
+    0.008501296317621199,
+    0.03073146204488708
+   ],
+   "off_support": [
+    0.008501296317621199,
+    0.03073146204488708
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677929438",
+   "side": "p2",
+   "rating": 1037,
+   "decisions": 2,
+   "scored": 2,
+   "ex_ante_mean": 0.0,
+   "ex_post_mean": 0.029854673525944453,
+   "losses": [
+    0.0,
+    0.0
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726764",
+   "side": "p1",
+   "rating": 1000,
+   "decisions": 4,
+   "scored": 4,
+   "ex_ante_mean": 0.014347921248841461,
+   "ex_post_mean": 0.013230157083556682,
+   "losses": [
+    0.0,
+    0.002189682675815763,
+    0.04405620911186836,
+    0.01114579320768172
+   ],
+   "off_support": [
+    0.002189682675815763,
+    0.04405620911186836,
+    0.01114579320768172
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726764",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 4,
+   "scored": 2,
+   "ex_ante_mean": 1.1102230246251565e-16,
+   "ex_post_mean": 0.022663110657506813,
+   "losses": [
+    0.0,
+    2.220446049250313e-16
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677846796",
+   "side": "p1",
+   "rating": 1417,
+   "decisions": 0,
+   "scored": 0,
+   "ex_ante_mean": null,
+   "ex_post_mean": null,
+   "losses": [],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677846796",
+   "side": "p2",
+   "rating": 1543,
+   "decisions": 1,
+   "scored": 1,
+   "ex_ante_mean": 0.0,
+   "ex_post_mean": 0.0,
+   "losses": [
+    0.0
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737505",
+   "side": "p1",
+   "rating": 1082,
+   "decisions": 9,
+   "scored": 6,
+   "ex_ante_mean": 0.010940361049102823,
+   "ex_post_mean": 0.010166170363833316,
+   "losses": [
+    0.017448150246527794,
+    0.030307601629635195,
+    0.008816095624240572,
+    0.002499880718375591,
+    0.0,
+    0.006570438075837792
+   ],
+   "off_support": [
+    0.017448150246527794,
+    0.030307601629635195,
+    0.008816095624240572,
+    0.002499880718375591,
+    0.006570438075837792
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737505",
+   "side": "p2",
+   "rating": 1013,
+   "decisions": 8,
+   "scored": 5,
+   "ex_ante_mean": 0.007711712151369632,
+   "ex_post_mean": 0.008411594604914807,
+   "losses": [
+    0.017890338451611476,
+    0.020668222305236683,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.017890338451611476,
+    0.020668222305236683
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677717823",
+   "side": "p1",
+   "rating": 1149,
+   "decisions": 3,
+   "scored": 3,
+   "ex_ante_mean": 0.038639076948675855,
+   "ex_post_mean": 0.07165155932898874,
+   "losses": [
+    0.05149606249939109,
+    0.037595798063549624,
+    0.026825370283086847
+   ],
+   "off_support": [
+    0.05149606249939109,
+    0.037595798063549624,
+    0.026825370283086847
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677717823",
+   "side": "p2",
+   "rating": 1048,
+   "decisions": 2,
+   "scored": 2,
+   "ex_ante_mean": 5.551115123125783e-17,
+   "ex_post_mean": 0.0017097339069327977,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726756",
+   "side": "p1",
+   "rating": 1185,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.030654377143469635,
+   "ex_post_mean": 0.025820606071216213,
+   "losses": [
+    0.0,
+    0.0,
+    0.0037345714258221197,
+    0.055224697021245106,
+    0.09431261727028095
+   ],
+   "off_support": [
+    0.0037345714258221197,
+    0.055224697021245106,
+    0.09431261727028095
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726756",
+   "side": "p2",
+   "rating": 1156,
+   "decisions": 6,
+   "scored": 4,
+   "ex_ante_mean": 0.015033570460351114,
+   "ex_post_mean": 0.028111957186409547,
+   "losses": [
+    0.050929958078816284,
+    0.00906714504145334,
+    2.220446049250313e-16,
+    0.00013717872113461205
+   ],
+   "off_support": [
+    0.050929958078816284,
+    0.00906714504145334,
+    0.00013717872113461205
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737863",
+   "side": "p1",
+   "rating": 1138,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.02051514656852801,
+   "ex_post_mean": 0.006650749152576114,
+   "losses": [
+    0.0,
+    0.11311389713140929,
+    0.028611633504299405,
+    0.0,
+    0.00030919890708358544,
+    0.0,
+    0.0015712964369037907
+   ],
+   "off_support": [
+    0.11311389713140929,
+    0.028611633504299405,
+    0.00030919890708358544,
+    0.0015712964369037907
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677737863",
+   "side": "p2",
+   "rating": 1242,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.017740212368983543,
+   "ex_post_mean": 0.009842117200474076,
+   "losses": [
+    0.011356888147060151,
+    0.09000824897105497,
+    0.003986809403685565,
+    0.0010893276921005723,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.011356888147060151,
+    0.09000824897105497,
+    0.003986809403685565,
+    0.0010893276921005723
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677734199",
+   "side": "p1",
+   "rating": 1138,
+   "decisions": 7,
+   "scored": 7,
+   "ex_ante_mean": 0.02633095338968464,
+   "ex_post_mean": 0.03867760368930456,
+   "losses": [
+    0.02144801508000238,
+    0.10502784653818475,
+    0.0,
+    0.0,
+    0.034925029315836076,
+    0.022915782793769268,
+    0.0
+   ],
+   "off_support": [
+    0.02144801508000238,
+    0.10502784653818475,
+    0.034925029315836076,
+    0.022915782793769268
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677734199",
+   "side": "p2",
+   "rating": 1242,
+   "decisions": 6,
+   "scored": 3,
+   "ex_ante_mean": 0.0017975929283710428,
+   "ex_post_mean": 0.010529854078192846,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16,
+    0.005392778785113017
+   ],
+   "off_support": [
+    0.005392778785113017
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677653149",
+   "side": "p1",
+   "rating": 1114,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.060038110611989916,
+   "ex_post_mean": 0.03517976103005334,
+   "losses": [
+    0.11858769241954836,
+    0.12481858875792284,
+    0.009221730584485055,
+    0.04756254129799331,
+    0.0
+   ],
+   "off_support": [
+    0.11858769241954836,
+    0.12481858875792284,
+    0.009221730584485055,
+    0.04756254129799331
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677653149",
+   "side": "p2",
+   "rating": 1196,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.01521540985363914,
+   "ex_post_mean": 0.011096354833322608,
+   "losses": [
+    0.01706714079495497,
+    0.009302679840115569,
+    0.0,
+    0.005333395099613059,
+    0.0443738335335121
+   ],
+   "off_support": [
+    0.01706714079495497,
+    0.009302679840115569,
+    0.005333395099613059,
+    0.0443738335335121
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677660865",
+   "side": "p1",
+   "rating": 1291,
+   "decisions": 9,
+   "scored": 9,
+   "ex_ante_mean": 0.012594660173412783,
+   "ex_post_mean": 0.019278014201225213,
+   "losses": [
+    0.05455322730413681,
+    0.0,
+    0.015432736011412596,
+    0.0063400344322800395,
+    0.005718048066979398,
+    0.0037879732585018866,
+    0.0067902137951040276,
+    0.020729708692300286,
+    0.0
+   ],
+   "off_support": [
+    0.05455322730413681,
+    0.015432736011412596,
+    0.0063400344322800395,
+    0.005718048066979398,
+    0.0037879732585018866,
+    0.0067902137951040276,
+    0.020729708692300286
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 6,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677660865",
+   "side": "p2",
+   "rating": 1138,
+   "decisions": 8,
+   "scored": 8,
+   "ex_ante_mean": 0.0029535777157040782,
+   "ex_post_mean": 0.01859475232987841,
+   "losses": [
+    0.015318832211498545,
+    0.00830978951413408,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.015318832211498545,
+    0.00830978951413408
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 5,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677758465",
+   "side": "p1",
+   "rating": 1282,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.01299274398558603,
+   "ex_post_mean": 0.012891339997171514,
+   "losses": [
+    0.026915298696167822,
+    0.0042255749711728186,
+    0.04681559024617543,
+    1.1102230246251565e-16,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.026915298696167822,
+    0.0042255749711728186,
+    0.04681559024617543
+   ],
+   "labels": {
+    "best": 3,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677758465",
+   "side": "p2",
+   "rating": 1205,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.029642377982166825,
+   "ex_post_mean": 0.031157401400448224,
+   "losses": [
+    0.011082871238090264,
+    0.10645868697989469,
+    0.027991060978537874,
+    0.002679270714311288,
+    0.0
+   ],
+   "off_support": [
+    0.011082871238090264,
+    0.10645868697989469,
+    0.027991060978537874,
+    0.002679270714311288
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677811334",
+   "side": "p1",
+   "rating": 1171,
+   "decisions": 10,
+   "scored": 9,
+   "ex_ante_mean": 0.018193376255401603,
+   "ex_post_mean": 0.023065563467965636,
+   "losses": [
+    0.022004041297642662,
+    0.013962638217492773,
+    0.013272271713306583,
+    0.007473734207274818,
+    0.012730876393300727,
+    0.08672550395727663,
+    0.006994395564625999,
+    0.0005769249476942351,
+    0.0
+   ],
+   "off_support": [
+    0.022004041297642662,
+    0.013962638217492773,
+    0.013272271713306583,
+    0.007473734207274818,
+    0.012730876393300727,
+    0.08672550395727663,
+    0.006994395564625999,
+    0.0005769249476942351
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 7,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677811334",
+   "side": "p2",
+   "rating": 1236,
+   "decisions": 9,
+   "scored": 7,
+   "ex_ante_mean": 0.018461259761125195,
+   "ex_post_mean": 0.006197725237109978,
+   "losses": [
+    0.029454526842542128,
+    0.014391944224173892,
+    0.005038368483290201,
+    0.04561858825400211,
+    0.0020716537793555867,
+    0.0,
+    0.03265373674451244
+   ],
+   "off_support": [
+    0.029454526842542128,
+    0.014391944224173892,
+    0.005038368483290201,
+    0.04561858825400211,
+    0.0020716537793555867,
+    0.03265373674451244
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677728579",
+   "side": "p1",
+   "rating": 1045,
+   "decisions": 2,
+   "scored": 2,
+   "ex_ante_mean": 0.0005236575146842504,
+   "ex_post_mean": 0.0173328315798289,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0010473150293683897
+   ],
+   "off_support": [
+    0.0010473150293683897
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677728579",
+   "side": "p2",
+   "rating": 1082,
+   "decisions": 2,
+   "scored": 1,
+   "ex_ante_mean": 0.05387847363265763,
+   "ex_post_mean": 0.04613547886402802,
+   "losses": [
+    0.05387847363265763
+   ],
+   "off_support": [
+    0.05387847363265763
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726184",
+   "side": "p1",
+   "rating": 1045,
+   "decisions": 8,
+   "scored": 7,
+   "ex_ante_mean": 0.000833900789480535,
+   "ex_post_mean": 0.0038193953847340143,
+   "losses": [
+    0.003967199097008711,
+    0.0,
+    0.0,
+    0.0,
+    0.000324373683777357,
+    0.0,
+    0.001545732745577677
+   ],
+   "off_support": [
+    0.003967199097008711,
+    0.000324373683777357,
+    0.001545732745577677
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677726184",
+   "side": "p2",
+   "rating": 1082,
+   "decisions": 8,
+   "scored": 5,
+   "ex_ante_mean": 0.0011774856923475463,
+   "ex_post_mean": 0.0917153509746264,
+   "losses": [
+    0.0022598237870163906,
+    0.0,
+    0.00362760467472123,
+    1.1102230246251565e-16,
+    0.0
+   ],
+   "off_support": [
+    0.0022598237870163906,
+    0.00362760467472123
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655959",
+   "side": "p1",
+   "rating": 1100,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 0.03055218651797405,
+   "ex_post_mean": 0.06921995864219321,
+   "losses": [
+    0.015868373171143868,
+    0.07578818638277829,
+    0.0
+   ],
+   "off_support": [
+    0.015868373171143868,
+    0.07578818638277829
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655959",
+   "side": "p2",
+   "rating": 1136,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 0.0027268895073603674,
+   "ex_post_mean": 0.00048203950165670584,
+   "losses": [
+    0.0031783374523814967,
+    0.0,
+    0.005002331069699606
+   ],
+   "off_support": [
+    0.0031783374523814967,
+    0.005002331069699606
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677890721",
+   "side": "p1",
+   "rating": 1064,
+   "decisions": 9,
+   "scored": 7,
+   "ex_ante_mean": 0.0177078550765233,
+   "ex_post_mean": 0.012479384863061835,
+   "losses": [
+    1.1102230246251565e-16,
+    0.060744762011510245,
+    0.0,
+    0.004026764043329356,
+    0.013713714850338565,
+    0.0454697446304847,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.060744762011510245,
+    0.004026764043329356,
+    0.013713714850338565,
+    0.0454697446304847
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677890721",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 9,
+   "scored": 8,
+   "ex_ante_mean": 0.0672147477560271,
+   "ex_post_mean": 0.06453358196365697,
+   "losses": [
+    0.03125352202623255,
+    0.011938143722304728,
+    0.017481573964330366,
+    0.13849732742832965,
+    0.03508129937396076,
+    0.0024046277709324215,
+    0.05294662540610762,
+    0.2481148623560187
+   ],
+   "off_support": [
+    0.03125352202623255,
+    0.011938143722304728,
+    0.017481573964330366,
+    0.13849732742832965,
+    0.03508129937396076,
+    0.0024046277709324215,
+    0.05294662540610762,
+    0.2481148623560187
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 5,
+    "mistake": 2,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677871752",
+   "side": "p1",
+   "rating": 1049,
+   "decisions": 4,
+   "scored": 4,
+   "ex_ante_mean": 0.07798939370669855,
+   "ex_post_mean": 0.007209016753783992,
+   "losses": [
+    0.0,
+    0.311957574826794,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.311957574826794
+   ],
+   "labels": {
+    "best": 2,
+    "solid": 1,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677871752",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 1.1102230246251565e-16,
+   "ex_post_mean": 0.13054374521905676,
+   "losses": [
+    0.0,
+    2.220446049250313e-16,
+    1.1102230246251565e-16
+   ],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677836051",
+   "side": "p1",
+   "rating": 1087,
+   "decisions": 4,
+   "scored": 2,
+   "ex_ante_mean": 0.38020089175581795,
+   "ex_post_mean": 0.10517524388159022,
+   "losses": [
+    0.5024718864636146,
+    0.2579298970480213
+   ],
+   "off_support": [
+    0.5024718864636146,
+    0.2579298970480213
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 2
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677836051",
+   "side": "p2",
+   "rating": 1217,
+   "decisions": 4,
+   "scored": 4,
+   "ex_ante_mean": 0.005371197391007915,
+   "ex_post_mean": 0.0025805994593154358,
+   "losses": [
+    0.021484789564031215,
+    2.220446049250313e-16,
+    1.1102230246251565e-16,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.021484789564031215
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655461",
+   "side": "p1",
+   "rating": 1207,
+   "decisions": 14,
+   "scored": 11,
+   "ex_ante_mean": 0.016283427863457225,
+   "ex_post_mean": 0.010990109890089155,
+   "losses": [
+    0.0,
+    0.004967510568473221,
+    0.027866728148419173,
+    0.05062083363938363,
+    0.010173250915746501,
+    0.07670885979676867,
+    0.004345526350468809,
+    0.004434997078769376,
+    0.0,
+    1.1102230246251565e-16,
+    0.0
+   ],
+   "off_support": [
+    0.004967510568473221,
+    0.027866728148419173,
+    0.05062083363938363,
+    0.010173250915746501,
+    0.07670885979676867,
+    0.004345526350468809,
+    0.004434997078769376
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 5,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677655461",
+   "side": "p2",
+   "rating": 1318,
+   "decisions": 14,
+   "scored": 8,
+   "ex_ante_mean": 0.014449627111297714,
+   "ex_post_mean": 0.008427027374319468,
+   "losses": [
+    0.04633412726107222,
+    0.003807730097922457,
+    0.023392562511044157,
+    0.01015042882914452,
+    0.01790837358009789,
+    0.01251969828866506,
+    0.001484096322435402,
+    0.0
+   ],
+   "off_support": [
+    0.04633412726107222,
+    0.003807730097922457,
+    0.023392562511044157,
+    0.01015042882914452,
+    0.01790837358009789,
+    0.01251969828866506,
+    0.001484096322435402
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 7,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677752996",
+   "side": "p1",
+   "rating": 1138,
+   "decisions": 8,
+   "scored": 4,
+   "ex_ante_mean": 0.069690518578602,
+   "ex_post_mean": 0.17245380482460887,
+   "losses": [
+    0.0016508639292950322,
+    0.015293671486687366,
+    0.07488913050950141,
+    0.18692840838892422
+   ],
+   "off_support": [
+    0.0016508639292950322,
+    0.015293671486687366,
+    0.07488913050950141,
+    0.18692840838892422
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677752996",
+   "side": "p2",
+   "rating": 1065,
+   "decisions": 7,
+   "scored": 5,
+   "ex_ante_mean": 1.7745646846023532e-05,
+   "ex_post_mean": 0.1390982133473107,
+   "losses": [
+    0.0,
+    0.0,
+    1.1102230246251565e-16,
+    0.0,
+    8.872823423000664e-05
+   ],
+   "off_support": [
+    8.872823423000664e-05
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677934417",
+   "side": "p1",
+   "rating": 1128,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.06063066398476953,
+   "ex_post_mean": 0.04998840044403226,
+   "losses": [
+    0.0,
+    0.029080182650975783,
+    0.04123865754054867,
+    0.16141709537818683,
+    0.07141738435413636
+   ],
+   "off_support": [
+    0.029080182650975783,
+    0.04123865754054867,
+    0.16141709537818683,
+    0.07141738435413636
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677934417",
+   "side": "p2",
+   "rating": 1247,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.002397992101788223,
+   "ex_post_mean": 0.007430125595955572,
+   "losses": [
+    0.012525694851439728,
+    0.0,
+    1.1102230246251565e-16,
+    0.0016192659821494537,
+    0.00024299177714004472,
+    0.0
+   ],
+   "off_support": [
+    0.012525694851439728,
+    0.0016192659821494537,
+    0.00024299177714004472
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677706200",
+   "side": "p1",
+   "rating": 1038,
+   "decisions": 5,
+   "scored": 3,
+   "ex_ante_mean": 0.06453760533108761,
+   "ex_post_mean": 0.04319777027373173,
+   "losses": [
+    0.12021798265725192,
+    0.03714300824001615,
+    0.03625182509599478
+   ],
+   "off_support": [
+    0.12021798265725192,
+    0.03714300824001615,
+    0.03625182509599478
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677706200",
+   "side": "p2",
+   "rating": 1083,
+   "decisions": 5,
+   "scored": 2,
+   "ex_ante_mean": 0.014466729767038111,
+   "ex_post_mean": 0.005442780440514827,
+   "losses": [
+    0.02877418973873469,
+    0.0001592697953415323
+   ],
+   "off_support": [
+    0.02877418973873469,
+    0.0001592697953415323
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677764620",
+   "side": "p1",
+   "rating": 1101,
+   "decisions": 15,
+   "scored": 10,
+   "ex_ante_mean": 0.01903180075771088,
+   "ex_post_mean": 0.009119271502449788,
+   "losses": [
+    0.06965860175785554,
+    1.1102230246251565e-16,
+    0.034786561629914226,
+    0.07095865522552702,
+    7.6028920295012625e-06,
+    0.0,
+    0.004448819405778792,
+    0.0,
+    0.0,
+    0.01045776666600362
+   ],
+   "off_support": [
+    0.06965860175785554,
+    0.034786561629914226,
+    0.07095865522552702,
+    7.6028920295012625e-06,
+    0.004448819405778792,
+    0.01045776666600362
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 3,
+    "inaccuracy": 4,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677764620",
+   "side": "p2",
+   "rating": 1169,
+   "decisions": 15,
+   "scored": 13,
+   "ex_ante_mean": 0.016004087693680044,
+   "ex_post_mean": 0.015143143915376914,
+   "losses": [
+    0.024343536784356523,
+    0.0055362635844442565,
+    0.0031064389308089746,
+    0.024382268305594867,
+    0.0010739753532061913,
+    0.04520700438901648,
+    0.01916079121269476,
+    0.001527667062270588,
+    0.014096607610511125,
+    0.010149949520672163,
+    0.01022224367974034,
+    0.026078149556814312,
+    0.023168244027710005
+   ],
+   "off_support": [
+    0.024343536784356523,
+    0.0055362635844442565,
+    0.0031064389308089746,
+    0.024382268305594867,
+    0.0010739753532061913,
+    0.04520700438901648,
+    0.01916079121269476,
+    0.001527667062270588,
+    0.014096607610511125,
+    0.010149949520672163,
+    0.01022224367974034,
+    0.026078149556814312,
+    0.023168244027710005
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 13,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677795293",
+   "side": "p1",
+   "rating": 1121,
+   "decisions": 12,
+   "scored": 11,
+   "ex_ante_mean": 0.003377249489903518,
+   "ex_post_mean": 0.004018207697646855,
+   "losses": [
+    0.02703258668413333,
+    0.010068638219067005,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.1102230246251565e-16,
+    1.5458411956825735e-05,
+    1.5458411956825735e-05,
+    1.7602661824600574e-05,
+    0.0
+   ],
+   "off_support": [
+    0.02703258668413333,
+    0.010068638219067005,
+    1.5458411956825735e-05,
+    1.5458411956825735e-05,
+    1.7602661824600574e-05
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 6,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677795293",
+   "side": "p2",
+   "rating": 1000,
+   "decisions": 12,
+   "scored": 10,
+   "ex_ante_mean": 0.10548720167040168,
+   "ex_post_mean": 0.11721425058341968,
+   "losses": [
+    0.03511988301485891,
+    0.01412938927210683,
+    0.010361474658648784,
+    0.24250311253871093,
+    0.06420517277668902,
+    0.02616124141648174,
+    0.22037953873143484,
+    0.20486326432865726,
+    0.20486326432865726,
+    0.032285675637771204
+   ],
+   "off_support": [
+    0.03511988301485891,
+    0.01412938927210683,
+    0.010361474658648784,
+    0.24250311253871093,
+    0.06420517277668902,
+    0.02616124141648174,
+    0.22037953873143484,
+    0.20486326432865726,
+    0.20486326432865726,
+    0.032285675637771204
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 5,
+    "mistake": 1,
+    "blunder": 4
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677788185",
+   "side": "p1",
+   "rating": 1334,
+   "decisions": 8,
+   "scored": 5,
+   "ex_ante_mean": 0.0046555957496048905,
+   "ex_post_mean": 0.036508958326884736,
+   "losses": [
+    0.023277978748024397,
+    0.0,
+    0.0,
+    5.551115123125783e-17,
+    0.0
+   ],
+   "off_support": [
+    0.023277978748024397
+   ],
+   "labels": {
+    "best": 3,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677788185",
+   "side": "p2",
+   "rating": 1358,
+   "decisions": 7,
+   "scored": 5,
+   "ex_ante_mean": 0.0003593107654257466,
+   "ex_post_mean": 0.002885114805843125,
+   "losses": [
+    0.0,
+    0.0017965538271286219,
+    0.0,
+    1.1102230246251565e-16,
+    0.0
+   ],
+   "off_support": [
+    0.0017965538271286219
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677729374",
+   "side": "p1",
+   "rating": 1079,
+   "decisions": 6,
+   "scored": 3,
+   "ex_ante_mean": 0.07487134814568534,
+   "ex_post_mean": 0.04100433941704862,
+   "losses": [
+    0.0020757262412542943,
+    2.220446049250313e-16,
+    0.2225383181958015
+   ],
+   "off_support": [
+    0.0020757262412542943,
+    0.2225383181958015
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 1
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677729374",
+   "side": "p2",
+   "rating": 1109,
+   "decisions": 6,
+   "scored": 6,
+   "ex_ante_mean": 0.017289628084665554,
+   "ex_post_mean": 0.014701974710761557,
+   "losses": [
+    0.02596665851404889,
+    0.043802925525342595,
+    0.006740935053108688,
+    0.00036138590025058814,
+    0.0033760019920822115,
+    0.02348986152316035
+   ],
+   "off_support": [
+    0.02596665851404889,
+    0.043802925525342595,
+    0.006740935053108688,
+    0.00036138590025058814,
+    0.0033760019920822115,
+    0.02348986152316035
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677902898",
+   "side": "p1",
+   "rating": 1105,
+   "decisions": 8,
+   "scored": 6,
+   "ex_ante_mean": 0.04878466551460978,
+   "ex_post_mean": 0.06879265800090008,
+   "losses": [
+    0.008516135963881788,
+    0.0,
+    0.037149885916613945,
+    0.037149885916613945,
+    0.07148969397221039,
+    0.13840239131833865
+   ],
+   "off_support": [
+    0.008516135963881788,
+    0.037149885916613945,
+    0.037149885916613945,
+    0.07148969397221039,
+    0.13840239131833865
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 0,
+    "inaccuracy": 3,
+    "mistake": 2,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677902898",
+   "side": "p2",
+   "rating": 1042,
+   "decisions": 8,
+   "scored": 5,
+   "ex_ante_mean": 0.011851051538068248,
+   "ex_post_mean": 0.005734597542609765,
+   "losses": [
+    0.02495985010471735,
+    0.0001967793730566214,
+    0.018124072171815775,
+    0.005757569911502225,
+    0.010216986129249261
+   ],
+   "off_support": [
+    0.02495985010471735,
+    0.0001967793730566214,
+    0.018124072171815775,
+    0.005757569911502225,
+    0.010216986129249261
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 5,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677839013",
+   "side": "p1",
+   "rating": 1382,
+   "decisions": 15,
+   "scored": 14,
+   "ex_ante_mean": 0.006848680782283932,
+   "ex_post_mean": 0.030689328281114203,
+   "losses": [
+    0.01135688814705993,
+    0.02592155021977094,
+    0.007842237311663114,
+    0.020486268410254582,
+    0.019414108161548094,
+    0.0,
+    2.220446049250313e-16,
+    0.0,
+    0.0,
+    0.0,
+    0.010860478701678167,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.01135688814705993,
+    0.02592155021977094,
+    0.007842237311663114,
+    0.020486268410254582,
+    0.019414108161548094,
+    0.010860478701678167
+   ],
+   "labels": {
+    "best": 4,
+    "solid": 4,
+    "inaccuracy": 6,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677839013",
+   "side": "p2",
+   "rating": 1457,
+   "decisions": 15,
+   "scored": 12,
+   "ex_ante_mean": 0.0008226689643992813,
+   "ex_post_mean": 0.014914374623566836,
+   "losses": [
+    0.0,
+    0.0,
+    0.002898820358265053,
+    1.1102230246251565e-16,
+    0.0023325051077812686,
+    0.0020038393161256884,
+    0.0,
+    0.0,
+    0.0,
+    0.0026368627906192543,
+    0.0,
+    0.0
+   ],
+   "off_support": [
+    0.002898820358265053,
+    0.0023325051077812686,
+    0.0020038393161256884,
+    0.0026368627906192543
+   ],
+   "labels": {
+    "best": 5,
+    "solid": 3,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677720056",
+   "side": "p1",
+   "rating": 1129,
+   "decisions": 6,
+   "scored": 6,
+   "ex_ante_mean": 0.006992529848731555,
+   "ex_post_mean": 0.001976604609099301,
+   "losses": [
+    0.03981388328171753,
+    0.0,
+    0.002141295810671684,
+    0.0,
+    0.0,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.03981388328171753,
+    0.002141295810671684
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677720056",
+   "side": "p2",
+   "rating": 1102,
+   "decisions": 6,
+   "scored": 3,
+   "ex_ante_mean": 0.0002575061162862398,
+   "ex_post_mean": 0.02441918075416834,
+   "losses": [
+    0.0,
+    0.0,
+    0.0007725183488587195
+   ],
+   "off_support": [
+    0.0007725183488587195
+   ],
+   "labels": {
+    "best": 1,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759437",
+   "side": "p1",
+   "rating": 1324,
+   "decisions": 3,
+   "scored": 2,
+   "ex_ante_mean": 0.0009330912484750709,
+   "ex_post_mean": 0.0014584829901163054,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0018661824969500307
+   ],
+   "off_support": [
+    0.0018661824969500307
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677759437",
+   "side": "p2",
+   "rating": 1405,
+   "decisions": 3,
+   "scored": 2,
+   "ex_ante_mean": 0.07868271436001767,
+   "ex_post_mean": 0.12298488824887643,
+   "losses": [
+    0.043981212460950325,
+    0.11338421625908501
+   ],
+   "off_support": [
+    0.043981212460950325,
+    0.11338421625908501
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 1,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677762730",
+   "side": "p1",
+   "rating": 1324,
+   "decisions": 4,
+   "scored": 3,
+   "ex_ante_mean": 0.005314316442588692,
+   "ex_post_mean": 0.03430495466869995,
+   "losses": [
+    0.015942949327765854,
+    2.220446049250313e-16,
+    0.0
+   ],
+   "off_support": [
+    0.015942949327765854
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677762730",
+   "side": "p2",
+   "rating": 1405,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 0.0015477093258351893,
+   "ex_post_mean": 0.003594503270152427,
+   "losses": [
+    0.0,
+    0.0012074775930670523,
+    0.006049818361792303,
+    0.0004086127344812285,
+    7.263793983536271e-05
+   ],
+   "off_support": [
+    0.0012074775930670523,
+    0.006049818361792303,
+    0.0004086127344812285,
+    7.263793983536271e-05
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 1,
+    "inaccuracy": 4,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677904961",
+   "side": "p1",
+   "rating": 1107,
+   "decisions": 5,
+   "scored": 4,
+   "ex_ante_mean": 0.005347590209025865,
+   "ex_post_mean": 0.09006347856056326,
+   "losses": [
+    0.0,
+    0.0,
+    0.02139036083610346,
+    0.0
+   ],
+   "off_support": [
+    0.02139036083610346
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677904961",
+   "side": "p2",
+   "rating": 1113,
+   "decisions": 5,
+   "scored": 5,
+   "ex_ante_mean": 6.064569979715717e-05,
+   "ex_post_mean": 0.02471816130631499,
+   "losses": [
+    0.0,
+    0.0,
+    1.1102230246251565e-16,
+    0.0003032284989855638,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.0003032284989855638
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 4,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677708353",
+   "side": "p1",
+   "rating": 1248,
+   "decisions": 3,
+   "scored": 0,
+   "ex_ante_mean": null,
+   "ex_post_mean": null,
+   "losses": [],
+   "off_support": [],
+   "labels": {
+    "best": 0,
+    "solid": 0,
+    "inaccuracy": 0,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677708353",
+   "side": "p2",
+   "rating": 1266,
+   "decisions": 3,
+   "scored": 3,
+   "ex_ante_mean": 5.691522986121337e-05,
+   "ex_post_mean": 1.641526758844325e-05,
+   "losses": [
+    1.1102230246251565e-16,
+    0.0,
+    0.0001707456895835291
+   ],
+   "off_support": [
+    0.0001707456895835291
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 1,
+    "mistake": 0,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677813024",
+   "side": "p1",
+   "rating": 1102,
+   "decisions": 7,
+   "scored": 6,
+   "ex_ante_mean": 0.01870878871735269,
+   "ex_post_mean": 0.046532006658642044,
+   "losses": [
+    0.0,
+    1.1102230246251565e-16,
+    0.10063865999862887,
+    0.0,
+    0.0062383596685041676,
+    0.005375712636982999
+   ],
+   "off_support": [
+    0.10063865999862887,
+    0.0062383596685041676,
+    0.005375712636982999
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 3,
+    "inaccuracy": 2,
+    "mistake": 1,
+    "blunder": 0
+   }
+  },
+  {
+   "replay_id": "gen9championsvgc2026regmbbo3-2677813024",
+   "side": "p2",
+   "rating": 1193,
+   "decisions": 6,
+   "scored": 5,
+   "ex_ante_mean": 0.0012325679975377479,
+   "ex_post_mean": 0.002797102217802738,
+   "losses": [
+    0.0,
+    0.004071227864975491,
+    0.0015762718448535384,
+    0.0005153402778595995,
+    1.1102230246251565e-16
+   ],
+   "off_support": [
+    0.004071227864975491,
+    0.0015762718448535384,
+    0.0005153402778595995
+   ],
+   "labels": {
+    "best": 0,
+    "solid": 2,
+    "inaccuracy": 3,
+    "mistake": 0,
+    "blunder": 0
+   }
+  }
+ ],
+ "game_views": 160,
+ "games": 80,
+ "decisions": 801,
+ "bands_by_rating": [
+  {
+   "band": "<= 1086",
+   "game_views": 40,
+   "decisions": 184,
+   "ex_ante": [
+    0.030050335050243526,
+    0.018131425921238033,
+    0.04504336267730098
+   ],
+   "ex_post": [
+    0.038462601450108734,
+    0.02610760773977587,
+    0.051392230531964574
+   ],
+   "hand_set_shares": {
+    "inaccuracy": 0.7476635514018691,
+    "mistake": 0.14953271028037382,
+    "blunder": 0.102803738317757
+   }
+  },
+  {
+   "band": "1086 to 1136",
+   "game_views": 41,
+   "decisions": 194,
+   "ex_ante": [
+    0.03421907549565412,
+    0.0192129422655538,
+    0.05544661452581649
+   ],
+   "ex_post": [
+    0.034028803722893936,
+    0.024463557196689106,
+    0.044334797499103004
+   ],
+   "hand_set_shares": {
+    "inaccuracy": 0.7322834645669292,
+    "mistake": 0.2283464566929134,
+    "blunder": 0.03937007874015748
+   }
+  },
+  {
+   "band": "1136 to 1268",
+   "game_views": 39,
+   "decisions": 226,
+   "ex_ante": [
+    0.017944707490244193,
+    0.010653654348398024,
+    0.027178022413523087
+   ],
+   "ex_post": [
+    0.02107603403551171,
+    0.013515299501728036,
+    0.031420601441137605
+   ],
+   "hand_set_shares": {
+    "inaccuracy": 0.8602941176470589,
+    "mistake": 0.125,
+    "blunder": 0.014705882352941176
+   }
+  },
+  {
+   "band": "> 1268",
+   "game_views": 40,
+   "decisions": 197,
+   "ex_ante": [
+    0.0268615494183997,
+    0.014845149515422066,
+    0.041045139229620435
+   ],
+   "ex_post": [
+    0.032578423156668174,
+    0.019347715530741483,
+    0.04906383433800683
+   ],
+   "hand_set_shares": {
+    "inaccuracy": 0.8532110091743119,
+    "mistake": 0.08256880733944955,
+    "blunder": 0.06422018348623854
+   }
+  }
+ ],
+ "spearman_ex_ante": [
+  -0.10748020019970354,
+  -0.27585137590781383,
+  0.04408448018159372
+ ],
+ "spearman_ex_post": [
+  -0.1517219779333784,
+  -0.31336850885951906,
+  0.00425718963774271
+ ],
+ "spearman_difference": [
+  0.04424177773367487,
+  -0.11167257921470614,
+  0.21797750544223166
+ ],
+ "hand_set": {
+  "inaccuracy": 0.05,
+  "mistake": 0.15,
+  "source": "hand-set"
+ },
+ "fitted": {
+  "inaccuracy": 0.0078,
+  "mistake": 0.0484,
+  "source": "calibrated on 40 top-quartile game views, 109 off-support decisions"
+ },
+ "fitted_shares_all": {
+  "inaccuracy": 0.38413361169102295,
+  "mistake": 0.4112734864300626,
+  "blunder": 0.2045929018789144
+ },
+ "hand_set_shares_all": {
+  "inaccuracy": 0.7995824634655533,
+  "mistake": 0.14822546972860126,
+  "blunder": 0.05219206680584551
+ }
+}

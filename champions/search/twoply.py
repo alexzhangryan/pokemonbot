@@ -68,9 +68,11 @@ from champions.protocol.actions import TARGET_LABELS
 from champions.search.evaluate import alive, win_prob
 from champions.search.matrix import solve_both
 from champions.search.payoff import (
+    TRANSIENT_SIDE_CONDITIONS,
     EffectsProvider,
     OpponentHypothesis,
     TurnModel,
+    clear_turn_flags,
     payoff_matrix,
 )
 from champions.search.policy import HeuristicPolicy, PolicyProvider, opponent_candidates
@@ -260,11 +262,20 @@ def next_turn(state: dict[str, Any]) -> dict[str, Any]:
         for index, view in enumerate(active):
             if view is None:
                 continue
-            placed = bool(view.pop("_placed", False))
-            protected = bool(view.pop("_protected", False))
+            placed = bool(view.get("_placed", False))
+            protected = bool(view.get("_protected", False))
+            # Every one-turn marker the model left (flinch, redirection,
+            # Helping Hand, the chosen action) is gone with the turn.
+            view = clear_turn_flags(view)
             view["first_turn"] = placed
             view["protect_counter"] = int(view.get("protect_counter") or 0) + 1 if protected else 0
             active[index] = view
+    for key in ("side_conditions", "opponent_side_conditions"):
+        child[key] = {
+            name: value
+            for name, value in (child.get(key) or {}).items()
+            if name not in TRANSIENT_SIDE_CONDITIONS
+        }
     return child
 
 

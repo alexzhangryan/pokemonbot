@@ -8,7 +8,7 @@ from collections.abc import Callable
 from websockets.asyncio.client import ClientConnection
 
 # A hand-built, format-validated team (`node pokemon-showdown validate-team
-# gen9championsvgc2026regmb` exits 0), packed for `/utm`. Champions VGC
+# gen9championsvgc2026regmc` exits 0), packed for `/utm`. Champions VGC
 # requires "your own team" before it will accept a challenge.
 PACKED_TEST_TEAM = (
     "Incineroar|||Blaze|Protect,FlareBlitz,FireBlast,BulkUp|Adamant|||||50|]"

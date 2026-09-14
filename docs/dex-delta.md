@@ -1,16 +1,16 @@
 # Dex Delta: `champions` vs `gen9` (mainline)
 
-Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404fa6e7` by `scripts/build_dex.py --delta`. Not published. This is the engineering checklist for M1: every move, item, and ability where `champions` differs from unmodified `gen9`.
+Generated from `vendor/showdown` at commit `aa6d5f0856d24679be8f5df167d1b528c2dcbd71` by `scripts/build_dex.py --delta`. Not published. This is the engineering checklist for M1: every move, item, and ability where `champions` differs from unmodified `gen9`.
 
 ## Summary
 
 | Category | Added | Removed | Modified |
 | --- | --- | --- | --- |
-| moves | 0 | 0 | 303 |
-| items | 0 | 0 | 256 |
-| abilities | 0 | 0 | 8 |
+| moves | 0 | 0 | 293 |
+| items | 0 | 0 | 251 |
+| abilities | 0 | 0 | 7 |
 
-## Moves (303 modified)
+## Moves (293 modified)
 
 ### `absorb`
 - `isNonstandard`: null -> "Past"
@@ -77,10 +77,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `behemothblade`
 - `isNonstandard`: null -> "Past"
-
-### `belch`
-- `desc`: null -> "Fails unless the user has eaten a Berry, either by eating one that was held, stealing and eating one off another Pokemon with Bug Bite or Pluck, or eating one that was thrown at it with Fling. Once t…
-- `shortDesc`: null -> "Fails unless the user has eaten a Berry."
 
 ### `bite`
 - `pp`: 25 -> 20
@@ -174,9 +170,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `cottonspore`
 - `pp`: 40 -> 20
 
-### `courtchange`
-- `isNonstandard`: null -> "Past"
-
 ### `covet`
 - `pp`: 25 -> 20
 
@@ -207,11 +200,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `direclaw`
-- `desc`: null -> "Has a 30% chance to cause the target to either fall asleep, become poisoned, or become paralyzed."
 - `flags`: {"contact": 1, "protect": 1, "mirror": 1, "metronome": 1} -> {"contact": 1, "protect": 1, "mirror": 1, "metronome": 1, "slicing": 1}
 - `secondaries`: [{"chance": 50}] -> [{"chance": 30}]
 - `secondary`: {"chance": 50} -> {"chance": 30}
-- `shortDesc`: null -> "30% chance to sleep, poison, or paralyze target."
 
 ### `disarmingvoice`
 - `isNonstandard`: null -> "Past"
@@ -227,7 +218,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 30 -> 20
 
 ### `doubleshock`
-- `isNonstandard`: null -> "Past"
+- `flags`: {"contact": 1, "protect": 1, "mirror": 1} -> {"contact": 1, "protect": 1, "mirror": 1, "punch": 1}
 
 ### `dragonascent`
 - `isNonstandard`: null -> "Past"
@@ -252,9 +243,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `dreameater`
 - `isNonstandard`: null -> "Past"
 
-### `drumbeating`
-- `isNonstandard`: null -> "Past"
-
 ### `dynamaxcannon`
 - `isNonstandard`: null -> "Past"
 
@@ -277,9 +265,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `fairywind`
 - `isNonstandard`: null -> "Past"
 - `pp`: 30 -> 20
-
-### `fakeout`
-- `desc`: null -> "Has a 100% chance to make the target flinch. This move cannot be selected unless it is the user's first turn on the field."
 
 ### `falsesurrender`
 - `isNonstandard`: null -> "Past"
@@ -306,7 +291,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `firstimpression`
 - `basePower`: 90 -> 100
-- `desc`: null -> "This move cannot be selected unless it is the user's first turn on the field."
 - `zMove`: {"basePower": 175} -> {"basePower": 180}
 
 ### `fishiousrend`
@@ -332,10 +316,8 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 40 -> 20
 
 ### `freezedry`
-- `desc`: null -> "This move's type effectiveness against Water is changed to be super effective no matter what this move's type is."
 - `secondaries`: [{"chance": 10, "status": "frz"}] -> null
 - `secondary`: {"chance": 10, "status": "frz"} -> null
-- `shortDesc`: null -> "Super effective on Water."
 
 ### `freezeshock`
 - `isNonstandard`: null -> "Past"
@@ -366,9 +348,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `glaciate`
-- `isNonstandard`: null -> "Past"
-
-### `glaiverush`
 - `isNonstandard`: null -> "Past"
 
 ### `glare`
@@ -467,15 +446,10 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `pp`: 25 -> 20
 
 ### `ironhead`
-- `desc`: null -> "Has a 20% chance to make the target flinch."
 - `secondaries`: [{"chance": 30, "volatileStatus": "flinch"}] -> [{"chance": 20, "volatileStatus": "flinch"}]
 - `secondary`: {"chance": 30, "volatileStatus": "flinch"} -> {"chance": 20, "volatileStatus": "flinch"}
-- `shortDesc`: null -> "20% chance to make the target flinch."
 
 ### `ivycudgel`
-- `isNonstandard`: null -> "Past"
-
-### `jawlock`
 - `isNonstandard`: null -> "Past"
 
 ### `judgment`
@@ -541,9 +515,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `makeitrain`
 - `accuracy`: 100 -> 95
-- `desc`: null -> "Lowers the user's Special Attack by 2 stages."
 - `self`: {"boosts": {"spa": -1}} -> {"boosts": {"spa": -2}}
-- `shortDesc`: null -> "Lowers the user's Sp. Atk by 2. Hits foe(s)."
 
 ### `malignantchain`
 - `isNonstandard`: null -> "Past"
@@ -565,6 +537,10 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `metalsound`
 - `pp`: 40 -> 20
 
+### `meteorassault`
+- `basePower`: 150 -> 170
+- `isNonstandard`: "Past" -> null
+
 ### `metronome`
 - `isNonstandard`: null -> "Past"
 
@@ -572,7 +548,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `milkdrink`
-- `isNonstandard`: null -> "Past"
+- `target`: "self" -> "adjacentAllyOrSelf"
 
 ### `mimic`
 - `isNonstandard`: null -> "Past"
@@ -588,10 +564,8 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `moonblast`
-- `desc`: null -> "Has a 10% chance to lower the target's Special Attack by 1 stage."
 - `secondaries`: [{"chance": 30, "boosts": {"spa": -1}}] -> [{"chance": 10, "boosts": {"spa": -1}}]
 - `secondary`: {"chance": 30, "boosts": {"spa": -1}} -> {"chance": 10, "boosts": {"spa": -1}}
-- `shortDesc`: null -> "10% chance to lower the target's Sp. Atk by 1."
 
 ### `moongeistbeam`
 - `isNonstandard`: null -> "Past"
@@ -623,6 +597,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `obstruct`
 - `pp`: 10 -> 5
 
+### `octolock`
+- `isNonstandard`: "Past" -> null
+
 ### `odorsleuth`
 - `pp`: 40 -> 20
 
@@ -630,9 +607,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `originpulse`
-- `isNonstandard`: null -> "Past"
-
-### `overdrive`
 - `isNonstandard`: null -> "Past"
 
 ### `payday`
@@ -705,15 +679,8 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `purify`
 - `pp`: 20 -> 5
 
-### `pyroball`
-- `isNonstandard`: null -> "Past"
-
 ### `quickattack`
 - `pp`: 30 -> 20
-
-### `ragefist`
-- `desc`: null -> "Power is equal to 50+(X*50), where X is the total number of times the user has been hit by a damaging attack during the battle, even if the user did not lose HP from the attack. X cannot be greater t…
-- `shortDesc`: null -> "+50 BP/hit on user. Max 6 hits. Resets on switch-out."
 
 ### `rapidspin`
 - `pp`: 40 -> 20
@@ -732,9 +699,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `basePower`: 90 -> 100
 - `isNonstandard`: null -> "Past"
 - `zMove`: {"basePower": 175} -> {"basePower": 180}
-
-### `revivalblessing`
-- `isNonstandard`: null -> "Past"
 
 ### `roaroftime`
 - `isNonstandard`: null -> "Past"
@@ -756,10 +720,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `safeguard`
 - `pp`: 25 -> 20
-
-### `saltcure`
-- `desc`: null -> "Causes damage to the target equal to 1/16 of its maximum HP (1/8 if the target is Steel or Water type), rounded down, at the end of each turn during effect. This effect ends when the target is no lon…
-- `shortDesc`: null -> "Deals 1/16 max HP each turn; 1/8 on Steel, Water."
 
 ### `sandattack`
 - `isNonstandard`: null -> "Past"
@@ -798,9 +758,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `shelltrap`
 - `pp`: 5 -> 10
 
-### `shiftgear`
-- `isNonstandard`: null -> "Past"
-
 ### `shockwave`
 - `isNonstandard`: null -> "Past"
 
@@ -817,7 +774,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `slash`
-- `isNonstandard`: null -> "Past"
+- `basePower`: 70 -> 80
+- `maxMove`: {"basePower": 120} -> {"basePower": 130}
+- `zMove`: {"basePower": 140} -> {"basePower": 160}
 
 ### `sludge`
 - `isNonstandard`: null -> "Past"
@@ -835,7 +794,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `snipeshot`
 - `basePower`: 80 -> 85
-- `isNonstandard`: null -> "Past"
 
 ### `snowscape`
 - `pp`: 10 -> 5
@@ -882,12 +840,11 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `strength`
 - `isNonstandard`: null -> "Past"
 
+### `strengthsap`
+- `pp`: 10 -> 5
+
 ### `stringshot`
 - `pp`: 40 -> 20
-
-### `stuffcheeks`
-- `desc`: null -> "Fails if the user is not holding a Berry. The user eats its Berry and raises its Defense by 2 stages. This effect is not prevented by the Klutz or Unnerve Abilities, or the effects of Embargo or Magi…
-- `shortDesc`: null -> "Fails unless the user has a berry. User eats Berry, Def +2."
 
 ### `stunspore`
 - `pp`: 30 -> 20
@@ -957,8 +914,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `toxicthread`
 - `boosts`: {"spe": -1} -> {"spe": -2}
-- `desc`: null -> "Lowers the target's Speed by 2 stages and poisons it."
-- `shortDesc`: null -> "Lowers the target's Speed by 2 and poisons it."
 
 ### `trickortreat`
 - `isNonstandard`: "Past" -> null
@@ -1015,6 +970,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 - `pp`: 35 -> 20
 
+### `wish`
+- `pp`: 10 -> 5
+
 ### `withdraw`
 - `isNonstandard`: null -> "Past"
 - `pp`: 40 -> 20
@@ -1023,10 +981,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 - `pp`: 30 -> 20
 
-### `zingzap`
-- `isNonstandard`: null -> "Past"
-
-## Items (256 modified)
+## Items (251 modified)
 
 ### `abilityshield`
 - `isNonstandard`: null -> "Past"
@@ -1036,6 +991,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `absolite`
 - `isNonstandard`: "Past" -> null
+
+### `absolitez`
+- `isNonstandard`: "Future" -> null
 
 ### `absorbbulb`
 - `isNonstandard`: null -> "Past"
@@ -1056,9 +1014,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: "Past" -> null
 
 ### `aguavberry`
-- `isNonstandard`: null -> "Past"
-
-### `airballoon`
 - `isNonstandard`: null -> "Past"
 
 ### `alakazite`
@@ -1088,6 +1043,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `barbaracite`
 - `isNonstandard`: "Future" -> null
 
+### `baxcalibrite`
+- `isNonstandard`: "Future" -> null
+
 ### `beastball`
 - `isNonstandard`: null -> "Past"
 
@@ -1098,9 +1056,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `bignugget`
-- `isNonstandard`: null -> "Past"
-
-### `bindingband`
 - `isNonstandard`: null -> "Past"
 
 ### `blacksludge`
@@ -1226,16 +1181,10 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `eelektrossite`
 - `isNonstandard`: "Future" -> null
 
-### `ejectbutton`
-- `isNonstandard`: null -> "Past"
-
 ### `ejectpack`
 - `isNonstandard`: null -> "Past"
 
 ### `electirizer`
-- `isNonstandard`: null -> "Past"
-
-### `electricseed`
 - `isNonstandard`: null -> "Past"
 
 ### `emboarite`
@@ -1304,6 +1253,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `garchompite`
 - `isNonstandard`: "Past" -> null
 
+### `garchompitez`
+- `isNonstandard`: "Future" -> null
+
 ### `gardevoirite`
 - `isNonstandard`: "Past" -> null
 
@@ -1320,13 +1272,10 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `golisopite`
-- `isNonstandard`: "Future" -> "Past"
+- `isNonstandard`: "Future" -> null
 
 ### `golurkite`
 - `isNonstandard`: "Future" -> null
-
-### `grassyseed`
-- `isNonstandard`: null -> "Past"
 
 ### `greatball`
 - `isNonstandard`: null -> "Past"
@@ -1412,6 +1361,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `leafstone`
 - `isNonstandard`: null -> "Past"
 
+### `leek`
+- `isNonstandard`: "Past" -> null
+
 ### `levelball`
 - `isNonstandard`: null -> "Past"
 
@@ -1432,6 +1384,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `lucarionite`
 - `isNonstandard`: "Past" -> null
+
+### `lucarionitez`
+- `isNonstandard`: "Future" -> null
 
 ### `luminousmoss`
 - `isNonstandard`: null -> "Past"
@@ -1502,9 +1457,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `mirrorherb`
 - `isNonstandard`: null -> "Past"
 
-### `mistyseed`
-- `isNonstandard`: null -> "Past"
-
 ### `moonball`
 - `isNonstandard`: null -> "Past"
 
@@ -1515,9 +1467,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `netball`
-- `isNonstandard`: null -> "Past"
-
-### `normalgem`
 - `isNonstandard`: null -> "Past"
 
 ### `ovalstone`
@@ -1580,9 +1529,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `protector`
 - `isNonstandard`: null -> "Past"
 
-### `psychicseed`
-- `isNonstandard`: null -> "Past"
-
 ### `punchingglove`
 - `isNonstandard`: null -> "Past"
 
@@ -1613,9 +1559,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `reapercloth`
 - `isNonstandard`: null -> "Past"
 
-### `redcard`
-- `isNonstandard`: null -> "Past"
-
 ### `repeatball`
 - `isNonstandard`: null -> "Past"
 
@@ -1623,9 +1566,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 - `isNonstandard`: null -> "Past"
 
 ### `ringtarget`
-- `isNonstandard`: null -> "Past"
-
-### `rockyhelmet`
 - `isNonstandard`: null -> "Past"
 
 ### `roomservice`
@@ -1651,6 +1591,9 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `salacberry`
 - `isNonstandard`: null -> "Past"
+
+### `salamencite`
+- `isNonstandard`: "Past" -> null
 
 ### `sceptilite`
 - `isNonstandard`: "Past" -> null
@@ -1681,7 +1624,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 
 ### `slowbronite`
 - `isNonstandard`: "Past" -> null
-- `shortDesc`: null -> "If held by a Slowbro (not Galarian Slowbro), this item allows it to Mega Evolve."
 
 ### `snowball`
 - `isNonstandard`: null -> "Past"
@@ -1743,9 +1685,6 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `tartapple`
 - `isNonstandard`: null -> "Past"
 
-### `terrainextender`
-- `isNonstandard`: null -> "Past"
-
 ### `throatspray`
 - `isNonstandard`: null -> "Past"
 
@@ -1797,7 +1736,7 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `zapplate`
 - `isNonstandard`: null -> "Past"
 
-## Abilities (8 modified)
+## Abilities (7 modified)
 
 ### `dragonize`
 - `isNonstandard`: "Future" -> null
@@ -1808,18 +1747,15 @@ Generated from `vendor/showdown` at commit `bb179fbf8449e3c31632bd56f671ffb4404f
 ### `firemane`
 - `isNonstandard`: "Future" -> null
 
-### `healer`
-- `desc`: null -> "50% chance this Pokemon's ally has its non-volatile status condition cured at the end of each turn."
-- `shortDesc`: null -> "50% chance this Pokemon's ally has its status cured at the end of each turn."
-
 ### `megasol`
 - `isNonstandard`: "Future" -> null
 
 ### `piercingdrill`
 - `isNonstandard`: "Future" -> null
 
+### `runaway`
+- `onMaybeTrapPokemonPriority`: null -> -10
+- `onTrapPokemonPriority`: null -> -10
+
 ### `spicyspray`
 - `isNonstandard`: "Future" -> null
-
-### `unseenfist`
-- `shortDesc`: null -> "This Pokemon's contact moves ignore a target's protection and deal 1/4 the usual damage."

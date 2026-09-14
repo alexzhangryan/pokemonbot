@@ -34,6 +34,7 @@ from champions.belief.filter import BattleBelief
 from champions.belief.priors import PriorNotBuiltError, SetPrior
 from champions.dex.loader import Dex, DexNotBuiltError
 from champions.protocol import actions, parser, state
+from champions.search.clock import ClockState
 from champions.search.evaluate import evaluate
 from champions.search.watchdog import AnytimeDecision, decide_with_deadline
 from champions.trace.schema import EventType
@@ -80,6 +81,7 @@ class TracingPlayer(Player):
         prior: SetPrior | None = None,
         belief: bool = True,
         on_battle_end: Callable[[AbstractBattle], None] | None = None,
+        on_battle_start: Callable[[AbstractBattle], None] | None = None,
         **kwargs: Any,
     ) -> None:
         if kwargs.get("accept_open_team_sheet"):
@@ -95,6 +97,7 @@ class TracingPlayer(Player):
         self._seed = seed
         self._rng = random.Random(seed)
         self._traces: dict[str, Trace] = {}
+        self._clocks: dict[str, ClockState] = {}
         self._started: set[str] = set()
         self._log_buffer: dict[str, list[str]] = {}
         # One parser state per battle, carried across turns because a
@@ -119,6 +122,9 @@ class TracingPlayer(Player):
         # once every battle is done, so without this a long run is silent until
         # it ends -- which is exactly when progress stops being useful.
         self._on_battle_end = on_battle_end
+        # Its counterpart, fired once per battle after `battle_start` is on the
+        # trace. The live ladder uses it to ask the room to save its replay.
+        self._on_battle_start = on_battle_start
 
     # -- tracing ---------------------------------------------------------
 
@@ -133,6 +139,21 @@ class TracingPlayer(Player):
 
     def trace_path(self, battle_tag: str) -> Any:
         return self._traces[battle_tag].path
+
+    # -- the clock -------------------------------------------------------
+
+    def clock_for(self, battle: AbstractBattle) -> ClockState:
+        """What this battle has spent so far, per battle because the ladder
+        plays several through one player."""
+        tag = battle.battle_tag
+        if tag not in self._clocks:
+            self._clocks[tag] = ClockState()
+        return self._clocks[tag]
+
+    def _deadline_s(self, battle: AbstractBattle) -> float:
+        """Seconds this decision may take. The fixed limit unless an agent
+        allocates (`champions/agents/adaptive.py`)."""
+        return self._decision_deadline_s
 
     async def close_traces(self) -> None:
         """Flush and close every trace this player opened.
@@ -282,6 +303,8 @@ class TracingPlayer(Player):
                 "belief": self._belief_enabled,
             },
         )
+        if self._on_battle_start is not None:
+            self._on_battle_start(battle)
 
     def teampreview(self, battle: AbstractBattle) -> str:
         self._emit_battle_start_once(battle)
@@ -404,13 +427,26 @@ class TracingPlayer(Player):
         async def search(decision: AnytimeDecision[BattleOrder]) -> None:
             await self._search(battle, orders, decision)
 
+        # The clock is tracked here for every agent (D7) and allocated by the
+        # ones that override `_deadline_s` (M11, `champions/agents/adaptive.py`).
+        # The budget state travels on the timing event so the harness and the
+        # viewer read the allocation rather than infer it.
+        clock = self.clock_for(battle)
+        deadline_s = self._deadline_s(battle)
         result = await decide_with_deadline(
             search,
             fallback=fallback,
-            deadline_s=self._decision_deadline_s,
+            deadline_s=deadline_s,
             trace=trace,
-            trace_payload={"turn": battle.turn, "phase": "choose_move"},
+            trace_payload={
+                "turn": battle.turn,
+                "phase": "choose_move",
+                "budget_s": deadline_s,
+                "spent_before_s": round(clock.spent_s, 3),
+                "remaining_player_clock_s": round(clock.remaining_s(), 3),
+            },
         )
+        clock.record(result.elapsed_ms / 1000.0)
 
         trace.emit(
             EventType.EQUILIBRIUM,

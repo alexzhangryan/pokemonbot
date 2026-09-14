@@ -2,7 +2,7 @@
 
 Usage:
     python scripts/build_priors.py
-    python scripts/build_priors.py --format gen9championsvgc2026regmbbo3
+    python scripts/build_priors.py --format gen9championsvgc2026regmcbo3
     python scripts/build_priors.py --stats-only
 
 The artifact is content-hashed and written to `data/priors/setprior.<hash>.json`,

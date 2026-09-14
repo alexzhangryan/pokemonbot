@@ -306,7 +306,10 @@ def test_calibration_is_claimed_only_when_it_has_been_measured() -> None:
     file exists, since that file is written by the same run that writes the
     reliability diagram.
     """
-    fitted = WEIGHTS_PATH("gen9championsvgc2026regmb").is_file()
+    fitted = (
+        WEIGHTS_PATH("gen9championsvgc2026regmc").is_file()
+        or WEIGHTS_PATH("gen9championsvgc2026regmb").is_file()
+    )
     assert IS_CALIBRATED is fitted
     assert evaluate(_snapshot()).calibrated is fitted
     if not fitted:

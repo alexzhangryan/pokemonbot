@@ -43,7 +43,7 @@ node build
 cd ../..
 
 # The resolved Champions dex (gitignored, regenerated locally)
-.venv/Scripts/python.exe scripts/build_dex.py gen9championsvgc2026regmb --delta
+.venv/Scripts/python.exe scripts/build_dex.py gen9championsvgc2026regmc --delta
 
 # The belief filter's set prior, distilled from the replay corpus (section 13).
 # Optional: without it the agents still play, with no belief.
@@ -75,7 +75,7 @@ git checkout (Get-Content ../SHOWDOWN_COMMIT)
 git checkout "$(cat ../SHOWDOWN_COMMIT)"
 ```
 
-The last step writes `data/dex/gen9championsvgc2026regmb.<hash>.json` and
+The last step writes `data/dex/gen9championsvgc2026regmc.<hash>.json` and
 regenerates `docs/dex-delta.md`. The hash is content-addressed: an unchanged
 vendor build always produces the same one.
 
@@ -164,10 +164,10 @@ bot up**. The panel then shows the four steps and a link:
    — the official Showdown client UI, loaded from Smogon but connected to *your*
    local server. This needs internet for the client assets; the battles
    themselves are entirely local.
-2. Open the teambuilder and paste in `data/teams/regmb-worlds.txt` (the agent's
+2. Open the teambuilder and paste in `data/teams/regmc-perish.txt` (the agent's
    default team, D75) or any of the other three.
 3. Find Users → `champbot` → Challenge, in
-   **[Gen 9 Champions] VGC 2026 Reg M-B**.
+   **[Gen 9 Champions] VGC 2026 Reg M-C**.
 4. Decline Open Team Sheets if prompted — the bot always declines, by design,
    because Champions has no such mechanism.
 
@@ -219,7 +219,7 @@ Traces are append-only JSONL, one file per agent-view of a battle:
 ```
 valid: yes
 
-   0  battle_start      {"format_id": "gen9championsvgc2026regmb", "player_role": "p2", ...}
+   0  battle_start      {"format_id": "gen9championsvgc2026regmc", "player_role": "p2", ...}
    1  preview_decision  {"order": "/team 6215", "selected": ["gyarados", "tyranitar", ...]}
    2  turn_start        {"turn": 1, "active": ["milotic", "tyranitar"], ...}
    3  timing            {"turn": 1, "total_ms": 0.29, "watchdog_fired": false, ...}
@@ -249,7 +249,7 @@ once M2 prunes it.
 
 ## 8. Evaluate agents against each other
 
-The default team everywhere is `regmb-worlds` (`champions.teams.DEFAULT`):
+The default team everywhere is `regmc-perish` (`champions.teams.DEFAULT`, D87; `regmb-worlds` before it):
 Takuma Yamazaki's 2026 World Championships winner, published stat points
 included, see D75. `regmb-rain` is the Maddo's Cup #9 winner with hand-chosen
 points (D73). Pass `--team` (ladder) or `--team-a`/`--team-b` (self-play) for
@@ -306,7 +306,7 @@ engine at M8.
 
 **"Multiple dex dumps ... ambiguous which build is current".** You rebuilt
 Showdown at a different commit. Delete the stale
-`data/dex/gen9championsvgc2026regmb.*.json` and rebuild.
+`data/dex/gen9championsvgc2026regmc.*.json` and rebuild.
 
 **Backslash paths don't work in Git Bash.** `.venv\Scripts\python.exe` (or
 anything else with backslashes) only works in PowerShell/cmd. In Git Bash use
@@ -338,8 +338,8 @@ a Showdown server once, which takes a few seconds.
 ## 12. Build the replay corpus
 
 The corpus is scraped from Showdown's public replay API. Two format IDs, for two
-different reasons: `gen9championsvgc2026regmb` is ordinary ladder play under
-hidden information, and `gen9championsvgc2026regmbbo3` forces open team sheets,
+different reasons: `gen9championsvgc2026regmc` is ordinary ladder play under
+hidden information, and `gen9championsvgc2026regmcbo3` forces open team sheets,
 so every replay reveals both players' complete sets.
 
 ```bash
@@ -351,7 +351,7 @@ make scrape-full     # backfill the Bo3 corpus to exhaustion; hours, resumable
 Or the script directly, which has the knobs:
 
 ```bash
-python scripts/scrape_replays.py --format gen9championsvgc2026regmbbo3 --max-replays 200
+python scripts/scrape_replays.py --format gen9championsvgc2026regmcbo3 --max-replays 200
 python scripts/scrape_replays.py --reparse    # rebuild the tables from stored logs
 ```
 
@@ -560,12 +560,10 @@ M0 through M8 are done. What that leaves:
 - The frozen opponent pool has nothing between `greedy`, which the agent beats
   95% of the time, and the agent itself, so every win-rate measurement is a
   rout or a mirror (D72). More teams would fix that and two other limits.
-- No coach and no game review client. The live view (section 4) is built and
-  renders everything the agent emits; the review overlay — move classification,
-  ex-ante and ex-post loss, explanations — is M9. Note that nothing currently
-  checks `IS_CALIBRATED` before reporting; whoever writes the coach has to
-  decide what it does when the flag is False.
-- The clock is tracked and reported, not managed (M11).
+- The coach (section 18), the review in the viewer (section 19) and the clock
+  allocation (section 20) are built. What remains is measurement: the coach's
+  bands are fitted from one corpus sample and its validity check is one run;
+  the adaptive agent has one ladder table.
 
 See `docs/STATUS.md` for where things actually stand and `docs/01-plan.md` for
 what comes next.
@@ -609,3 +607,230 @@ matrix by stepping the real simulator from the current position
 about half a second per decision. `twoply` and `twoply-oracle` solve a one-ply
 game at every position the first ply reaches (`champions/search/twoply.py`);
 about 60 ms per decision.
+
+## 18. Review a game with the coach
+
+M9 is the coach of `docs/06-coach-and-evaluation.md` part I, built to
+`docs/specs/2026-09-13-coach.md` (D76). It takes a finished game, re-solves
+every turn offline with the pruning removed, and reports two losses per turn:
+ex-ante (what the decision cost against an opponent playing the equilibrium,
+given what was knowable) and ex-post (what it cost against what the opponent
+actually did, under full information). Each turn gets a label (best, solid,
+inaccuracy, mistake, blunder) and tags (forced, read, gamble, unlucky, lucky),
+the game gets a win probability curve and its critical turns, and every
+number comes with a sentence.
+
+It reads two kinds of game:
+
+```powershell
+.venv/Scripts/python.exe scripts/review.py traces                              # the newest trace under traces/
+.venv/Scripts/python.exe scripts/review.py runs/m8-gate/regmb-alpha/oneply-oracle/battle-gen9championsvgc2026regmb-650.oneply0t0a0.jsonl --opponent-team data/teams/regmb-alpha.txt
+.venv/Scripts/python.exe scripts/review.py gen9championsvgc2026regmc-1234567 --side p1   # fetched from the replay site
+.venv/Scripts/python.exe scripts/review.py saved.log --side alice                          # a saved replay log
+```
+
+A **trace** of the agent's own game needs nothing else: the position, the
+legal actions, the choice and the opponent's reply are all on the trace. The
+ex-ante half runs on the agent's own information (revealed moves, pessimistic
+stats); `--opponent-team` supplies the opponent's registered sets for the
+ex-post half, which in a mirror match is the team file the run played.
+
+A **replay** of anyone's game is rebuilt from the log with the M7
+reconstruction (`champions/corpus/replay_state.py`, `champions/search/policy_data.py`)
+and reviewed from `--side` (`p1`, `p2`, or a player name). On the Bo3 ladder
+the log carries Open Team Sheets, and the coach uses the sheet for both halves
+because the human saw it. The replay is saved under `traces/reviews/`.
+
+Either way it writes `<stem>.review.jsonl`, the trace with `analysis` events
+interleaved (valid by `champions/trace/validate.py`, so the viewer can open it,
+though it does not render the overlay until M10), and `<stem>.review.md`, the
+review as a document, which it also prints. `--llm` asks the language model of
+section 15 (`ollama serve` and a pulled model) to write the critical turns'
+prose from the same facts; without it, the template does. `--k` is the
+opponent column budget (25). About a second per turn.
+
+Read the header first. If the evaluation weights are not fit on this machine
+(section 14) the document says so and every probability is a ranking. The
+classification thresholds are hand-set (`champions/coach/classify.py`) until
+they are calibrated against rating bands, which needs the corpus.
+
+`make review GAME=<path or id> REVIEW_ARGS="--side p1"` is the same thing.
+
+### Calibrating the bands
+
+`docs/06` section 2 wants the label thresholds calibrated against rating
+bands rather than hand-set, and section 8 wants evidence that ex-ante loss
+measures skill. One script does both (D77), over the corpus of section 12:
+
+```powershell
+.venv/Scripts/python.exe scripts/calibrate_coach.py                 # or: make calibrate-coach
+.venv/Scripts/python.exe scripts/calibrate_coach.py --limit 200     # more games, more minutes
+.venv/Scripts/python.exe scripts/calibrate_coach.py --write-bands   # and let the coach use the fit
+```
+
+It reviews rated open-sheet Bo3 games from both sides, writes
+`docs/coach-calibration.md` and `data/eval/coach-calibration.<format>.json`,
+and prints the document. The bands are fitted by a rule fixed before the
+numbers (among the top quartile's off-support decisions, half are
+inaccuracies, thirty-five percent mistakes, the rest blunders) and applied
+only with `--write-bands`, which writes `data/eval/coach-bands.<format>.json`
+for `champions/coach/classify.py` to read; until then every review says its
+thresholds are hand-set. The validity half is the Spearman correlation of
+per-game mean loss with rating, ex-ante beside ex-post, with a verdict on
+whether the two come apart.
+
+## 19. Read a review in the viewer
+
+The viewer of section 4 renders the coach's overlay (M10, D77). Open it as
+usual and pick a `….review` entry from the trace picker; the review files the
+coach writes sit beside the traces and are listed with them.
+
+```powershell
+make review GAME=runs/m8-gate/regmb-beta/sim-oracle REVIEW_ARGS="--opponent-team data/teams/regmb-beta.txt"
+make viewer TRACES=runs/m8-gate
+```
+
+What changes on a reviewed trace, and only there:
+
+- The spine carries a mark per turn (★ best, ✓ solid, ?! inaccuracy, ? mistake,
+  ?? blunder) and a letter per tag; hover for the sentence.
+- The eval strip draws the whole game's win-probability curve with the
+  selected turn on it.
+- A review block heads the decision column: both losses in total, the label
+  counts, the tags, and the critical turns as buttons that jump to them.
+- Each turn's panel shows the label and tags, ex-ante and ex-post loss, luck,
+  the re-solved equilibrium (in place of the live agent's pending strategy
+  block), the opponent's mix, the roll branches and the writeup.
+- The preview pseudo-turn shows the bring, the leads, and why there is no
+  verdict.
+
+A trace the coach has not reviewed renders exactly as before.
+
+## 20. The clock
+
+M11 (D77). Every agent now tracks what each battle has spent and writes the
+budget it was offered, the spend so far and the remaining player clock on
+every `timing` event; the ladder table's clock columns read those. The
+`adaptive` agent allocates: a turn gets the smaller of the 45 s limit and an
+even share of the clock left after a reserve, spread over the turns the game
+is expected to still run (`champions/search/clock.py`), and it spends that
+share on a second ply only when the one-ply equilibrium is close, which is
+`docs/04` section 7's rule.
+
+```powershell
+.venv/Scripts/python.exe scripts/run_ladder.py 50 --arm-a adaptive --arm-b oneply --team regmb-worlds
+.venv/Scripts/python.exe scripts/selfplay.py 5 --agent-a adaptive --agent-b greedy
+```
+
+The pruned `candidates` event of an adaptive decision says whether it was
+`decisive` (played as solved) or `escalated` (re-solved one ply deeper), and
+the gap it rested on. `docs/STATUS.md` carries the first measurement.
+
+## 21. Play the official ladder
+
+`docs/06` section 6 asks for ladder performance on the proxy as the external
+check, reported as GXE. `scripts/ladder_live.py` is the one script that
+connects to play.pokemonshowdown.com; everything else about it is the local
+setup: the same agents, teams, traces and the Open Team Sheets refusal.
+
+1. Register an account for the bot on https://play.pokemonshowdown.com (the
+   name has to be registered or the rating is not kept). Name it so an
+   opponent can tell it is a bot, and read Showdown's rules on bots first;
+   registered, transparent and one battle at a time is the shape they
+   tolerate.
+2. Copy `.env.example` to `.env` and fill in `PS_USERNAME` and `PS_PASSWORD`.
+   `.env` is gitignored; the repository is public; never put either
+   anywhere else.
+3. Check the format is still on the ladder. Regulation M-B left it on
+   2026-09-09 (the server answers `/search` with "not ladderable"), and the
+   project moved to Reg M-C on 2026-09-14 (D80). When M-C goes the same way,
+   the format id changes: move the Showdown pin (`vendor/SHOWDOWN_COMMIT`),
+   `make dex` for the new id, change `FORMAT_ID` in `champions/formats.py`
+   and add the new id to `LINEAGE` there so the fitted artifacts carry over.
+   The list of what is ladderable is in the `|formats|` message the server
+   sends on connect; the bit `0x2` is "shows in search".
+
+Two things found on the first connection from this box (2026-09-13). The
+official server's certificate chain is rejected by the trust store this
+Anaconda Python uses by default ("certificate has expired", though it has
+not); the script sets `SSL_CERT_FILE` to certifi's bundle before poke-env
+loads and the handshake then succeeds. And poke-env cannot log a guest in on
+the official server (it sends an empty token, which only the local
+`--no-security` server accepts), so the account really is required; keep
+the name free of spaces. The path was verified up to authentication with a
+throwaway guest by hand; the registered login is the one step only a real
+account exercises.
+
+```powershell
+.venv/Scripts/python.exe scripts/ladder_live.py 10                  # or: make ladder-live LIVE_GAMES=10
+.venv/Scripts/python.exe scripts/ladder_live.py 30 --agent adaptive --team regmb-worlds
+```
+
+One line per game: result, opponent, their rating, our rating after. Elo
+comes back in the protocol; GXE is on the ladder page the script prints at
+the end. The first fifteen to twenty games are provisional, and a live game
+takes five to ten minutes against a human.
+
+**Watching it live.** In a second terminal:
+
+```powershell
+make viewer-live        # the viewer on runs/live/, no local simulator
+```
+
+It is the same viewer as `make viewer`, pointed at the live directory. The
+side pane lists every game — the opponent and the result, colour coded,
+newest first — and a game appears there as it starts, with the decision
+points streaming in as the bot makes them. A finished game opens as the
+coach's review of it once the review is written, which is before the next
+game starts (D84); there is one entry per game. Start it before
+or during a run, either works. The pill in the top bar says what the bot is
+doing — searching for a game, thinking on turn N (with the seconds so far),
+waiting for the opponent, coach reviewing the last game — and the viewer
+moves to the next game on its own when one starts, unless you picked a
+trace from the list yourself (D81). While a run is on, the control bar
+shows a **play ladder** button when nothing is running (D87): a number of
+games, or blank to play until you press stop, started as the same script
+`make ladder-live` runs, detached so closing the page forfeits nothing, with
+the default agent (`adaptive-belief`) and team. While a run is on it
+shows a **stop after this game** button: the run finishes the game on the
+board, reviews it, and stops (D82); **cancel stop** takes it back. Each
+candidate row shows the bot's score for it — its expected win probability
+against the opponent's equilibrium mix — beside its worst case, its weight
+in the mix and the policy prior that ranked it; the strategy block shows
+the game value and the opponent's expected replies. The page is laid out
+for half a screen beside an editor. The **current Elo** block in the
+middle of the top bar is the bot's standing on the official ladder — Elo
+large, then rank, GXE and record — from the site's public JSON, refreshed
+when a rated game ends and otherwise on the minute; rank is a number only
+when the bot is in the published top 500, since the site publishes no rank
+beyond it, and the Glicko estimate is in the block's tooltip (D83).
+
+**What is kept, per game (D78).** Three files' worth, all under `runs/live/`:
+
+- the trace, `<battle_tag>.<username>.jsonl`, the same decision trace as any
+  other run;
+- the replay, on the server: the bot asks the room to save it as the battle
+  starts, so `https://replay.pokemonshowdown.com/<id>` holds the neutral
+  record of the same game once it ends (`--no-save-replays` to opt out);
+- a row in `ledger.ndjson`: opponent, both ratings, result, turns, the trace
+  path and the replay URL. It accumulates across runs.
+
+```powershell
+make ladder-summary                       # the record so far, from the ledger
+make review GAME=runs/live                # the coach on every live trace
+make review GAME=<replay URL> REVIEW_ARGS="--side <bot name>"   # the same game, from the replay
+```
+
+**Game, coach, game, coach (D79).** By default the run alternates: a game
+ends, the coach reviews its trace (about a second a turn, in its own
+process), prints the summary and the critical turns, writes the
+`.review.jsonl` and `.review.md` beside the trace, and only then does the bot
+search for the next game. The review never overlaps a live search, and the
+viewer shows the finished game with its overlay as soon as the review lands.
+`LIVE_ARGS="--no-review"` plays back to back instead, and `make review
+GAME=runs/live` afterwards is the same result. The review of a live trace
+uses revealed moves as the information state, since nobody shows the bot a
+sheet.
+
+This is the first time the agent faces people. Every number before it was a
+mirror or a scripted opponent, so whatever it scores is a finding.

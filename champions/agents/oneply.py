@@ -47,9 +47,16 @@ from poke_env.player.battle_order import BattleOrder
 from champions.dex.loader import Dex, DexNotBuiltError
 from champions.protocol import actions as action_describe
 from champions.protocol import state as state_snapshot
+from champions.search.lead import PREVIEW_BUDGET_S, LeadChoice, lead_sweep
 from champions.search.matrix import solve_both
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
-from champions.search.policy import DEFAULT_K, HeuristicPolicy, PolicyProvider, opponent_candidates
+from champions.search.policy import (
+    DEFAULT_COLUMN_K,
+    DEFAULT_K,
+    HeuristicPolicy,
+    PolicyProvider,
+    opponent_candidates,
+)
 from champions.search.watchdog import AnytimeDecision
 from champions.trace.schema import EventType
 
@@ -66,6 +73,7 @@ class OnePlyAgent(TracingPlayer):
         *args: Any,
         dex: Dex | None = None,
         k: int = DEFAULT_K,
+        column_k: int = DEFAULT_COLUMN_K,
         hypothesis: OpponentHypothesis | None = None,
         policy: PolicyProvider | None = None,
         **kwargs: Any,
@@ -83,12 +91,85 @@ class OnePlyAgent(TracingPlayer):
         # this point on and the type checker should know it.
         self.dex: Dex = self._dex
         self._k = k
+        self._column_k = column_k
         # The candidate provider is swappable so that implementation B (the
         # learned prior) and C (the language model) can play through the same
         # search as A does. Defaults to the specified A, so every existing caller
         # -- and the whole M2-M6 measurement record -- is unchanged.
         self._policy = policy if policy is not None else HeuristicPolicy(self.dex)
-        self._model = TurnModel(self.dex, hypothesis)
+        # The incoming Pokemon is placed on a switch (D86): the opponent's
+        # moves then resolve against what is actually on the field, which is
+        # what made a switch worth considering at all.
+        self._model = TurnModel(self.dex, hypothesis, place_incoming=True)
+
+    # -- preview --------------------------------------------------------
+
+    #: Wall-clock budget for the lead sweep at team preview.
+    preview_budget_s = PREVIEW_BUDGET_S
+
+    def teampreview(self, battle: AbstractBattle) -> str:
+        """Four and a lead from the one-turn model's own opening values (D86).
+
+        Synchronous, as poke-env requires, and bounded by `preview_budget_s`.
+        Falls back to the random preview if the sweep cannot run.
+        """
+        self._emit_battle_start_once(battle)
+        choice = self._lead_choice(battle)
+        if choice is None:
+            return super().teampreview(battle)
+        team = list(battle.team.values())
+        for index in choice.order:
+            team[index - 1]._selected_in_teampreview = True
+        order = choice.as_message()
+        self.trace_for(battle).emit(
+            EventType.PREVIEW_DECISION,
+            {
+                "order": order,
+                "selected": [p.species for p in battle.team.values() if p._selected_in_teampreview],
+                "policy": "one-ply-lead-sweep",
+                "lead": [team[i].species for i in choice.lead],
+                "pair_values": {
+                    f"{team[a].species}+{team[b].species}": round(v, 4)
+                    for (a, b), v in choice.scores.items()
+                    if v == v
+                },
+                "single_values": {
+                    team[i].species: round(v, 4) for i, v in choice.singles.items() if v == v
+                },
+                "rounds": choice.rounds,
+                "of_rounds": choice.of_rounds,
+                "evaluated": choice.evaluated,
+                "elapsed_s": round(choice.elapsed_s, 3),
+                "budget_s": self.preview_budget_s,
+                "model": self.payoff_model,
+                "opponent_model": self.opponent_model,
+                # A bring-4 model is still not what this is (D39, D56).
+                "pending": ["subset_distribution", "payoff_matrix", "equilibrium_weights"],
+            },
+        )
+        return order
+
+    def _lead_choice(self, battle: AbstractBattle) -> LeadChoice | None:
+        ours = [state_snapshot._pokemon(p, self._dex, known=True) for p in battle.team.values()]
+        theirs = [
+            state_snapshot._pokemon(p, self._dex, known=False)
+            for p in battle.teampreview_opponent_team
+        ]
+        if len(ours) < 2 or len(theirs) < 2:
+            return None
+        key = f"{self._seed}:{battle.battle_tag}:preview".encode()
+        seed = int.from_bytes(hashlib.sha256(key).digest()[:8], "big") % (2**32)
+        return lead_sweep(
+            ours,
+            theirs,
+            self.dex,
+            self._turn_model(battle),
+            self._policy,
+            self._believed_moves(battle),
+            believed_ability=self._believed_ability(battle),
+            seed=seed,
+            budget_s=self.preview_budget_s,
+        )
 
     async def _search(
         self,
@@ -111,6 +192,7 @@ class OnePlyAgent(TracingPlayer):
         # them can be answered from the action list alone.
         started = time.perf_counter()
         snapshot = state_snapshot.snapshot(battle, self._dex)
+        self._annotate_belief(battle, snapshot)
         described = [action_describe.describe(order, self._dex) for order in orders]
         by_message = {d["message"]: order for d, order in zip(described, orders, strict=True)}
         scored = self._policy.scored(described, self._k, snapshot)
@@ -226,14 +308,35 @@ class OnePlyAgent(TracingPlayer):
         snapshot: dict[str, Any],
     ) -> list[dict[str, Any]]:
         return opponent_candidates(
-            snapshot, self.dex, self._k, believed_moves=self._believed_moves(battle)
+            snapshot, self.dex, self._column_k, believed_moves=self._believed_moves(battle)
         )
+
+    def _annotate_belief(self, battle: AbstractBattle, snapshot: dict[str, Any]) -> None:
+        """Write the moves each foe is believed to have onto the search snapshot.
+
+        The candidate policy's threat model and the column generator both read
+        `believed_moves` off the view, so a move the posterior puts mass on can
+        threaten a slot and appear as a column without either knowing what a
+        belief is. The trace's own snapshot was emitted before this, so what
+        is recorded is what was observed, not what was believed.
+        """
+        believed = self._believed_moves(battle)
+        if believed is None:
+            return
+        for view in snapshot["theirs"]["active"]:
+            if view is not None:
+                view["believed_moves"] = list(believed(view.get("species") or ""))
 
     def _believed_moves(self, battle: AbstractBattle) -> Callable[[str], list[str]] | None:
         """Moves the opponent is believed to have beyond the revealed ones, as a
         callable from species, or None for the revealed-only model. Also what
         the two-ply child uses for its columns, which is why it is a seam of
         its own rather than folded into `_opponent_candidates`."""
+        return None
+
+    def _believed_ability(self, battle: AbstractBattle) -> Callable[[str], str | None] | None:
+        """The ability the opponent's Pokemon is believed to carry, for the
+        entry effects the lead sweep prices (a Surge terrain, Intimidate)."""
         return None
 
     def _sample(self, strategy: np.ndarray, battle: AbstractBattle) -> int:

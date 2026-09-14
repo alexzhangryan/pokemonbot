@@ -4,13 +4,146 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-13, by Claude Code.
+Last updated: 2026-09-14 (late evening, after the second belief cycle and D87), by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
 browser.
 
+## The ladder cycles (D85, D86, D87)
+
+**Where it stands: 25 rated games, 10 won.** `oneply` 3-7, then `belief` 6-4
+under D85, then `belief` with D86's changes 1-4 in five games (Alex stopped
+the run from the viewer). D87 is what the five games taught, built and
+tested and unplayed: the type-changing abilities (Mega Gardevoir's Hyper
+Voice was a Normal move to the model), a revealed ability outranking the
+prior, a diversified row set, entry abilities and Weather Ball, no status
+moves at our own partner, `adaptive-belief` as the default agent, Alex's
+Reg M-C team `regmc-perish` as the default team, and a **play ladder** button
+in the viewer (blank count plays until the stop button).
+
+**Two measurements were left running when the session ended**, both
+detached local self-play on the worlds team, both reproducible from their
+seeds:
+
+1. `runs/mc-adaptive/worlds/`: `adaptive-belief` against `belief`, 49 games
+   asked (9 with seed 0 and 40 with seed 1). At 24 games it stood 17-7
+   (Wilson 0.51-0.85), which is when `adaptive-belief` was made the default;
+   at 26 it stood 17-9 (0.46-0.81), the interval no longer clear of one
+   half. Read the final count (`battle_end` results in the `champ-a`
+   traces) and, if the interval clears one half, the default holds; if not,
+   `DEFAULT_AGENT` in `scripts/ladder_live.py` and `DEFAULT_LADDER_AGENT` in
+   the viewer go back to `belief`, or the mirror gets more games. Either
+   way the escalation is inside the clock (3-10 s a turn).
+2. `runs/mc-selfplay/worlds/`: `belief` against itself, 26 games plus 170
+   asked, for the evaluation refit. When it finishes:
+   `.venv/Scripts/python.exe scripts/fit_eval.py --traces runs/mc-selfplay/worlds`
+   writes `data/eval/weights.gen9championsvgc2026regmc.json`, fitting
+   `speed_advantage` with the rest and ending the M-B loan (D80). The first
+   attempt at this run died on a websocket handshake timeout against a
+   local server that two runs and the live bot were sharing; the relaunch
+   is on port 8092.
+
+The local Showdown servers on 8090, 8091 and 8092 were left running for
+those two; `make viewer` starts its own. **Local runs and the live bot must
+not share the box**: the preview sweep's budget is wall-clock and reached
+4-5 of 15 rounds under contention against 10 alone.
+
+**The new team is unmeasured and the model does not speak three of its
+moves.** Perish Song, Encore and Eject Button are passes to the search;
+in two smoke games against the worlds team it lost both and Protected
+often. The first analysis on it should read the `preview_decision` events
+(what the sweep leads with) and where the Perish Song turns fall.
+
+The earlier text of this section follows.
+
+
+**Where it stands: 21 rated games on the Reg M-C ladder, 9 won.** `oneply` on
+`regmb-worlds` went 3-7 in the first ten (the afternoon of 2026-09-14);
+`belief` on the same team, after D85's changes, went 6-4 in the next ten
+(evening). Twenty games is not a measurement of anything but the direction,
+and the ledger (`runs/live/ledger.ndjson`, `make ladder-summary`) is where
+the count lives. The account is not yet showing a rating on `battle_end`
+(`rating: null` on every row), which is either a provisional-period artefact
+or the sign the account is not registered the way poke-env expects; check the
+ladder page.
+
+Alex asked for improve-play-analyse cycles while away, capped at five, and
+returned after the first. **Everything in D86 is built and tested and has not
+played a game**: the lead sweep at preview (the three losses that began at
+preview were the random lead), a switch that places the incoming Pokemon, the
+nature-informed spread, and the coach's `corpus-prior` information state.
+`make ladder-live LIVE_ARGS="--agent belief"` is the next measurement, and
+`runs/live/` accumulates.
+
+**How the second cycle's losses read, for the analysis together.** Of the four:
+MXA42 (Kingambit into Glimmora's Helping Hand Earth Power, priced survivable
+at 11 points of Special Attack), skaidrammm (the same Glimmora, plus the model
+expecting the opponent to double-Protect turn one at 62%, which a one-ply
+model does because Protect costs it nothing), bandamnjohnny (Sneasler and
+Dragonite led by chance into Indeedee and Mega Gardevoir; game value 9% at
+turn one; switching never ranked), 5stack (Sneasler and Basculegion led by
+chance into Indeedee and Whimsicott; 13% at turn one). The coach's `luck` on
+the worst turn of each: 54, 55, 38, 31 points. The wins were shorter and less
+informative; Hdhdhdjjdjdjd (11 turns) is the one with real play in it.
+
+**Two things to look at in the viewer.** `make viewer-live` on `runs/live/`
+lists all twenty games with their reviews (the last nine reviewed under
+`corpus-prior`, the earlier ones under `revealed-moves-only`). And the
+smoke traces from the lead sweep are under the session scratchpad only; the
+first live game with it will put a `preview_decision` event with pair values
+on the trace, which the viewer's pseudo-turn should show.
+
+**Open after this cycle**, in the order they cost games:
+
+1. The one-ply model has no tempo: it values a double Protect on turn one
+   at par because nothing the opponent does with a free turn is priced. The
+   status moves now *are* priced (D85) so set-up and Trick Room punish it a
+   little; a real fix is a second ply on the close positions, which the
+   adaptive agent already escalates to and which M8 measured as not apart
+   under the old model. Worth re-measuring under the new one.
+2. The opening values from the sweep are ordered, not calibrated (D86, item
+   1's observation). Fine for choosing a lead; not a number to report.
+3. `k = 8` rows at preview were all Fake Out variants in the debug run --
+   the heuristic's Fake Out bonus crowds the row set on turn one. The live
+   turn's `k = 12` has the same bias to a lesser degree.
+4. The evaluation weights are still the M-B fit lent to M-C with one hand-set
+   feature (`speed_advantage`, 0.40). Twenty live traces are not a refit;
+   self-play under the new model (`make eval-games`, 30 minutes) is.
+5. The belief prior mixes 500 M-B and 800 M-C Bo3 replays; `make scrape`
+   grows the M-C half and `make priors` rebuilds in seconds.
+
 ## Current milestone
+
+**M9, M10 and M11 are built (D76, D77), which is the end of
+`docs/01-plan.md`'s milestone list.** In one session after M9 closed, at
+Alex's request: the coach's overlay is rendered in the viewer (M10), the
+clock is allocated and an adaptive agent spends it (M11), the coach's bands
+were calibrated and its validity checked on a fresh 500-replay corpus, and
+the new default team got its first baseline. The three measurements are in
+the M10/M11 section below and none of them is a win-rate gain; what they
+are is the last three components existing and measured once. **Next action**
+is measurement and hardening, not construction.
+
+The M9 recap stands as the record it was:
+
+**M9, the coach, is built (D76).** Alex chose it over the two search-input
+candidates M8 left open. `docs/specs/2026-09-13-coach.md` is the design and
+the rule; `champions/coach/` is the code; `scripts/review.py` (`make review`)
+is the entry point; QUICKSTART section 18 is how to run it. It takes a
+finished game — one of the agent's own traces, or anyone's Showdown replay —
+re-solves every turn offline with the pruning removed and the information
+state named, and reports the two losses `docs/06` section 1 asks for, the
+five labels and the four tags (plus Lucky), the win probability curve, the
+critical turns, and a sentence for each number. It writes the `analysis`
+overlay `docs/07` section 2 specifies, interleaved into a copy of the trace
+that validates, and a markdown document. The bring-4 verdict is emitted as
+pending with the reason (no preview value model, D39, D56). Thresholds are
+hand-set until the corpus calibrates them. **Nothing has been measured with
+it yet beyond the smoke run in the M9 section below**, and the viewer does
+not render the overlay (M10). See **Next action**.
+
+The M8 recap stands as the record it was:
 
 **M8 is done and the verdict is "neither clears", on both teams (D71). No
 engine is built.** The gate (`docs/engine-gate.md`, rule fixed in D70 before
@@ -1138,7 +1271,154 @@ Four things found on the way, none of which changes the design:
   `payoff_matrix` takes a `CellModel` Protocol, so the analytic turn, the
   two-ply model and the rollout drop into the one seam.
 
+## M9: the coach, built (D76)
+
+Spec first, rule fixed before any game was reviewed, then the code, in the
+order `docs/specs/2026-09-13-coach.md` section 7 gives. What exists:
+
+| module | what it does |
+| --- | --- |
+| `champions/coach/truth.py` | `TruthOracle`: a `SetSource` over a `dict[str, TruthSet]`, so an open sheet and a team file are the same object to the analysis |
+| `champions/coach/decisions.py` | one `Decision` shape from two sources: `from_trace` reads the tracer's own events; `from_replay` rebuilds the position and choice sets with the M7 reconstruction and synthesises the base trace a live agent would have written |
+| `champions/coach/analyze.py` | the numbers: the unpruned matrix solved, ex-ante and ex-post loss, luck, the roll branches, the equilibrium listing, the curve, the summary, the preview pseudo-turn |
+| `champions/coach/classify.py` | the rule of spec section 4 as pure functions with every threshold in one place |
+| `champions/coach/explain.py` | the template writeup from the facts; `--llm` polishes the critical turns through D68's client and falls back on error |
+| `champions/coach/report.py` | the overlay (validates as a trace) and the markdown document |
+| `scripts/review.py`, `make review` | trace path, directory, replay log, replay id or URL; `--side`, `--opponent-team`, `--k`, `--llm`, `--out` |
+
+`champions/search/policy_data.py` gained a public `slot_choices` generator
+(every occupied slot's choice set, matched or not) and `decisions_from_record`
+is now expressed through it, so the coach's replay path and M7's training rows
+come from one reconstruction. Its 23 tests are unchanged and pass.
+
+**Smoke run, not a measurement.** On the first `oneply-oracle` gate trace
+(`runs/m8-gate/regmb-alpha/oneply-oracle/battle-…-650.oneply0t0a0.jsonl`,
+reviewed from `oneply`'s side with `--opponent-team data/teams/regmb-alpha.txt`):
+8 of 8 decisions scored, 4 best, 2 solid, 1 mistake, 1 blunder, ex-ante loss
+43 points in total, two turns tagged read and one unlucky. The blunder is
+turn 5: the agent attacked with both slots where the unpruned equilibrium is
+a pure double Protect, 37 points off. That is the pruning guard's finding
+(D61, D69) seen from the other side — the live `k = 10` set did not contain
+the answer — and it is exactly the kind of thing the coach exists to show.
+On `tests/test_policy_data.py`'s inline replay, reviewed from either side
+with the open sheet as the information state, the two scored turns are a
+mistake and a solid, and the review takes about a second a turn.
+
+What the smoke run also shows and the spec already says: on the agent's own
+traces the ex-ante half runs on revealed moves only, so an early turn's
+column set is one "unrevealed" column plus the played one, and the ex-ante
+loss there is a loss against a nearly empty opponent model. The event says
+so (`information.ante`). A belief-backed information state is the seam's
+first customer once `data/priors/` exists on a machine that runs this.
+
+Limits, stated rather than discovered later:
+
+- **Thresholds are hand-set** (five and fifteen points for the bands, five for
+  Forced, three for Read and Gamble, ten for luck). `docs/06` section 2's
+  calibration against rating bands, and section 8's predictive-validity check
+  (ex-ante loss against rating, which should separate players where ex-post
+  loss does not), are one script over scraped replays and need the corpus.
+- **No bring-4 verdict**, for the reason the preview event carries.
+- **A replay's snapshot has no exact stats for either side**, so a replay
+  review scores our own spread with the same pessimistic constant the model
+  uses for the opponent's. A trace review has our exact stats.
+- **`luck` is not purely rolls.** Everything the one-turn model does not
+  represent lands in it; the roll branches are reported beside it so a reader
+  can see how much the rolls alone explain.
+- **The viewer opens the overlay and does not render it.** M10.
+
+## M10 and M11, built and measured once (D77)
+
+**M10, the review in the viewer.** `champions/viewer/static/app.js` folds
+the coach's `analysis` events into the decision points it already builds
+and renders them: a review block at the head of the decision column (both
+losses, label counts, tags, the critical turns as jump buttons), the
+win-probability curve under the eval bar with the selected turn on it, a
+label mark and tag letters per turn in the spine, a per-turn panel (label,
+tags, ex-ante and ex-post loss, luck, the re-solved equilibrium in place of
+the live agent's pending strategy block, the opponent's mix, the roll
+branches, the writeup), and the preview pseudo-turn's verdict block. A plain
+trace renders as before. The server needed nothing: `.review.jsonl` files
+list and serve as traces of the same battle (tested). Because there is no
+browser in the test suite, `tests/viewer_smoke.js` runs the real client
+script in a stub DOM against a file and selects every point, and
+`tests/test_viewer.py` asserts a plain and a reviewed synthetic trace both
+run clean; the script was also run by hand on a real review, a real gate
+trace and a human-game trace. Nobody has looked at it in a browser yet.
+QUICKSTART section 19.
+
+**M11, the clock.** `champions/search/clock.py`: a turn's budget is the
+smaller of the 45 s limit and an even share of the player clock left after a
+30 s reserve over the turns the game is expected to still run (twelve).
+Every agent now keeps a `ClockState` per battle and the timing event carries
+`budget_s`, `spent_before_s` and `remaining_player_clock_s`.
+`champions/agents/adaptive.py` (`adaptive` in both registries) allocates and
+escalates: one-ply solve, played as is when the equilibrium is pure with a
+five-point gap, re-solved one ply deeper otherwise. `tests/test_clock.py`
+(the arithmetic) and `tests/test_adaptive.py` (two real games: budgets
+within limits, the clock monotone, `decisive`/`escalated` consistent).
+QUICKSTART section 20.
+
+**Measured once, on `regmb-worlds`, 50 games, seed 0, mirror
+(`runs/m11-adaptive/`):**
+
+| arm | win rate | 95% | p50 ms | p95 ms | max ms | worst battle |
+| --- | ---: | --- | ---: | ---: | ---: | ---: |
+| `adaptive` | 46.0% | [33.0%, 59.6%] | 71 | 242 | 813 | 1.8 s |
+| `oneply` | 54.0% | [40.4%, 67.0%] | 38 | 120 | 312 | 1.0 s |
+
+248 of the adaptive arm's 322 decisions escalated (77%): most one-ply
+equilibria at the root are mixed or within five points, so the rule spends
+the budget most turns. It costs about 33 ms at the median and nothing
+against either clock, and the win rate is not apart from the incumbent,
+which is D71's finding again at a smaller `n`. The rule works as a budget;
+whether it should escalate to something other than the two-ply model is the
+open question (see Next action).
+
+**The new default team's first baseline (`runs/worlds-baseline/`):** `oneply`
+beats `greedy` 98.0% [89.5%, 99.6%] on `regmb-worlds`, 50 games, seed 0,
+p50 15 ms. Compare 95% and 96% on alpha and beta (D72). The pool still has
+nothing between `greedy` and the agent.
+
+**The coach's calibration (`docs/coach-calibration.md`, D77): the
+pre-registered verdict is "not demonstrated", and the fitted bands are not
+written.** 80 rated open-sheet Bo3 games from a fresh 500-replay corpus
+scraped this session, reviewed from both sides with the sheet as the
+information state: 160 game views, 801 scored decisions, 19 minutes.
+
+| rating quartile | game views | ex-ante loss per decision | ex-post loss per decision |
+| --- | ---: | --- | --- |
+| <= 1086 | 40 | 3.0 [1.8, 4.5] | 3.8 [2.6, 5.1] |
+| 1086 to 1136 | 41 | 3.4 [1.9, 5.5] | 3.4 [2.4, 4.4] |
+| 1136 to 1268 | 39 | 1.8 [1.1, 2.7] | 2.1 [1.4, 3.1] |
+| > 1268 | 40 | 2.7 [1.5, 4.1] | 3.3 [1.9, 4.9] |
+
+Spearman of per-game mean loss with rating: ex-ante −0.107 [−0.276,
++0.044], ex-post −0.152 [−0.313, +0.004], difference +0.044 [−0.112,
++0.218]. Neither is apart from zero and the two do not come apart. Three
+readings, none of which the sample can separate: the rating range is narrow
+(the quartile cuts span 1086 to 1268, one ladder's middle); the one-turn
+model with a sheet is a coarse judge of a human's decision, and two to three
+points per decision is what it scores everyone at; or the loss does not
+measure skill on this ladder. A 300-game run is the first thing to try and
+is one `make calibrate-coach CAL_GAMES=300` (about 70 minutes).
+
+The bands the rule fits are 0.8 and 4.8 points against the hand-set 5 and
+15: a top-quartile player's off-support losses are almost all small, so the
+rule makes a 5-point loss a blunder and turns 20% of every off-support
+decision in the sample into one (the hand-set bands make 5%). That is what
+the rule says and it is not obviously what a player wants to read, which is
+why `--write-bands` was not run: the coach still reports hand-set, the
+document says what the fit would be, and whether to adopt it or change the
+rule's shares is Alex's call (Next action).
+
 ## In flight
+
+**Nothing.** The first belief cycle's ladder run finished (9 games detached
+via `Start-Process`, plus one before it), its coach reviews are written, and
+the local Showdown server this session started on port 8090 for the smoke
+runs was stopped. No ladder process is running; `runs/live/status.json`
+says `done`.
 
 **Nothing of M8's.** Both gate runs are finished and committed
 (`docs/engine-gate.md`, `docs/engine-gate-greedy.md`, their JSON under
@@ -1193,6 +1473,58 @@ are not comparable row for row (D69).
 Nothing.
 
 ## Tests
+
+**585 pass, 3 skipped** on this Windows box on 2026-09-14 after D84 (the listing's result and review fields; the account on the status without the password). After D83:
+
+**583 pass, 3 skipped** on this Windows box on 2026-09-14 after D83 (the rating lookup on a fake fetcher, its failure modes, the status file naming the account). After D82:
+
+**580 pass, 3 skipped** on this Windows box on 2026-09-14 after D82 (the stop flag ends a run after its game; the stop and resume routes). After D81:
+
+**578 pass, 3 skipped, in 126 s** on this Windows box on 2026-09-14 after D81 (the status file through the run's phases; the ladder phase on `/api/status`). Before D81:
+
+**576 pass, 3 skipped, in 131 s** on this Windows box on 2026-09-14, whole
+suite less `tests/test_language.py`, at the new Showdown pin (`aa6d5f085`)
+and in Reg M-C (D80). The pin's guard in `tests/test_belief.py` failed once
+on the move — Aura Guard is new upstream — and passes with it added to the
+effect table. Two Reg M-C self-play games (`oneply` vs `greedy`) ran clean
+at the new pin: zero protocol failures, four valid traces stamped with the
+M-C format id and the new dex hash.
+
+The reading before the move:
+
+**573 pass, 3 skipped, in 148 s** on this Windows box on 2026-09-14, whole
+suite less `tests/test_language.py`, after D78 added six to
+`tests/test_ladder_live.py` (the replay address, the ledger across runs, the
+summary, the ledger's name, the replay request on the loop, and the base
+agent's `on_battle_start` firing once per battle); D79 then added three
+(games and reviews alternate with the next search waiting on the coach, the
+document's headline, a failed review reports its log), 576 with them.
+`ruff`, `ruff format --check` and `mypy` are clean on the three files D78
+and D79 touched.
+
+The 2026-09-13 reading, kept as written:
+
+**568 pass, 3 skipped, in 125 s** on this Windows box, whole suite, as of
+2026-09-13 with M9, M10 and M11 built (569 after one more coach test landed
+in the same session: two decisions in one turn, the forced switch after a
+faint, are both reviewed). M9 added 31 (`tests/test_coach.py`:
+every branch of the classification rule on synthetic matrices, the trace
+source on a hand-built trace and on a real gate trace where the recomputed
+curve must equal the recorded evaluation, the replay source on the inline
+logs from both sides and with the sheet stripped, the overlay against the
+validator, the report, the template, and the language-model fallback). M10
+added two in `tests/test_viewer.py` (a review file lists and serves; the
+real client script runs clean in a stub DOM on a plain and a reviewed trace,
+`tests/viewer_smoke.js`, skipped without node). M11 added six in
+`tests/test_clock.py` (the allocation arithmetic) and one in
+`tests/test_adaptive.py` (two real games). `ruff check`, `ruff format
+--check` and `mypy` are clean on every file the three milestones touched;
+`node --check` on the client script. Repository-wide,
+`mypy .` reports 53 errors in 15 files, none in any file M9 touched (the M8
+reading below says 52; the one that moved is in the preview or corpus tests,
+not in M9, and belongs to the typing pass that section still asks for).
+
+The M8 reading, kept as written:
 
 **519 pass, 3 skipped, in about 2 minutes** on this Windows box, whole suite,
 as of 2026-09-13 at the end of M8 (473 on the Mac on 2026-09-03 before M8
@@ -1250,6 +1582,107 @@ had assumed two `default` choices always advance the turn, which a KO's forced
 switch makes false; both now assert what they meant and are team independent.
 
 ## Uncommitted
+
+**2026-09-14 evening, the ladder cycles (D85, D86, D87), on top of everything
+below.** `champions/search/payoff.py` (rewritten resolution), `policy.py`,
+`evaluate.py`, `twoply.py`, `lead.py` (new); `champions/agents/oneply.py`,
+`belief_agent.py`; `champions/belief/spreads.py`; `champions/coach/truth.py`,
+`analyze.py`; `scripts/review.py`; `tests/test_turn_effects.py` (new),
+`tests/test_lead.py` (new), `tests/test_payoff.py`, `test_coach.py`,
+`test_belief.py`, `test_teams.py`, `test_viewer.py`, `test_ladder_live.py`;
+`champions/agents/belief_agent.py` (`AdaptiveBeliefAgent`), `champions/teams.py`
+and `data/teams/regmc-perish.txt`, `champions/viewer/server.py` and the
+static files (the start button), `Makefile`; `docs/DECISIONS.md` D85, D86 and
+D87; QUICKSTART; this file. Full suite at the end of the session: 622
+passed, 4 skipped. Gitignored and rebuilt: `data/priors/` (from the corpus,
+now 1,300 replays including 800 M-C Bo3), `runs/live/` (20 games' traces,
+reviews and the ledger). Claude Code did not commit; the split suggested is
+D85's code, D86's code, the docs.
+
+**M9, M10 and M11, all of it, in the working tree**:
+
+- M9: `docs/specs/2026-09-13-coach.md`, `champions/coach/` (six modules
+  replacing the empty placeholders), `champions/search/policy_data.py`
+  (`slot_choices`), `scripts/review.py`, `tests/test_coach.py`, `Makefile`
+  (`review`), `docs/QUICKSTART.md` section 18, `docs/DECISIONS.md` D76.
+- M10: `champions/viewer/static/app.js`, `index.html`, `style.css`;
+  `tests/viewer_smoke.js`; two tests in `tests/test_viewer.py`; QUICKSTART
+  section 19.
+- M11: `champions/search/clock.py`, `champions/agents/adaptive.py`,
+  `champions/agents/baseline.py` (the clock state and the budget on the
+  timing event), `scripts/run_ladder.py` and `scripts/selfplay.py`
+  (`adaptive`), `tests/test_clock.py`, `tests/test_adaptive.py`; QUICKSTART
+  section 20.
+- The calibration: `scripts/calibrate_coach.py`, `champions/coach/classify.py`
+  (`Bands`, `load_bands`), `champions/coach/report.py` and `analyze.py`
+  (the bands on the report and the summary), `Makefile` (`calibrate-coach`),
+  `docs/coach-calibration.md` and `data/eval/coach-calibration.*.json`
+  (both generated; `data/eval/` is tracked, as the gate and discard JSONs
+  are, so both are committed).
+- The live ladder: `scripts/ladder_live.py`, `.env.example`,
+  `tests/test_ladder_live.py`, `Makefile` (`ladder-live`), QUICKSTART
+  section 21. Verified against the real server up to authentication: TLS
+  (after pointing the trust store at certifi, which the script does), the
+  challenge handshake and a guest assertion, all by hand with a throwaway
+  name and no game played. poke-env's registered login is the one step that
+  needs Alex's account; no account existed at the time of writing.
+- D77, `CLAUDE.md`, this file.
+- 2026-09-14, the move to Reg M-C (D80): `vendor/SHOWDOWN_COMMIT` (now
+  `aa6d5f085`, 2026-09-13), `docs/dex-delta.md` regenerated,
+  `champions/formats.py` (new: `FORMAT_ID`, `LINEAGE`, `lender`),
+  `champions/belief/effects.py` (Aura Guard), `champions/search/evaluate.py`,
+  `champions/search/learned.py`, `champions/coach/classify.py` (the loaders
+  borrow along the lineage), `scripts/selfplay.py` (`build_agent` loads the
+  dex for the format it plays), the format constant in every script and
+  test that had one, `champions/teams.py`, `CLAUDE.md`, QUICKSTART, D80.
+  `data/dex/` (gitignored) was rebuilt for both formats.
+- 2026-09-14, the games list (D84): `champions/viewer/server.py` (`player`,
+  `result`, `turns`, `review`, `is_review` on the listing; `account` on the
+  status from `.env`), `champions/viewer/static/` (the list in the side
+  pane, the dropdown hidden, reviews opened in place of finished games),
+  two tests in `tests/test_viewer.py`.
+- 2026-09-14, the ladder rating in the viewer (D83): `champions/viewer/ladder.py`
+  (new), `champions/viewer/server.py` (`/api/ladder`), the current-Elo block
+  centred in the top bar (moved there from the control bar at Alex's ask), `scripts/ladder_live.py` (`StatusFile(run=)`), three tests.
+  Checked against the real site with the bot's account: 2 wins, 7 losses
+  on the M-C ladder as of 2026-09-14 afternoon, Elo 1039, GXE 35.0.
+- 2026-09-14, the viewer's controls and scores (D82): `champions/viewer/`
+  (`/api/live/stop` and `/api/live/resume`, the ladder group in the bar,
+  the scored candidates table and the solved strategy block, three columns
+  down to 880px), `scripts/ladder_live.py` (`play(stop=)`), one test each
+  in `tests/test_viewer.py` and `tests/test_ladder_live.py`. Layout checked
+  by headless-browser screenshot at 960 by 1040.
+- 2026-09-14, the viewer in real time (D81): `champions/trace/writer.py`
+  (events written and flushed at emit; the queue and drain task are gone),
+  `champions/viewer/server.py` (`live` on `/api/status` from
+  `runs/live/status.json`), `champions/viewer/static/` (the phase pill:
+  thinking / waiting for opponent / searching / reviewing, with elapsed
+  seconds; the newest live battle followed automatically unless the reader
+  pinned one; list poll 1.5 s to 1 s), `scripts/ladder_live.py`
+  (`StatusFile`, `play(status=)`), one test each in `tests/test_viewer.py`
+  and `tests/test_ladder_live.py`.
+- 2026-09-14, a volume slider in the viewer's scene controls (Alex: the
+  Showdown renderer's default 50 is loud): `index.html`, `app.js`
+  (`champions.volume` in localStorage, sent to the frame on ready and on
+  change), `battle.html` (`BattleSound.setBgmVolume` / `setEffectVolume`,
+  0 mutes), `style.css`. Default 30.
+- 2026-09-14, the live ladder's records (D78): `scripts/ladder_live.py`
+  (the ledger `runs/live/ledger.ndjson`, `/savereplay` at battle start,
+  `--summary`, `--no-save-replays`, and per D79 the coach between games with
+  `--no-review` to skip it), `champions/agents/baseline.py`
+  (`on_battle_start`), `Makefile` (`viewer-live`, `ladder-summary`), nine
+  tests in `tests/test_ladder_live.py`, QUICKSTART section 21, D78, D79. The
+  viewer needed no change: it was smoke-tested on a copied trace in a
+  live-shaped directory and lists the trace, not the ledger. Still no game
+  played against the real server: `.env` on this box has both keys blank.
+
+Claude Code does not commit; the commit is Alex's. A suggested split: the M9
+spec and D76; the M9 code and tests; M10; M11; the calibration script and
+its document with D77; this file. `runs/worlds-baseline/`, `runs/m11-adaptive/`
+and the corpus under `data/` are gitignored and reproducible (seed 0; the
+corpus by `make scrape`, though the site will have moved on).
+
+The earlier record:
 
 **Nothing.** The post-M8 commits (D73 and D75 teams, D74 rule-out, the venv note) and
 the M8 commits are on `main` locally (`4094370`, `9698a7b`,
@@ -1326,6 +1759,72 @@ later, and because `discard_rate.py` takes no lock and would not notice one.
 
 
 ## Next action
+
+**Play a cycle with D87's changes on the new team** — from the viewer's
+**play ladder** button (`make viewer-live`, then the button; blank plays
+until stopped) or `make ladder-live` — with nothing else running on the box,
+and read the losses' traces beside the coach's reviews as the two cycles
+were read. Before that, finish the two measurements above: the mirror
+decides whether `adaptive-belief` stays the default, and the refit ends the
+M-B loan on the evaluation. Then the open items: tempo (the second ply is
+the answer being measured), Perish Song and Encore in the model, and the
+opening values' calibration (D86).
+
+The earlier text that follows is the record as it stood before the cycles.
+
+**Every milestone in `docs/01-plan.md` is built. What is left is
+measurement and the decisions the measurements raise.** In the order they
+pay:
+
+0. **Play the official ladder, in Reg M-C.** `scripts/ladder_live.py`
+   (`make ladder-live`, QUICKSTART section 21) is built and tested without a
+   network. The first attempt on 2026-09-14 with a registered account was
+   refused: M-B left the ladder on 2026-09-09, and the project moved to M-C
+   the same day (D80). The account is in `.env` on this box. `10` is an
+   evening. The result is the external check `docs/06` section 6 asks for
+   and the first games against people, and the first M-C traces are what a
+   refit of the evaluation weights (`make fit-eval`) and the policy prior
+   needs, since both are currently lent from M-B (D80). What each game leaves behind
+   is settled (D78, D79): the trace, the server's replay, a ledger row, and
+   the coach's review, run between games so the next search waits for it,
+   with `make viewer-live` in a second terminal to watch the decisions as
+   they are made and the overlay once each game is reviewed. The first thing to check on the first real game is that
+   the replay URL in the ledger resolves — `/savereplay` at battle start is
+   read from the server source, not yet seen against the live server — and
+   that the `battle_end` event carries a rating, which is the sign the
+   account is registered.
+1. **Look at the review in a browser.** M10 was verified by running the
+   client script in a stub DOM, not by eyes. `make viewer TRACES=runs/m8-gate`
+   and open one of the three `.review` entries under `regmb-beta/sim-oracle`.
+   Layout and copy will want adjusting; the events will not.
+2. **Decide what `adaptive` should escalate to.** The rule spends its budget
+   on 77% of turns and buys nothing measurable, because the only deeper
+   search is the two-ply model D71 already measured as not apart. The
+   candidates are the ones M8 named for a fidelity win that did not come: the
+   simulator payoff fed by particles, or a larger column budget (the union
+   at `k = 15`, D69's open result) inside the escalation instead of a deeper
+   ply. Either is a change to `AdaptiveAgent._estimate` and a 200-game
+   mirror. Until one wins, `oneply` stays the default and `adaptive` is the
+   clock's proof of structure.
+3. **Decide what to do with the calibration.** The verdict is "not
+   demonstrated" at 80 games and the fitted bands are 0.8 and 4.8 points
+   (M10/M11 section). The cheap next step is `make calibrate-coach
+   CAL_GAMES=300`; if the loss still does not track rating there, the
+   question becomes a design one for Cowork — whether the ex-ante loss under
+   the one-turn model is the right instrument for human games at all, or
+   whether the coach needs the two-ply model offline (spec section 3 left
+   the seam). Whether to adopt the fitted bands, or change the rule's
+   shares, is a separate judgment; nothing is written until it is made.
+4. **Belief-backed information state for the coach.** The corpus now exists
+   on this machine (500 Bo3 replays); `make priors` would build the prior,
+   and the coach's `SetSource` seam takes it. That is also what lets the
+   `belief` arms run here again.
+5. **The opponent pool.** Still nothing between `greedy` (98% on the new
+   team) and the agent. Two more teams (D72's ask) or a stronger scripted
+   opponent.
+
+The M8-era text that follows is superseded by the above and kept as the
+record of what M9 was chosen over.
 
 **M8 is closed with no engine (D71, D72). The next question is the search's
 inputs, and it is Alex's to order.** Two candidates, both cheaper than
@@ -1605,6 +2104,17 @@ Three things that read as questions and are not.
 
 ### Still open
 
+- **`docs/07-observability.md` section 7 says trace writing must "never sit
+  on the decision critical path. Write to a queue and flush
+  asynchronously."** The implementation did exactly that until 2026-09-14 and
+  it was the cause of the viewer's delay: the drain task shares poke-env's
+  loop with the search, which yields it only a few times a turn, so a turn's
+  opening events reached disk only once the bot was most of the way to
+  deciding (D81). The writer now writes and flushes at emit, measured under a
+  millisecond per event by `tests/test_trace.py`. The design should say that
+  the write is synchronous and bounded rather than asynchronous, or name a
+  thread-based writer if the bound ever fails. Cowork to revise section 7.
+
 Five. Each states the choice rather than describing the situation.
 
 - **Interval coverage is 97.8% against a nominal target, and the fix is a trade.**
@@ -1631,18 +2141,33 @@ Five. Each states the choice rather than describing the situation.
   Note that the *ordering* under the second option is not a design question — the
   corpus answers it. The items actually played are heavily concentrated, with
   Focus Sash, Sitrus Berry and Life Orb alone covering a third of every set in it.
-- **What the coach does when handed an uncalibrated evaluation.** `IS_CALIBRATED`
-  is True exactly when `data/eval/weights.<format>.json` exists, and that file is
-  written by the same run that writes `docs/eval-calibration.md`, so calibration
-  cannot be claimed without having been measured (D51). Nothing checks the flag
-  before reporting, and a fresh clone has no weights file and legitimately falls
-  back to the hand-chosen ones. The options are to suppress confidence numbers
-  while still giving move advice, to refuse to run at all, or to check a default
-  weights file into the repository so a fresh clone is calibrated — which then
-  goes stale silently. Whoever writes the coach decides; it does not block before
-  M9.
 - **Whether the coach should ingest games from Champions itself**, given the
-  target game produces no replay file. Deferred until M9.
+  target game produces no replay file. M9 answered half of it (D76): the coach
+  accepts any protocol log, so a Champions game transcribed into protocol form
+  is reviewable today. What is not built is the transcription — a way to type
+  a Champions game in as a sequence of switches, moves and damage percentages
+  and have it become a log. Whether that is worth building, and in what form,
+  is still Alex's call.
+- **Does the coach's ex-ante loss measure skill?** `docs/06` section 8 says
+  it should fall with rating where ex-post loss does not. The first run
+  (`docs/coach-calibration.md`, 80 games, 801 decisions) shows neither loss
+  apart from zero against rating and no gap between them. Before the metric
+  is trusted as a coaching instrument on human games, either a larger run
+  demonstrates the dissociation or the design says why the one-turn model's
+  loss should not be expected to (the sheet makes the human's information
+  state richer than the model's; the model does not see items or abilities
+  it is told about beyond what `BeliefEffects` applies). Cowork's question.
+- **The `belief` event carries no entropy.** `docs/06` section 5 asks the
+  coach to report belief entropy beside the loss so a reader can see when the
+  analysis is outside the prior's support; `docs/07` section 2 lists it on
+  the `belief` event. `BattleBelief.summary()` emits `effective_sample_size`,
+  `alive`, `max_weight` and per-species marginals, and no entropy. The coach
+  carries what is there. Adding an entropy is a `particles.py` change and a
+  Cowork call on which entropy (over sets, over items, per species or total).
+- **What the coach does when handed an uncalibrated evaluation** — settled,
+  D76: it runs, marks every event `calibrated: false`, and the document says
+  so in its header. The option of a checked-in default weights file was not
+  taken, for the reason the question itself gave.
 - **What the eventual path to Champions looks like**, and how much of the decision
   layer stays portable when the transport changes.
 - **What the switch bias costs.** The turn model scores a switch as giving up the

@@ -40,7 +40,7 @@ from champions.dex.loader import Dex
 from champions.dex.stats import StatSpread, stats_for_species
 from champions.search.oracle import SimServer
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 
 # Ability choices matter as much as species here: Intimidate, Multiscale,
 # Sturdy or Thick Fat on any of the four would move the numbers and the probe

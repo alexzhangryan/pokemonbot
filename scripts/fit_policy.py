@@ -51,7 +51,7 @@ from champions.search.policy import HeuristicPolicy  # noqa: E402
 from champions.search.policy_data import decisions_from_record  # noqa: E402
 from champions.search.policy_features import FEATURE_NAMES  # noqa: E402
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 REPORT_PATH = Path("docs/policy-prior.md")
 MODEL_DIR = Path("data/policy")
 

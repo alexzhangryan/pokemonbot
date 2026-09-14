@@ -39,8 +39,8 @@ USER_AGENT = "champions-bot/0.1 (research; +https://github.com/alexzhangryan/pok
 #: The API's page size. A page of exactly this many means there is another page.
 PAGE_SIZE = 51
 
-BO1_FORMAT = "gen9championsvgc2026regmb"
-BO3_FORMAT = "gen9championsvgc2026regmbbo3"
+BO1_FORMAT = "gen9championsvgc2026regmc"
+BO3_FORMAT = "gen9championsvgc2026regmcbo3"
 FORMATS = (BO3_FORMAT, BO1_FORMAT)
 
 

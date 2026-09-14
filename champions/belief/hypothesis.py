@@ -14,7 +14,7 @@ agents is what is passed into `TurnModel` rather than which code path runs.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
 from champions.belief import effects as effect_table
@@ -118,6 +118,26 @@ class BeliefEffects:
                 moves=frozenset(to_id(m.get("id")) for m in view.get("moves") or []),
                 nature="hardy",
             )
-        if self._belief is None:
+        hypothesis = (
+            self._belief.set_for(to_id(view.get("species"))) if self._belief is not None else None
+        )
+        # What the battle has shown outranks what the prior guessed: a Mega
+        # Gardevoir's Pixilate is on the view from the turn it evolves, while
+        # the particle still carries the base forme's Trace (D87).
+        ability = to_id(view.get("ability")) or None
+        item = to_id(view.get("item")) or None
+        if hypothesis is None:
+            if ability or item:
+                return SetHypothesis(
+                    species=to_id(view.get("species")),
+                    item=item,
+                    ability=ability,
+                    moves=frozenset(),
+                    nature="hardy",
+                )
             return None
-        return self._belief.set_for(to_id(view.get("species")))
+        if (ability and ability != hypothesis.ability) or (item and item != hypothesis.item):
+            return replace(
+                hypothesis, ability=ability or hypothesis.ability, item=item or hypothesis.item
+            )
+        return hypothesis

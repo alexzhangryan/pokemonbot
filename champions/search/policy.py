@@ -81,10 +81,18 @@ from champions.search.payoff import (
 #: real one without competing with them on magnitude.
 DISQUALIFIED = float("-inf")
 
-#: Default candidate count per side. Section 7's budget arithmetic is written at
-#: ten, and the local simulator turned out faster than the reference the figure
-#: was computed against, so this has room to rise once M11 measures it.
-DEFAULT_K = 10
+#: Default candidate count for our rows. Section 7's budget arithmetic is
+#: written at ten; D69 found the union beats A at 15 on the guard, and the
+#: live games (D85) found the payoff loop had two orders of magnitude of clock
+#: to spare, so the row budget rose to twelve with the rest of D85.
+DEFAULT_K = 12
+
+#: The opponent's column budget, and how many moves each of their slots may
+#: contribute before targets multiply them. Columns are cheaper than rows for
+#: the equilibrium -- a missing column is a threat the search cannot see, a
+#: missing row is only a reply it cannot make -- so the budget is larger.
+DEFAULT_COLUMN_K = 24
+DEFAULT_PER_SLOT = 6
 
 
 class PolicyProvider(Protocol):
@@ -335,7 +343,7 @@ class HeuristicPolicy:
             (self._score(action, position) for action in actions),
             key=lambda scored: (-scored.score, scored.action["message"]),
         )
-        return ranked[:k]
+        return diversify(ranked, k)
 
     def slot_scores(
         self,
@@ -385,6 +393,8 @@ class HeuristicPolicy:
             return 0.0, ""
 
         if entry["category"] == "Status":
+            if _misaimed_status(entry, slot):
+                return DISQUALIFIED, "status at an ally"
             return self._status(entry, slot, index, position)
         return self._attack(entry, slot, index, position)
 
@@ -713,13 +723,9 @@ class Board:
     # -- threat ----------------------------------------------------------
 
     def threatened(self, index: int) -> bool:
-        """Whether a revealed opponent move takes a serious bite out of this slot.
-
-        Revealed only. An unrevealed move cannot make a slot look threatened,
-        which is the same honest gap `opponent_candidates` has: inventing the
-        moves the opponent has not shown is guessing dressed as computation, and
-        the belief filter is the thing that answers it properly.
-        """
+        """Whether a revealed or believed opponent move takes a serious bite
+        out of this slot. See `_revealed` for where the believed ones come
+        from; without a belief this is revealed only."""
         if index in self._threatened:
             return self._threatened[index]
 
@@ -742,10 +748,23 @@ class Board:
         return threat
 
     def _revealed(self, slot_index: int) -> list[dict[str, Any]]:
+        """The opponent's damaging moves this slot is known or believed to have.
+
+        Revealed moves first. `believed_moves` on the view is what the belief
+        agent writes onto the search snapshot (`OnePlyAgent._search`), so an
+        unrevealed move the posterior puts mass on can make a slot look
+        threatened -- the gap the docstring above used to name.
+        """
         view = self.view("theirs", slot_index) or {}
         entries = []
-        for move in view.get("revealed_moves") or []:
-            entry = self.dex.moves.get(move.get("id") or "")
+        seen: set[str] = set()
+        ids = [m.get("id") or "" for m in view.get("revealed_moves") or []]
+        ids += [str(m) for m in view.get("believed_moves") or []]
+        for move_id in ids:
+            if move_id in seen:
+                continue
+            seen.add(move_id)
+            entry = self.dex.moves.get(move_id)
             if entry and entry["category"] != "Status":
                 entries.append(entry)
         return entries
@@ -876,6 +895,12 @@ FAKE_OUT_UNAVAILABLE = 0.1
 SETUP_SAFE = 1.5
 SETUP_THREATENED = 0.5
 
+#: Redirection and Helping Hand from the opponent's side: the support moves
+#: a doubles turn is played around, ranked with Protect for the column budget.
+SUPPORT = 3.0
+#: A move that inflicts a major status.
+STATUS_THREAT = 2.0
+
 #: How much of our remaining HP a revealed opponent move has to threaten before
 #: Protect counts as answering something. Half, because Protect trades this
 #: turn's action for it and a quarter is not worth a turn.
@@ -896,40 +921,63 @@ SETUP = {"swordsdance", "nastyplot", "dragondance", "bulkup", "calmmind", "irond
 def opponent_candidates(
     snapshot: dict[str, Any],
     dex: Dex,
-    k: int = DEFAULT_K,
+    k: int = DEFAULT_COLUMN_K,
     believed_moves: Callable[[str], list[str]] | None = None,
+    per_slot: int = DEFAULT_PER_SLOT,
 ) -> list[dict[str, Any]]:
-    """Joint actions the opponent might take.
+    """Joint actions the opponent might take, most threatening first.
 
     Built in the same described-action shape our own candidates use, so the
     payoff model does not need two code paths.
 
-    With no `believed_moves` this is what has been revealed and nothing else,
-    which returns a single "no action" column on turn one and makes that
-    decision an argmax against an opponent modelled as doing nothing -- the
-    weakness the module docstring names.
+    Each active foe contributes its revealed moves, then the moves it is
+    believed to have -- from `believed_moves`, or from a `believed_moves` list
+    the agent has written onto the view -- up to `per_slot` moves. A
+    single-target move becomes one option per living slot of ours it could be
+    aimed at, and an ally-targeted one is aimed at the partner; until D85 every
+    opponent move was aimed at our first slot, so the equilibrium never saw
+    our second one attacked.
 
-    `believed_moves` is M5's answer to it: a callable from species to the moves
-    the belief filter puts non-trivial mass on. The revealed moves are still
-    used first and the believed ones fill the rest of the budget, so directly
-    observed evidence always outranks the prior and the column set degrades
-    gracefully to the old behaviour when the belief is absent.
+    The joint options are ranked by a threat score (damage to us as a fraction
+    of remaining HP, knockouts, and the status moves doubles is played around:
+    Protect, Fake Out on its turn, Trick Room, Tailwind, redirection, Helping
+    Hand, set-up) and the top `k` are the columns. Deterministic: ties break
+    on the label.
+
+    With no belief and nothing revealed this is a single "no action" column,
+    which makes turn one an argmax against an opponent modelled as doing
+    nothing -- the weakness the module docstring names and the belief answers.
     """
-    active = [p for p in snapshot["theirs"]["active"] if p is not None]
-    per_slot: list[list[dict[str, Any]]] = []
+    active = snapshot["theirs"]["active"]
+    our_active = snapshot["ours"]["active"]
+    our_slots = [i for i, p in enumerate(our_active) if p is not None and not p.get("fainted")]
+    board = Board.read(snapshot, dex, _chart_for(dex), OpponentHypothesis())
+    per_slot_options: list[list[tuple[float, dict[str, Any]]]] = []
 
     for slot_index, pokemon in enumerate(active):
-        options: list[dict[str, Any]] = []
+        if slot_index >= 2:
+            break
+        if pokemon is None or pokemon.get("fainted"):
+            continue
         move_ids = [m.get("id") or "" for m in pokemon.get("revealed_moves", [])]
+        seen = set(move_ids)
+        extra: list[str] = []
         if believed_moves is not None:
-            seen = set(move_ids)
-            move_ids += [m for m in believed_moves(pokemon.get("species") or "") if m not in seen]
-        for move_id in move_ids:
+            extra = list(believed_moves(pokemon.get("species") or ""))
+        elif pokemon.get("believed_moves"):
+            extra = [str(m) for m in pokemon["believed_moves"]]
+        for move_id in extra:
+            if move_id not in seen:
+                seen.add(move_id)
+                move_ids.append(move_id)
+
+        options: list[tuple[float, dict[str, Any]]] = []
+        for move_id in move_ids[:per_slot]:
             entry = dex.moves.get(move_id)
             if not entry:
                 continue
-            options.append(
-                {
+            for target in _opponent_targets(entry, slot_index, active, our_slots):
+                option = {
                     "kind": "move",
                     "move": entry["id"],
                     "name": entry["name"],
@@ -939,27 +987,172 @@ def opponent_candidates(
                     "priority": entry.get("priority", 0),
                     # Their moves are aimed at our slots; the model reads a
                     # positive target as "the other side", which from their
-                    # point of view is us.
-                    "target": 1,
-                    "label": entry["name"],
+                    # point of view is us, and a negative one as their own.
+                    "target": target,
+                    "label": _opponent_label(entry, target),
                 }
-            )
+                score = _threat(entry, slot_index, target, pokemon, board, snapshot)
+                options.append((score, option))
         if not options:
-            options = [{"kind": "none", "label": "unrevealed"}]
-        per_slot.append(options[:k])
-        if slot_index >= 1:
-            break
+            options = [(0.0, {"kind": "none", "label": "unrevealed"})]
+        per_slot_options.append(options)
 
-    if not per_slot:
+    if not per_slot_options:
         return [_joint([])]
 
-    joint: list[dict[str, Any]] = []
-    first = per_slot[0]
-    second = per_slot[1] if len(per_slot) > 1 else [None]
-    for a in first:
-        for b in second:
-            joint.append(_joint([s for s in (a, b) if s is not None]))
-    return joint[:k]
+    first = per_slot_options[0]
+    second: list[tuple[float, dict[str, Any] | None]] = (
+        list(per_slot_options[1]) if len(per_slot_options) > 1 else [(0.0, None)]
+    )
+    joint: list[tuple[float, dict[str, Any]]] = []
+    for score_a, a in first:
+        for score_b, b in second:
+            joint.append((score_a + score_b, _joint([s for s in (a, b) if s is not None])))
+    joint.sort(key=lambda pair: (-pair[0], pair[1]["label"]))
+    return [action for _, action in joint[:k]]
+
+
+def _opponent_targets(
+    entry: dict[str, Any], slot_index: int, active: list[Any], our_slots: list[int]
+) -> list[int]:
+    """The target choices one opponent move has, in our described encoding."""
+    target = str(entry.get("target") or "normal")
+    if target in ("normal", "any", "adjacentFoe", "randomNormal"):
+        return [i + 1 for i in our_slots] or [1]
+    if target == "adjacentAlly":
+        partner = [
+            i
+            for i, p in enumerate(active)
+            if i != slot_index and p is not None and not p.get("fainted")
+        ]
+        return [-(partner[0] + 1)] if partner else []
+    return [0]
+
+
+def _opponent_label(entry: dict[str, Any], target: int) -> str:
+    if target > 0:
+        return f"{entry['name']} -> our slot {target}"
+    if target < 0:
+        return f"{entry['name']} -> ally"
+    return str(entry["name"])
+
+
+def _threat(
+    entry: dict[str, Any],
+    slot_index: int,
+    target: int,
+    pokemon: dict[str, Any],
+    board: Board,
+    snapshot: dict[str, Any],
+) -> float:
+    """How much this option is worth putting in front of the equilibrium.
+
+    Same scale as `HeuristicPolicy`, read from their side: damage as a
+    fraction of our remaining HP, the knockout step, and the status moves
+    that decide doubles turns. Not a value -- the payoff model computes that
+    -- only a ranking for which columns fit the budget.
+    """
+    move_id = str(entry["id"])
+    if entry["category"] == "Status":
+        if move_id in PROTECT_LIKE:
+            return PROTECT_THREATENED if not pokemon.get("protect_counter") else PROTECT_REPEATED
+        if move_id == "trickroom":
+            up = "TRICK_ROOM" in (snapshot.get("fields") or {})
+            return 0.2 if up else SPEED_CONTROL_FLIPS
+        if move_id == "tailwind":
+            up = "TAILWIND" in (snapshot.get("opponent_side_conditions") or {})
+            return SPEED_CONTROL_IDLE if up else SPEED_CONTROL_FLIPS
+        if move_id in ("followme", "ragepowder", "helpinghand"):
+            return SUPPORT
+        if move_id in SETUP or entry.get("boosts"):
+            return SETUP_SAFE
+        if entry.get("status"):
+            return STATUS_THREAT
+        return STATUS
+    score = ATTACK_BASE
+    if move_id == "fakeout":
+        if not pokemon.get("first_turn", True):
+            return FAKE_OUT_UNAVAILABLE
+        score += FAKE_OUT
+    targets = targets_of(
+        {"ours": board.ours, "theirs": board.theirs},
+        side="theirs",
+        slot=slot_index,
+        described_target=target,
+        move_target=str(entry.get("target") or "normal"),
+    )
+    for side, hit in targets:
+        if side != "ours":
+            continue
+        fraction = board.damage_fraction(entry, slot_index, "ours", hit, attacker_side="theirs")
+        score += DAMAGE * fraction
+        if fraction >= 1.0:
+            score += KNOCKOUT
+    if int(entry.get("priority", 0) or 0) > 0:
+        score += PRIORITY_BONUS
+    return score
+
+
+#: Target strings of status moves that are meant for an ally.
+ALLY_STATUS_TARGETS = frozenset({"adjacentAlly", "adjacentAllyOrSelf", "allies", "allySide"})
+
+
+def _misaimed_status(entry: dict[str, Any], slot: dict[str, Any]) -> bool:
+    """A status move aimed at our own partner that is not for allies: Encore,
+    Will-O-Wisp, Thunder Wave or Taunt at the Pokemon beside us. The request
+    lists the target as legal, and the smoke games with the Perish team spent
+    a turn on Encore into Archaludon (D87). `allyanim` is the dex's own mark
+    for a move with an ally-targeted use (Heal Pulse, Pollen Puff, Decorate)."""
+    if int(slot.get("target", 0) or 0) >= 0:
+        return False
+    target = str(entry.get("target") or "normal")
+    if target in ALLY_STATUS_TARGETS:
+        return False
+    return not (entry.get("flags") or {}).get("allyanim")
+
+
+def diversify(ranked: list[ScoredAction], k: int) -> list[ScoredAction]:
+    """The top `k` of a ranking, with no one (slot, move) taking more than half.
+
+    On turn one the Fake Out bonus put Fake Out in one slot of every row the
+    budget held -- eight of eight at preview, most of twelve live (D87) -- so
+    the equilibrium could not consider a turn without it. A row is skipped
+    when a slot's move already fills `max(2, k // 2)` kept rows; the skipped
+    rows fill the tail if nothing else does. Switches and passes are not
+    capped, since two switches to different Pokemon are different moves.
+    """
+    cap = max(2, k // 2)
+    kept: list[ScoredAction] = []
+    skipped: list[ScoredAction] = []
+    counts: dict[tuple[int, str], int] = {}
+    for scored in ranked:
+        if len(kept) >= k:
+            break
+        keys = [
+            (index, str(slot.get("move")))
+            for index, slot in enumerate(scored.action.get("slots", []))
+            if slot.get("kind") == "move"
+        ]
+        if any(counts.get(key, 0) >= cap for key in keys):
+            skipped.append(scored)
+            continue
+        kept.append(scored)
+        for key in keys:
+            counts[key] = counts.get(key, 0) + 1
+    if len(kept) < k:
+        kept.extend(skipped[: k - len(kept)])
+    return kept
+
+
+_CHARTS: dict[str, TypeChart] = {}
+
+
+def _chart_for(dex: Dex) -> TypeChart:
+    """One type chart per format, since building one reads the whole dex."""
+    key = str(getattr(dex, "format_id", id(dex)))
+    if key not in _CHARTS:
+        _CHARTS[key] = TypeChart.from_dex(dex)
+    return _CHARTS[key]
 
 
 def _joint(slots: list[dict[str, Any]]) -> dict[str, Any]:

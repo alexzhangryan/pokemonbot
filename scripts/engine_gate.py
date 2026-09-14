@@ -47,7 +47,7 @@ from champions.teams import ALPHA, BETA, available_teams
 from scripts.run_ladder import build_arm
 from scripts.run_local_server import start_server
 
-FORMAT_ID = "gen9championsvgc2026regmb"
+FORMAT_ID = "gen9championsvgc2026regmc"
 BASELINE = "oneply"
 #: Display names the ladder reports each baseline under.
 BASELINE_DISPLAYS = {"oneply": "one-ply", "greedy": "max-base-power"}

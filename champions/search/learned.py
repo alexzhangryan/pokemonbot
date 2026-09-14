@@ -49,6 +49,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from champions.dex.loader import Dex
+from champions.formats import lender
 from champions.search.policy import DEFAULT_K, ScoredAction
 from champions.search.policy_data import Decision
 from champions.search.policy_features import board_for, option_features
@@ -603,6 +604,14 @@ def load_model(format_id: str, path: Path | None = None) -> PolicyModel:
     3), and a prior fit on one is not a prior for the other.
     """
     path = path if path is not None else MODEL_DIR / f"prior.{format_id}.json"
+    if not path.exists():
+        # A new regulation on the same mod borrows its predecessor's prior
+        # (`champions.formats.LINEAGE`, D80). The prior is a candidate
+        # ranking, not a legality claim, so a larger pool only means the new
+        # species have no learned rank until the prior is refit.
+        previous = lender(format_id)
+        if previous is not None and (MODEL_DIR / f"prior.{previous}.json").exists():
+            path = MODEL_DIR / f"prior.{previous}.json"
     if not path.exists():
         raise FileNotFoundError(
             f"no fitted policy prior at {path}. Build one with `make fit-policy`."

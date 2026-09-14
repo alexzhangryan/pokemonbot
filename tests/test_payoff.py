@@ -201,6 +201,24 @@ def test_a_switch_moves_the_occupant_to_the_bench(
     assert ours["remaining"] == snapshot["ours"]["remaining"]
 
 
+def test_a_placed_switch_takes_the_hit_for_the_outgoing_pokemon(dex: Dex, snapshot: Any) -> None:
+    """D86: with the incoming Pokemon placed, the opponent's move resolves
+    against it, and the outgoing one is benched with its boosts cleared."""
+    placing = TurnModel(dex, place_incoming=True)
+    snapshot["ours"]["active"][0]["boosts"] = {"atk": 2}
+    switching = _act(
+        {"kind": "switch", "species": "Garchomp", "name": "Garchomp", "label": "sw"},
+        {"kind": "none", "label": "-"},
+    )
+    quake = _act(_move(dex, "earthquake", 0), {"kind": "none", "label": "-"})
+    outcome = placing.outcomes(snapshot, switching, quake)[0]
+    ours = outcome.snapshot["ours"]
+    assert ours["active"][0]["species"] == "Garchomp"
+    assert ours["active"][0]["hp_pct"] < 100.0, "Garchomp took the Earthquake"
+    benched = next(p for p in ours["bench"] if p["species"] == "Metagross")
+    assert benched["boosts"] == {} and benched["hp_pct"] == 100.0
+
+
 def test_protect_prevents_the_damage_it_should(dex: Dex, model: TurnModel, snapshot: Any) -> None:
     protect = {"kind": "move", "move": "protect", "target": 0, "label": "Protect"}
     incoming = _act(_move(dex, "earthquake", 0), {"kind": "none", "label": "-"})
@@ -366,8 +384,17 @@ def test_opponent_candidates_come_only_from_revealed_moves(dex: Dex, snapshot: A
         [],
     )
     seen = opponent_candidates(revealed, dex)
-    assert len(seen) == 1
-    assert [s["move"] for s in seen[0]["slots"]] == ["bravebird", "dragonclaw"]
+    # One column per way of aiming the two revealed moves at our two slots,
+    # and nothing that was not revealed (D85).
+    assert len(seen) == 4
+    for column in seen:
+        assert [s["move"] for s in column["slots"]] == ["bravebird", "dragonclaw"]
+    assert {tuple(s["target"] for s in c["slots"]) for c in seen} == {
+        (1, 1),
+        (1, 2),
+        (2, 1),
+        (2, 2),
+    }
 
 
 def test_opponent_candidates_respect_k(dex: Dex, snapshot: Any) -> None:
