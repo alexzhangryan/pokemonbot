@@ -51,7 +51,10 @@ cd ../..
 ```
 
 Or, with `make`: `make venv`, then `make vendor` (clones, checks out the
-pinned commit, builds), then `make dex`.
+pinned commit, builds), then `make dex`. `pyproject.toml` wants Python 3.12 or
+newer; if `python` on the box is older (one Windows box had 3.11 as the
+default and 3.13 installed beside it), point the venv at the right one:
+`make venv SYSTEM_PYTHON="py -3.13"`.
 
 Pin the checkout to the commit in `vendor/SHOWDOWN_COMMIT` before `npm install`:
 
@@ -75,7 +78,7 @@ vendor build always produces the same one.
 .venv/Scripts/python.exe -m pytest       # or: make test
 ```
 
-About 90 tests in roughly 40 seconds. They start and stop their own Showdown
+About 520 tests in roughly two minutes. They start and stop their own Showdown
 server, so nothing needs to be running first. Also available:
 
 ```powershell
@@ -522,47 +525,59 @@ do not need one, rather than failing. That is the normal state of a fresh clone.
 
 ## 16. What is not built yet
 
-M0 through M7 are done and M8 is in flight (section 17). What that leaves:
+M0 through M8 are done. What that leaves:
 
 - The preview equilibrium is built and exact, and its value function is not
   wired into play: M4 could not fit one from replay outcomes, because skill
   dominates at that sample size. Self-play is the recommended source, and M6
   has now shown it works — with the caveat that two teams do not cover enough
   of the game for every feature.
-- Search is one ply. The turn model scores a switch as giving up the turn, which
-  is a real and intended bias that depth would fix; M8 weighs depth against the
-  alternatives.
-- The policy layer has one provider, the heuristic. M7 benchmarks it against a
-  learned prior and a language model on decision quality, discard rate and
-  latency — and `policy.discard_rate`, the guard `docs/04` section 3 requires,
-  has still never been run against a real position.
+- Search is one ply, on purpose. M8 built a two-ply model and a simulator-backed
+  payoff and measured both against the shipping agent; neither cleared the
+  gate, so no engine was built and the one-ply agent stays (section 17,
+  `docs/engine-gate.md`, D71, D72).
+- The policy layer ships the specified heuristic (A). M7 built and measured a
+  learned prior and a language-model provider; both lost the pruning guard
+  (`docs/pruning-guard.md`). The union of A and the learned prior beats A at
+  higher budgets and is the one open provider question (D69).
+- The belief filter is built and off by default; it was measured as neutral
+  (D48) and its prior needs the corpus (sections 12 and 13).
+- The frozen opponent pool has nothing between `greedy`, which the agent beats
+  95% of the time, and the agent itself, so every win-rate measurement is a
+  rout or a mirror (D72). More teams would fix that and two other limits.
 - No coach and no game review client. The live view (section 4) is built and
   renders everything the agent emits; the review overlay — move classification,
   ex-ante and ex-post loss, explanations — is M9. Note that nothing currently
   checks `IS_CALIBRATED` before reporting; whoever writes the coach has to
   decide what it does when the flag is False.
+- The clock is tracked and reported, not managed (M11).
 
 See `docs/STATUS.md` for where things actually stand and `docs/01-plan.md` for
 what comes next.
 
 ## 17. Run the M8 engine gate
 
-M8 decides whether marginal win rate comes from search depth or from payoff
+M8 decided whether marginal win rate comes from search depth or from payoff
 fidelity, and whether a Rust engine is justified (`docs/01-plan.md`, D6). The
 arms and the rule are fixed in `docs/specs/2026-09-13-engine-gate.md` and D70;
-`docs/engine-gate.md` is the generated result.
+`docs/engine-gate.md` is the generated result, and the answer was neither
+(D71). Rerunning it is a few hours, most of it the `twoply-oracle` arm.
 
 ```powershell
 .venv/Scripts/python.exe scripts/engine_gate.py --games 20      # or: make gate GATE_GAMES=20
 .venv/Scripts/python.exe scripts/engine_gate.py                 # the real thing: 200 games x 4 arms x 2 teams
 .venv/Scripts/python.exe scripts/engine_gate.py --resume        # continue an interrupted run
 .venv/Scripts/python.exe scripts/engine_gate.py --report-only   # rewrite the report from the JSON
+.venv/Scripts/python.exe scripts/engine_gate.py --baseline greedy  # the secondary measurement (D72)
 ```
 
 The script starts its own Showdown server on `--port` (8090), plays each arm
 against `oneply` in a mirror match on each team, writes
 `data/eval/engine-gate.<format>.json` after every matchup, and renders
 `docs/engine-gate.md` with the verdict per team. Traces land in `runs/m8-gate/`.
+`--baseline greedy` plays the same arms, and `oneply` itself, against
+max-base-power instead, writes `docs/engine-gate-greedy.md`, and attaches no
+verdict; it is the sensitivity check section 4 of the spec names.
 
 The arms are also available to `make ladder` and `make selfplay`:
 

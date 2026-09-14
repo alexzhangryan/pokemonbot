@@ -8,7 +8,7 @@ An agent and coach for Pokemon Champions doubles, Regulation Set M-B.
 
 The target is the game Pokemon Champions. Pokemon Showdown is a proxy for execution and evaluation only. Where the two differ, follow Champions.
 
-Current milestone: M0. See `docs/09-m0-tasks.md` for the task list and acceptance criteria.
+Current milestone: M8 is closed (D71, D72); `docs/STATUS.md` says what is next. `docs/09-m0-tasks.md` is the M0 task list, kept as the record.
 
 ## Non-obvious constraints
 
