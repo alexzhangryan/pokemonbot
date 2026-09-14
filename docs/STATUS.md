@@ -1672,8 +1672,10 @@ section 7 carries the local figure and its conclusion 2 is reversed (D70).
 ## Notes for the next session
 
 There are now **three full working environments**. The newest is a second Windows
-box, `C:\Users\aryan\pokemonbot`, set up 2026-09-13 (venv on Python 3.13.7 via
-`py -3.13`; the default `python` there is 3.11 and too old; GNU Make 3.81;
+box, `C:\Users\aryan\pokemonbot`, set up 2026-09-13 (venv now on Anaconda's
+Python 3.12.4, rebuilt clean after a `python -m venv .venv` without `--clear`
+re-pointed the 3.13 venv and broke every C extension — see QUICKSTART
+section 2; `python` in Git Bash there is 3.11 and too old; GNU Make 3.81;
 vendored Showdown at the pin; dex built and reproducing `docs/dex-delta.md` byte
 for byte). It has no corpus and no belief prior, so the `belief` arms cannot
 run there and the M8 gate uses the oracle instead. `C:\dev\pokemonbot` does not

@@ -56,6 +56,13 @@ newer; if `python` on the box is older (one Windows box had 3.11 as the
 default and 3.13 installed beside it), point the venv at the right one:
 `make venv SYSTEM_PYTHON="py -3.13"`.
 
+**Never run `python -m venv .venv` over an existing venv with a different
+interpreter.** Without `--clear` it re-points `pyvenv.cfg` and leaves the old
+interpreter's compiled packages in place, and every C extension then fails to
+import (`No module named 'numpy._core._multiarray_umath'`, then pydantic,
+orjson, torch — `make test` reports 25 collection errors). Rebuild with
+`python -m venv --clear .venv` and reinstall.
+
 Pin the checkout to the commit in `vendor/SHOWDOWN_COMMIT` before `npm install`:
 
 ```powershell
