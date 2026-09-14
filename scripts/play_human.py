@@ -16,7 +16,7 @@ from poke_env.ps_client import AccountConfiguration
 
 from champions.agents import commands
 from champions.agents.baseline import TracingPlayer
-from champions.teams import BETA, load_team
+from champions.teams import DEFAULT, load_team
 from scripts.selfplay import AGENTS, FORMAT_ID, local_server
 from scripts.selfplay import build_agent as build_registered_agent
 
@@ -31,7 +31,7 @@ def build_agent(kind: str, port: int, username: str, trace_dir: str) -> TracingP
     """
     return build_registered_agent(
         kind,
-        team=load_team(BETA),
+        team=load_team(DEFAULT),
         account_configuration=AccountConfiguration(username, None),
         battle_format=FORMAT_ID,
         server_configuration=local_server(port),

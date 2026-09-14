@@ -40,6 +40,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from champions.teams import DEFAULT
 from scripts.run_local_server import start_server
 from scripts.selfplay import AGENTS
 
@@ -247,7 +248,7 @@ class Supervisor:
                 "username": username,
                 "format_id": FORMAT_ID,
                 "showdown_url": self.showdown_url,
-                "team_file": "data/teams/regmb-alpha.txt",
+                "team_file": f"data/teams/{DEFAULT}.txt",
             },
         )
 

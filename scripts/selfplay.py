@@ -22,7 +22,7 @@ from champions.agents.oneply import OnePlyAgent
 from champions.agents.oracle import OraclePlyAgent, SimOracleAgent, TwoPlyOracleAgent
 from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
-from champions.teams import ALPHA, BETA, available_teams, load_team
+from champions.teams import DEFAULT, available_teams, load_team
 from champions.trace.validate import validate_trace_file
 
 FORMAT_ID = "gen9championsvgc2026regmb"
@@ -116,8 +116,8 @@ async def run_selfplay(
     username_suffix: str = "",
     agent_a: str = "random",
     agent_b: str = "random",
-    team_a: str = ALPHA,
-    team_b: str = BETA,
+    team_a: str = DEFAULT,
+    team_b: str = DEFAULT,
     control_stdin: bool = False,
 ) -> tuple[TracingPlayer, TracingPlayer, list[str]]:
     """Play `n_games` between two agents.
@@ -200,8 +200,8 @@ async def main() -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--agent-a", choices=sorted(AGENTS), default="random")
     parser.add_argument("--agent-b", choices=sorted(AGENTS), default="random")
-    parser.add_argument("--team-a", default=ALPHA, choices=available_teams())
-    parser.add_argument("--team-b", default=BETA, choices=available_teams())
+    parser.add_argument("--team-a", default=DEFAULT, choices=available_teams())
+    parser.add_argument("--team-b", default=DEFAULT, choices=available_teams())
     parser.add_argument(
         "--control-stdin",
         action="store_true",

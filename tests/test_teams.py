@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from champions.teams import ALPHA, BETA, available_teams, load_team
+from champions.teams import ALPHA, BETA, DEFAULT, RAIN, available_teams, load_team
 
 FORMAT_ID = "gen9championsvgc2026regmb"
 SHOWDOWN_DIR = Path(__file__).resolve().parent.parent / "vendor" / "showdown"
@@ -30,7 +30,7 @@ def _pack(team_text: str) -> str:
     return packed.stdout.strip()
 
 
-@pytest.mark.parametrize("team_name", [ALPHA, BETA])
+@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN])
 def test_team_is_legal_in_regmb(team_name: str) -> None:
     packed = _pack(load_team(team_name))
 
@@ -45,14 +45,15 @@ def test_team_is_legal_in_regmb(team_name: str) -> None:
     assert result.returncode == 0, f"{team_name} rejected: {result.stderr}"
 
 
-@pytest.mark.parametrize("team_name", [ALPHA, BETA])
+@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN])
 def test_team_has_six_pokemon(team_name: str) -> None:
     # Reg M-B is bring 6, pick 4: min and max team size are both 6.
     assert len(_pack(load_team(team_name)).split("]")) == 6
 
 
 def test_available_teams_lists_the_checked_in_teams() -> None:
-    assert set(available_teams()) >= {ALPHA, BETA}
+    assert set(available_teams()) >= {ALPHA, BETA, RAIN}
+    assert DEFAULT in available_teams()
 
 
 def test_missing_team_names_the_alternatives() -> None:

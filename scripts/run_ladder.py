@@ -28,7 +28,7 @@ from champions.agents.oracle import OraclePlyAgent, SimOracleAgent, TwoPlyOracle
 from champions.agents.twoply import TwoPlyAgent
 from champions.dex.loader import Dex
 from champions.harness.ladder import AgentFactory, format_results_table, run_matchup
-from champions.teams import ALPHA, available_teams, load_team
+from champions.teams import DEFAULT, available_teams, load_team
 from scripts.selfplay import FORMAT_ID, local_server
 
 #: The frozen opponent pool: the command-line name, the class, and the display
@@ -62,7 +62,7 @@ NEEDS_DEX = (MaxBasePowerAgent, OnePlyAgent, BeliefAgent)
 
 
 def build_arm(
-    name: str, port: int, team: str = ALPHA, opponent_team: str | None = None
+    name: str, port: int, team: str = DEFAULT, opponent_team: str | None = None
 ) -> tuple[str, AgentFactory]:
     """One arm of a matchup, by its command-line name.
 
@@ -94,7 +94,7 @@ def build_arm(
 
 
 def build_arms(
-    port: int, team_a: str = ALPHA, team_b: str = ALPHA
+    port: int, team_a: str = DEFAULT, team_b: str = DEFAULT
 ) -> tuple[tuple[str, AgentFactory], tuple[str, AgentFactory]]:
     """The default pairing: random against max-base-power, on one team."""
     return build_arm("random", port, team_a), build_arm("greedy", port, team_b)
@@ -110,7 +110,7 @@ async def main() -> None:
     parser.add_argument("--arm-b", choices=sorted(ARMS), default="greedy")
     parser.add_argument(
         "--team",
-        default=ALPHA,
+        default=DEFAULT,
         choices=available_teams(),
         help="the team both arms play, so the result is about the agents",
     )

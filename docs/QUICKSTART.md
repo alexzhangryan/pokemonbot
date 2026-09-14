@@ -164,7 +164,8 @@ bot up**. The panel then shows the four steps and a link:
    — the official Showdown client UI, loaded from Smogon but connected to *your*
    local server. This needs internet for the client assets; the battles
    themselves are entirely local.
-2. Open the teambuilder and paste in `data/teams/regmb-alpha.txt`.
+2. Open the teambuilder and paste in `data/teams/regmb-rain.txt` (the agent's
+   default team, D73) or either of the older two.
 3. Find Users → `champbot` → Challenge, in
    **[Gen 9 Champions] VGC 2026 Reg M-B**.
 4. Decline Open Team Sheets if prompted — the bot always declines, by design,
@@ -247,6 +248,11 @@ because `candidates` enumerates the whole legal joint action set. That shrinks
 once M2 prunes it.
 
 ## 8. Evaluate agents against each other
+
+The default team everywhere is `regmb-rain` (`champions.teams.DEFAULT`): the
+team that won Maddo's Cup #9, with hand-chosen stat points, see D73. Pass
+`--team` (ladder) or `--team-a`/`--team-b` (self-play) for `regmb-alpha` or
+`regmb-beta`, which every measurement before 2026-09-13 was made on.
 
 ```powershell
 .venv/Scripts/python.exe scripts/run_ladder.py 50   # or: make ladder GAMES=50
