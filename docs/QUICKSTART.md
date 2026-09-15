@@ -164,7 +164,7 @@ bot up**. The panel then shows the four steps and a link:
    — the official Showdown client UI, loaded from Smogon but connected to *your*
    local server. This needs internet for the client assets; the battles
    themselves are entirely local.
-2. Open the teambuilder and paste in `data/teams/regmc-perish.txt` (the agent's
+2. Open the teambuilder and paste in `data/teams/regmc-mence.txt` (the agent's
    default team, D75) or any of the other three.
 3. Find Users → `champbot` → Challenge, in
    **[Gen 9 Champions] VGC 2026 Reg M-C**.
@@ -249,7 +249,7 @@ once M2 prunes it.
 
 ## 8. Evaluate agents against each other
 
-The default team everywhere is `regmc-perish` (`champions.teams.DEFAULT`, D87; `regmb-worlds` before it):
+The default team everywhere is `regmc-mence` (`champions.teams.DEFAULT`, D87; `regmb-worlds` before it):
 Takuma Yamazaki's 2026 World Championships winner, published stat points
 included, see D75. `regmb-rain` is the Maddo's Cup #9 winner with hand-chosen
 points (D73). Pass `--team` (ladder) or `--team-a`/`--team-b` (self-play) for
@@ -791,7 +791,7 @@ trace from the list yourself (D81). While a run is on, the control bar
 shows a **play ladder** button when nothing is running (D87): a number of
 games, or blank to play until you press stop, started as the same script
 `make ladder-live` runs, detached so closing the page forfeits nothing, with
-the default agent (`adaptive-belief`) and team. While a run is on it
+the default agent (`belief`) and team. While a run is on it
 shows a **stop after this game** button: the run finishes the game on the
 board, reviews it, and stops (D82); **cancel stop** takes it back. Each
 candidate row shows the bot's score for it — its expected win probability

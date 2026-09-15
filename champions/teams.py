@@ -14,9 +14,10 @@ fixed across arms.
 
 `DEFAULT` is what the agent plays when nothing says otherwise: the ladder, the
 self-play script, the viewer's run panel and the human-play script all take
-it. `PERISH` is Alex's Reg M-C team (D87): Mega Gengar and Politoed's Perish
-Song behind Mega Froslass's Aurora Veil, Incineroar, Archaludon and Rillaboom,
-with the stat points as registered. `WORLDS` is Takuma Yamazaki's 2026 World
+it. `MENCE` is Alex's Reg M-C team (D87, D88): Mega Salamence's Tailwind and
+Hyper Voice with Sneasler, Mega Floette, Rillaboom, Incineroar and Gholdengo,
+with the stat points as registered; it replaced a Perish Song team the model
+could not play (D88). `WORLDS` is Takuma Yamazaki's 2026 World
 Championships winning team
 (San Francisco, 2026-08-28 to 30, 395 players, Regulation Set M-B), with the
 published stat points (D75). `RAIN` is the team DaniVGC03 won Maddo's Cup #9
@@ -36,8 +37,8 @@ ALPHA = "regmb-alpha"
 BETA = "regmb-beta"
 RAIN = "regmb-rain"
 WORLDS = "regmb-worlds"
-PERISH = "regmc-perish"
-DEFAULT = PERISH
+MENCE = "regmc-mence"
+DEFAULT = MENCE
 
 
 def load_team(name: str) -> str:

@@ -1,0 +1,65 @@
+{
+  "weights": {
+    "active_hp_advantage": 0.420955,
+    "boost_advantage": 0.139199,
+    "hazard_advantage": 0.877295,
+    "hp_advantage": 2.168001,
+    "pokemon_advantage": 0.919903,
+    "speed_advantage": 0.211014,
+    "speed_control": 0.198254,
+    "status_advantage": 1.206669
+  },
+  "platt": {
+    "a": 1.069635,
+    "b": 0.0
+  },
+  "l2": 1.0,
+  "free_intercept": -0.027759,
+  "platt_offset_diagnostic": 0.010718,
+  "metrics": {
+    "train": {
+      "n": 2143,
+      "n_battles": 137,
+      "log_loss": 0.4661,
+      "base_log_loss": 0.693,
+      "brier": 0.1564,
+      "accuracy": 0.7494,
+      "auc": 0.8517,
+      "base_rate": 0.4923
+    },
+    "test": {
+      "n": 485,
+      "n_battles": 30,
+      "log_loss": 0.4006,
+      "base_log_loss": 0.693,
+      "brier": 0.1345,
+      "accuracy": 0.7959,
+      "auc": 0.8921,
+      "base_rate": 0.4907
+    }
+  },
+  "format_id": "gen9championsvgc2026regmc",
+  "source": "selfplay",
+  "fitted_at": "2026-09-15T03:07:02+00:00",
+  "feature_order": [
+    "pokemon_advantage",
+    "hp_advantage",
+    "active_hp_advantage",
+    "status_advantage",
+    "boost_advantage",
+    "speed_control",
+    "speed_advantage",
+    "weather_synergy",
+    "hazard_advantage"
+  ],
+  "borrowed": {
+    "active_hp_advantage": "corpus",
+    "boost_advantage": "corpus",
+    "hazard_advantage": "corpus",
+    "speed_control": "corpus",
+    "status_advantage": "corpus"
+  },
+  "unfit": [
+    "weather_synergy"
+  ]
+}

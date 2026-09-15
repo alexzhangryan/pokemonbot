@@ -4,13 +4,86 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-14 (late evening, after the second belief cycle and D87), by Claude Code.
+Last updated: 2026-09-14 (night, after the 76-game ladder run and D90), by Claude Code.
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a
 browser.
 
-## The ladder cycles (D85, D86, D87)
+## The 76-game ladder run, and what it bought (D90)
+
+**Where it stands: 76 rated games on `regmc-mence` with `adaptive-belief`,
+36 won** (Wilson 0.37-0.58, which is a coin flip). The ledger is
+`traces/ledger.ndjson`, not `runs/live/`: these were started from the
+viewer's play-ladder button, which writes to the viewer's own trace
+directory. `make ladder-summary LIVE_ARGS="--trace-dir traces"` reads it.
+All 76 have coach reviews beside them, and `make viewer-live` on `traces/`
+shows them.
+
+**What the reviews say.** The losses are not ex-ante mistakes. Per game, ex-ante
+loss is 22.6 points in wins against 30.0 in losses; ex-post loss is 46.9
+against 80.7; mean luck per decision is -0.012 against +0.053. Luck is
+everything the one-turn model does not represent, so the gap between wins and
+losses lives in the model rather than in the choices. Classifications over 569
+scored decisions: 130 best, 147 solid, 160 inaccuracy, 80 mistake, 40 blunder.
+
+**Three things were built off that reading, and each turned up a defect. All of
+it is in D90 and none of it has played a rated game.**
+
+1. **The evaluation is refit on M-C**, ending the M-B loan (D80). 196 self-play
+   battles, held-out log loss 0.4006 against 0.693, AUC 0.8921. Then two new
+   rules about what a fit may write, because the first version of this refit
+   shipped `speed_control`, `hazard_advantage` and `weather_synergy` at exactly
+   0.0 -- three features no source had measured, on a team whose Mega Salamence
+   carries Tailwind.
+2. **Grassy Seed and Unburden are priced**, and at team preview our *own* entry
+   effects now fire at all. Under D86 only the opponent's did, so our Grassy
+   Surge, our Intimidate and the seed under Unburden were invisible to the
+   sweep that picks the lead.
+3. **The preview budget is 20 s**, from 8 s. The full 15 rounds take 8.2 s on
+   this box idle; live reached 7 or 8 of 15 in 48 of the 76 games and all 15 in
+   none.
+
+**The two defects worth knowing about.** The sweep was scoring the opponent's
+whole team at zero HP, because poke-env reports `current_hp_fraction` as 0 for
+a Pokemon it has never seen in battle and that is exactly what team preview is.
+And their six were weighed against our four, because `_hp_total` summed over
+what was in play while `alive` capped at the bring. Every opening in all 76
+games therefore scored a mean of 0.936, with 0.098 between the best pair and
+the worst. It is now 0.35 to 0.61 on the benchmark matchup, and the pair it
+leads changed.
+
+**What the data says that has not been acted on.**
+
+- **The bot does not play this team the way people who win with it do.** It
+  brought Sneasler in 20 of 76 games and never once led Rillaboom with it. The
+  corpus has 47 human games on this exact six -- the most-played team in the
+  M-C corpus -- and they lead Rillaboom plus Sneasler 7 times for 5 wins. The
+  bot's favourite lead, Incineroar plus Salamence (27 games, 14 wins), went
+  2-6 for humans.
+- **The opening value did not distinguish a good matchup from a bad one**:
+  turn-one win probability averaged 0.533 in games won and 0.523 in games lost.
+  The D90 fixes are a precondition for that number meaning something, not a
+  demonstration that it now does.
+- **The clock is 90% unused**: 3.9 s mean per turn, 10.3 s p95, against a 39.5 s
+  budget, watchdog never fired.
+- **Where it loses**: 9 of 20 against Indeedee-F, 3 of 13 against Gholdengo,
+  2 of 8 against Gardevoir.
+
+**Two proposals from Alex, still open.** (a) Hard-code a prior on how to use the
+team. The corpus already holds it for any team it has seen -- leads, brings and
+turn-one lines from those 47 games, with open sheets -- so this wants to be
+mined rather than written by hand, and it wants the pricing fixes above to land
+first or it papers over them. (b) Take the top teams, play them against each
+other, and find which the bot plays best. The teams are free: all 945 M-C
+corpus replays carry open sheets, giving 433 distinct six-Pokemon teams, 108 of
+them seen five or more times, with moves and items but never stat points (D73's
+guess would apply to each). The full round robin is not affordable -- 100 teams
+all-pairs at 10 games is ~50,000 battles, about two weeks of wall clock at 25 s
+a game -- but 10 candidates against a fixed 8-team pool at 25 games a pairing
+is 2,000 battles and about 14 hours, and answers the question asked.
+
+## The ladder cycles (D85, D86, D87, D88)
 
 **Where it stands: 25 rated games, 10 won.** `oneply` 3-7, then `belief` 6-4
 under D85, then `belief` with D86's changes 1-4 in five games (Alex stopped
@@ -18,8 +91,8 @@ the run from the viewer). D87 is what the five games taught, built and
 tested and unplayed: the type-changing abilities (Mega Gardevoir's Hyper
 Voice was a Normal move to the model), a revealed ability outranking the
 prior, a diversified row set, entry abilities and Weather Ball, no status
-moves at our own partner, `adaptive-belief` as the default agent, Alex's
-Reg M-C team `regmc-perish` as the default team, and a **play ladder** button
+moves at our own partner, `adaptive-belief` built and measured (D89), Alex's
+Reg M-C team as the default team (replaced again under D88), and a **play ladder** button
 in the viewer (blank count plays until the stop button).
 
 **Two measurements were left running when the session ended**, both
@@ -29,12 +102,11 @@ seeds:
 1. `runs/mc-adaptive/worlds/`: `adaptive-belief` against `belief`, 49 games
    asked (9 with seed 0 and 40 with seed 1). At 24 games it stood 17-7
    (Wilson 0.51-0.85), which is when `adaptive-belief` was made the default;
-   at 26 it stood 17-9 (0.46-0.81), the interval no longer clear of one
-   half. Read the final count (`battle_end` results in the `champ-a`
-   traces) and, if the interval clears one half, the default holds; if not,
-   `DEFAULT_AGENT` in `scripts/ladder_live.py` and `DEFAULT_LADDER_AGENT` in
-   the viewer go back to `belief`, or the mirror gets more games. Either
-   way the escalation is inside the clock (3-10 s a turn).
+   at 26 it stood 17-9 (0.46-0.81), and it finished 26-22 (0.40-0.67): not
+   apart from one half, so the default went back to `belief` (D89). The
+   escalation is inside the clock (3-10 s a turn) and `adaptive-belief`
+   stays in the registry for a larger mirror; D71's arithmetic says a
+   5-point gap needs about 1,500 games per arm.
 2. `runs/mc-selfplay/worlds/`: `belief` against itself, 26 games plus 170
    asked, for the evaluation refit. When it finishes:
    `.venv/Scripts/python.exe scripts/fit_eval.py --traces runs/mc-selfplay/worlds`
@@ -49,11 +121,15 @@ those two; `make viewer` starts its own. **Local runs and the live bot must
 not share the box**: the preview sweep's budget is wall-clock and reached
 4-5 of 15 rounds under contention against 10 alone.
 
-**The new team is unmeasured and the model does not speak three of its
-moves.** Perish Song, Encore and Eject Button are passes to the search;
-in two smoke games against the worlds team it lost both and Protected
-often. The first analysis on it should read the `preview_decision` events
-(what the sweep leads with) and where the Perish Song turns fall.
+**D88, after Alex watched the smoke games:** two-turn moves now charge
+unless the weather waives it (Electro Shot fires at once in rain and is a
+set-up move outside it), `weather_synergy` in the evaluation counts the
+Pokemon on each side whose moves want the weather that is up, and the
+Perish Song team was scrapped after the agent perished its own side with
+it. **The default team is now `regmc-mence`** (Mega Salamence, Sneasler,
+Mega Floette-Eternal, Rillaboom, Incineroar, Gholdengo), every move of
+which the model resolves. It is unmeasured; the first analysis on it
+should read the `preview_decision` events (what the sweep leads with).
 
 The earlier text of this section follows.
 
@@ -107,9 +183,10 @@ on the trace, which the viewer's pseudo-turn should show.
 3. `k = 8` rows at preview were all Fake Out variants in the debug run --
    the heuristic's Fake Out bonus crowds the row set on turn one. The live
    turn's `k = 12` has the same bias to a lesser degree.
-4. The evaluation weights are still the M-B fit lent to M-C with one hand-set
-   feature (`speed_advantage`, 0.40). Twenty live traces are not a refit;
-   self-play under the new model (`make eval-games`, 30 minutes) is.
+4. ~~The evaluation weights are still the M-B fit lent to M-C.~~ **Closed by
+   D90**: refit on 196 M-C self-play battles, and `speed_advantage` is fit
+   rather than hand-set. `weather_synergy` is the one weight still hand-set,
+   and the file now says so rather than shipping a zero.
 5. The belief prior mixes 500 M-B and 800 M-C Bo3 replays; `make scrape`
    grows the M-C half and `make priors` rebuilds in seconds.
 
@@ -1592,8 +1669,8 @@ below.** `champions/search/payoff.py` (rewritten resolution), `policy.py`,
 `test_belief.py`, `test_teams.py`, `test_viewer.py`, `test_ladder_live.py`;
 `champions/agents/belief_agent.py` (`AdaptiveBeliefAgent`), `champions/teams.py`
 and `data/teams/regmc-perish.txt`, `champions/viewer/server.py` and the
-static files (the start button), `Makefile`; `docs/DECISIONS.md` D85, D86 and
-D87; QUICKSTART; this file. Full suite at the end of the session: 622
+static files (the start button), `Makefile`; `docs/DECISIONS.md` D85 to
+D88; QUICKSTART; this file. Full suite at the end of the session: 624
 passed, 4 skipped. Gitignored and rebuilt: `data/priors/` (from the corpus,
 now 1,300 replays including 800 M-C Bo3), `runs/live/` (20 games' traces,
 reviews and the ledger). Claude Code did not commit; the split suggested is

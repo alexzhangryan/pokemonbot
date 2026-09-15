@@ -502,3 +502,25 @@ def test_a_status_move_at_our_own_partner_is_disqualified() -> None:
     assert not _misaimed_status(dex.moves["helpinghand"], {"kind": "move", "target": -2})
     assert not _misaimed_status(dex.moves["healpulse"], {"kind": "move", "target": -2})
     assert not _misaimed_status(dex.moves["protect"], {"kind": "move", "target": 0})
+
+
+def test_a_charging_move_is_ranked_as_setup_not_as_an_attack() -> None:
+    from champions.dex.loader import Dex
+    from champions.search.policy import SETUP_SAFE, HeuristicPolicy
+    from tests.test_turn_effects import _act, _mon, _move, _snapshot
+
+    dex = Dex.load("gen9championsvgc2026regmc")
+    policy = HeuristicPolicy(dex)
+    snapshot = _snapshot(
+        [_mon(dex, "Archaludon"), _mon(dex, "Politoed")],
+        [_mon(dex, "Kingambit", known=False), _mon(dex, "Rillaboom", known=False)],
+    )
+    shot = _act(_move(dex, "electroshot", 1), {"kind": "pass", "label": "pass"})
+    pulse = _act(_move(dex, "dragonpulse", 1), {"kind": "pass", "label": "pass"})
+    dry = {s.action["message"]: s for s in policy.scored([shot, pulse], 2, snapshot)}
+    assert dry[shot["message"]].score == SETUP_SAFE and "charge" in dry[shot["message"]].reasons
+    assert dry[pulse["message"]].score > dry[shot["message"]].score
+
+    rainy = dict(snapshot, weather={"RAINDANCE": 0})
+    wet = {s.action["message"]: s for s in policy.scored([shot, pulse], 2, rainy)}
+    assert wet[shot["message"]].score > wet[pulse["message"]].score, "130 power, no charge"

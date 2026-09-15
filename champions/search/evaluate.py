@@ -62,18 +62,35 @@ BOOTSTRAP_WEIGHTS: dict[str, float] = {
     "speed_control": 0.35,
     "hazard_advantage": 0.12,
     "speed_advantage": 0.40,
+    "weather_synergy": 0.25,
 }
 
-#: Features added after the M6 fit, with hand-set weights that a fitted file
-#: written before they existed does not carry. `load_model` fills them in and
-#: says so on the model's `source`, so a number built on one is never mistaken
-#: for a fitted one. They exist because the first live games (D85) were lost
-#: to Trick Room, which the fitted features could not express: a position's
-#: value under Trick Room is a question about who moves first, and until
-#: `speed_advantage` nothing in the vector asked it. Removed by the next
-#: `make fit-eval`, which fits every feature `features` emits.
-SUPPLEMENTARY_WEIGHTS: dict[str, float] = {
-    "speed_advantage": BOOTSTRAP_WEIGHTS["speed_advantage"],
+#: A weight the fitted file does not carry keeps its bootstrap value, and
+#: `load_model` says so on the model's `source`, so a number built on one is
+#: never mistaken for a fitted one. Two ways a file lacks a weight. The file
+#: was written before the feature existed: `speed_advantage` and
+#: `weather_synergy` arrived after the M6 fit (D85, D88), because the first
+#: live games were lost to Trick Room and a linear model over HP could not
+#: say who moves first. Or the fit found the feature constant in every
+#: source and declined to write a number for it (`scripts/fit_eval.py`,
+#: D90): a Tailwind weight of exactly zero, from two sources with no
+#: Tailwind in them, is not a measurement, and the first M-C fit shipped
+#: three of those before this rule existed.
+
+#: Moves and abilities that want a weather, by the weather's snapshot name.
+#: `weather_synergy` counts, per side, the Pokemon in play carrying one of
+#: them under the weather that is up (D88): a team built on Drizzle has
+#: something to lose when a Mega Froslass replaces its rain with snow, and
+#: something to gain from setting it back, and a linear model over HP could
+#: not say so. Weather Ball wants any weather.
+WEATHER_USERS: dict[str, frozenset[str]] = {
+    "RAINDANCE": frozenset({"weatherball", "electroshot", "thunder", "hurricane", "swiftswim"}),
+    "PRIMORDIALSEA": frozenset({"weatherball", "electroshot", "thunder", "hurricane", "swiftswim"}),
+    "SUNNYDAY": frozenset({"weatherball", "solarbeam", "solarblade", "chlorophyll"}),
+    "DESOLATELAND": frozenset({"weatherball", "solarbeam", "solarblade", "chlorophyll"}),
+    "SANDSTORM": frozenset({"weatherball", "sandrush", "sandforce"}),
+    "SNOWSCAPE": frozenset({"weatherball", "blizzard", "auroraveil", "slushrush"}),
+    "HAIL": frozenset({"weatherball", "blizzard", "auroraveil", "slushrush"}),
 }
 
 #: Points assumed on an unrevealed Pokemon's Speed when ordering it for the
@@ -162,7 +179,7 @@ def load_model(format_id: str = FORMAT_ID) -> Model:
     if lent_from is not None:
         source = f"{source or path.name} (fit on {lent_from}, lent to {format_id})"
     weights = {str(k): float(v) for k, v in payload["weights"].items()}
-    missing = {k: v for k, v in SUPPLEMENTARY_WEIGHTS.items() if k not in weights}
+    missing = {k: v for k, v in BOOTSTRAP_WEIGHTS.items() if k not in weights}
     if missing:
         weights.update(missing)
         source = f"{source or path.name} (+ hand-set {', '.join(sorted(missing))})"
@@ -253,13 +270,23 @@ def _hp_total(side: dict[str, Any], picked_team_size: int, known: bool) -> float
     HP fraction is the common currency because it is the only one both sides
     speak: opponent HP arrives quantized to percent and their maximum is never
     known. Unrevealed Pokemon are counted at full health, which is what they are.
+
+    The opponent's side is the bring minus the damage done to it, rather than a
+    sum over what we have seen, for the same reason `alive` derives their count
+    rather than counting it: their bring is `picked_team_size` whatever we have
+    observed, and a sum over observations is only equal to it while the number
+    observed is at most the bring. At team preview it is not -- the lead sweep
+    puts all six of their previewed Pokemon on the board (`champions.search.
+    lead.opening`) -- and the sum scored a dead-even opening at two whole
+    Pokemon down, which under the M-C weights is a win probability of 0.01
+    before a move is chosen (D90). Equal to the old sum everywhere else, which
+    is every position in an actual battle.
     """
     in_play = _in_play(side)
-    total = sum(0.0 if p["fainted"] else p["hp_pct"] / 100.0 for p in in_play)
-    if not known:
-        unrevealed = max(0, picked_team_size - len(in_play))
-        total += float(unrevealed)
-    return total
+    if known:
+        return sum(0.0 if p["fainted"] else p["hp_pct"] / 100.0 for p in in_play)
+    lost = sum(1.0 if p["fainted"] else 1.0 - p["hp_pct"] / 100.0 for p in in_play)
+    return max(0.0, float(picked_team_size) - lost)
 
 
 def _active_hp(side: dict[str, Any]) -> float:
@@ -312,6 +339,35 @@ def _ordering_speed(view: dict[str, Any], conditions: dict[str, Any]) -> float |
     if "TAILWIND" in conditions:
         speed *= 2.0
     return speed
+
+
+def _weather_users(side: dict[str, Any], weather: dict[str, Any]) -> float:
+    """How many of this side's Pokemon in play carry a move or ability that
+    wants the weather that is up. Our moves are exact; theirs are what was
+    revealed plus what the search snapshot says is believed."""
+    wanted: set[str] = set()
+    for name in weather:
+        wanted |= WEATHER_USERS.get(name, frozenset())
+    if not wanted:
+        return 0.0
+    total = 0
+    for pokemon in _in_play(side):
+        if pokemon.get("fainted"):
+            continue
+        moves = {str(m.get("id")) for m in pokemon.get("moves") or []}
+        moves |= {str(m.get("id")) for m in pokemon.get("revealed_moves") or []}
+        moves |= {str(m) for m in pokemon.get("believed_moves") or []}
+        ability = str(pokemon.get("ability") or "").replace(" ", "").lower()
+        if moves & wanted or ability in wanted:
+            total += 1
+    return float(total)
+
+
+def _weather_synergy(snapshot: dict[str, Any]) -> float:
+    weather = snapshot.get("weather") or {}
+    if not weather:
+        return 0.0
+    return _weather_users(snapshot["ours"], weather) - _weather_users(snapshot["theirs"], weather)
 
 
 def _speed_advantage(snapshot: dict[str, Any]) -> float:
@@ -385,6 +441,7 @@ def features(snapshot: dict[str, Any], picked_team_size: int = 4) -> dict[str, f
         "boost_advantage": _boost_total(ours) - _boost_total(theirs),
         "speed_control": tailwind,
         "speed_advantage": _speed_advantage(snapshot),
+        "weather_synergy": _weather_synergy(snapshot),
         "hazard_advantage": _hazard_count(snapshot["opponent_side_conditions"])
         - _hazard_count(snapshot["side_conditions"]),
         # A side with nothing left has lost; this is what makes the terminal

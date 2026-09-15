@@ -72,6 +72,7 @@ from champions.search.payoff import (
     SPREAD_TARGETS,
     Combatant,
     OpponentHypothesis,
+    charge_waived,
     combatant,
     effective_speed,
     targets_of,
@@ -425,6 +426,16 @@ class HeuristicPolicy:
         ):
             return DISQUALIFIED, "friendly fire"
 
+        if (
+            not position.empty
+            and (entry.get("flags") or {}).get("charge")
+            and not position.charged(index)
+            and not charge_waived(entry, position.snapshot.get("weather") or {})
+        ):
+            # A two-turn move on its charge turn is a set-up move, not an
+            # attack: Electro Shot outside rain deals nothing this turn.
+            return SETUP_SAFE, "charge"
+
         if entry["id"] == "fakeout" and not position.empty:
             # Fake Out works only on the turn its user came in. Off that turn it
             # is not a weak attack, it is a guaranteed failure, and base power
@@ -648,6 +659,11 @@ class Board:
         if view is not None and "first_turn" in view:
             return bool(view["first_turn"])
         return int(self.snapshot.get("turn") or 0) == 1
+
+    def charged(self, index: int) -> bool:
+        """Whether this slot is mid-way through a two-turn move."""
+        view = self.view("ours", index)
+        return bool(view is not None and view.get("preparing"))
 
     def protect_counter(self, index: int) -> int:
         view = self.view("ours", index)

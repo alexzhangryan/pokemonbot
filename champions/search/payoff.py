@@ -96,6 +96,9 @@ from champions.search.evaluate import win_prob
 #: replaces the whole assumption with sampled particles that *are* coherent.
 ASSUMED_POINTS = 32
 
+#: Unburden doubles Speed from the moment the held item is used or taken
+#: until the holder leaves the field.
+UNBURDEN_SPEED = 2.0
 #: Statuses that halve the effective Speed stat. In Champions paralysis keeps
 #: mainline's speed penalty even though its full-paralysis chance dropped to 1/8
 #: (`docs/02-mechanics-deltas.md` section 4).
@@ -202,6 +205,10 @@ class Combatant:
     boosts: dict[str, int]
     fainted: bool
     known: bool
+    #: The ability and held item as the view shows them: exact on our side,
+    #: revealed-or-nothing on theirs. Read for Unburden (`unburden_active`).
+    ability: str = ""
+    item: str | None = None
 
     def stat(self, stat_id: str) -> int:
         return boosted(self.stats[stat_id], self.boosts.get(stat_id, 0))
@@ -238,6 +245,8 @@ def combatant(view: dict[str, Any], hypothesis: OpponentHypothesis) -> Combatant
         boosts=dict(view["boosts"]),
         fainted=bool(view["fainted"]),
         known=known,
+        ability=to_id(view.get("ability")),
+        item=view.get("item") or None,
     )
 
 
@@ -251,10 +260,28 @@ def effective_speed(unit: Combatant, snapshot: dict[str, Any], ours: bool) -> fl
     speed = float(unit.stat("spe"))
     if unit.status == "PAR":
         speed *= PARALYSIS_SPEED_FACTOR
+    if unburden_active(unit):
+        speed *= UNBURDEN_SPEED
     conditions = snapshot["side_conditions"] if ours else snapshot["opponent_side_conditions"]
     if "TAILWIND" in conditions:
         speed *= 2.0
     return speed
+
+
+def unburden_active(unit: Combatant) -> bool:
+    """Whether Unburden is doubling this Pokemon's Speed.
+
+    Read as "Unburden and no item" on our own side, where both are exact and
+    a registered Pokemon always holds something, so an empty slot means the
+    item was used or taken. The opponent's is not read: the snapshot cannot
+    tell an unknown item from a used one (`champions.protocol.state._item`),
+    and Unburden never announces itself, so their doubling is the belief's
+    to infer from Speed evidence, and it does not yet. One approximation is
+    carried on our side: the game drops the boost when the holder switches
+    out and does not restore it on re-entry, and nothing in the snapshot
+    records that, so a re-entered holder is priced fast when it is not.
+    """
+    return unit.known and unit.ability == "unburden" and not unit.item
 
 
 @dataclass
@@ -335,6 +362,15 @@ SURGE_TERRAINS: dict[str, str] = {
     "electricsurge": "ELECTRIC_TERRAIN",
     "mistysurge": "MISTY_TERRAIN",
 }
+#: Items a terrain pops on the Pokemon holding them: the terrain, and the
+#: stat that rises a stage. Grounding is not checked because the game does
+#: not check it either.
+TERRAIN_SEEDS: dict[str, tuple[str, str]] = {
+    "grassyseed": ("GRASSY_TERRAIN", "def"),
+    "electricseed": ("ELECTRIC_TERRAIN", "def"),
+    "psychicseed": ("PSYCHIC_TERRAIN", "spd"),
+    "mistyseed": ("MISTY_TERRAIN", "spd"),
+}
 #: Abilities that set weather on entry.
 WEATHER_ABILITIES: dict[str, str] = {
     "drizzle": "RAINDANCE",
@@ -354,6 +390,18 @@ WEATHER_BALL_TYPES: dict[str, str] = {
 }
 SURE_IN_RAIN = frozenset({"thunder", "hurricane"})
 SURE_IN_SNOW = frozenset({"blizzard"})
+#: Two-turn moves whose charge turn a weather waives, and the boost the
+#: charge turn itself gives (Electro Shot and Meteor Beam raise the user's
+#: Special Attack while charging).
+CHARGE_WAIVED_BY: dict[str, frozenset[str]] = {
+    "electroshot": frozenset({"RAINDANCE", "PRIMORDIALSEA"}),
+    "solarbeam": frozenset({"SUNNYDAY", "DESOLATELAND"}),
+    "solarblade": frozenset({"SUNNYDAY", "DESOLATELAND"}),
+}
+CHARGE_BOOSTS: dict[str, dict[str, int]] = {
+    "electroshot": {"spa": 1},
+    "meteorbeam": {"spa": 1},
+}
 
 #: Moves whose Protect effect the model honours. Not every protecting move --
 #: these are the ones legal and common in Reg M-B doubles.
@@ -576,7 +624,7 @@ class TurnModel:
                 },
             )
             if ability != to_id(view.get("ability")):
-                state = _entry_effects(state, "ours", index)
+                state = entry_effects(state, "ours", index)
         return state
 
     # -- resolution -----------------------------------------------------
@@ -682,7 +730,7 @@ class TurnModel:
             return state
         side_state["bench"] = [*[p for p in side_state["bench"] if p is not incoming], outgoing]
         active[slot] = {**incoming, "_placed": True}
-        return _entry_effects(state, side, slot)
+        return entry_effects(state, side, slot)
 
     @staticmethod
     def _incoming(bench: list[dict[str, Any]], described: dict[str, Any]) -> dict[str, Any] | None:
@@ -762,7 +810,7 @@ class TurnModel:
                 **{k: v for k, v in fields.items() if k not in TERRAIN_NAMES.values()},
                 terrain: 0,
             }
-            return state
+            return consume_seeds(state)
 
         weather = WEATHER_NAMES.get(to_id(str(move.get("weather") or "")))
         if weather:
@@ -841,6 +889,16 @@ class TurnModel:
             return [(probability, state)]
         if move_id in SUCKER_MOVES and not self._sucker_lands(state, action):
             return [(probability, state)]
+        if _charges_this_turn(move, attacker_view, state):
+            # The turn is spent charging: no damage, the charge's own boost,
+            # and the move fires next turn, which one ply cannot see. That is
+            # the honest price of Electro Shot outside rain and Solar Beam
+            # outside sun, and it is why the rain is worth setting.
+            charged = _put(state, action.side, action.slot, {**attacker_view, "_preparing": True})
+            boosts = CHARGE_BOOSTS.get(move_id)
+            if boosts:
+                charged = _boost(charged, action.side, action.slot, boosts)
+            return [(probability, charged)]
 
         targets = self._targets(state, action, move)
         if not targets:
@@ -1202,12 +1260,14 @@ def _annotate_choices(
     return state
 
 
-def _entry_effects(state: dict[str, Any], side: str, slot: int) -> dict[str, Any]:
-    """What a Pokemon does by arriving: its weather, its terrain, Intimidate.
+def entry_effects(state: dict[str, Any], side: str, slot: int) -> dict[str, Any]:
+    """What a Pokemon does by arriving: its weather, its terrain, Intimidate,
+    and the seeds the terrain then pops, its own included.
 
     Read from the view's ability, which is exact for our side and, for the
-    opponent, whatever the battle has revealed. The lead sweep applies the
-    same table from the belief before turn one (`champions.search.lead`).
+    opponent, whatever the battle has revealed. The lead sweep puts the
+    believed ability on the opponent's views and applies this same table
+    before turn one (`champions.search.lead`).
     """
     view = _view(state, side, slot)
     if view is None:
@@ -1227,7 +1287,48 @@ def _entry_effects(state: dict[str, Any], side: str, slot: int) -> dict[str, Any
         for index, target in enumerate(state[foe]["active"]):
             if target is not None and not target.get("fainted"):
                 state = _boost(state, foe, index, {"atk": -1})
+    return consume_seeds(state)
+
+
+def consume_seeds(state: dict[str, Any]) -> dict[str, Any]:
+    """Pop every seed the terrain up matches, on both sides.
+
+    The holder's stat rises a stage and the item is gone, which is what
+    `unburden_active` reads. Called wherever a terrain can start or a
+    Pokemon can arrive on one: entry, and a terrain move. The opponent's
+    seeds are only ever the revealed kind, which is to say never, since a
+    seed reveals itself by popping and is gone by then.
+    """
+    fields = state.get("fields") or {}
+    for side in ("ours", "theirs"):
+        for slot, view in enumerate(state[side]["active"]):
+            if view is None or view.get("fainted"):
+                continue
+            seed = TERRAIN_SEEDS.get(to_id(view.get("item")))
+            if seed is None or seed[0] not in fields:
+                continue
+            state = _boost(state, side, slot, {seed[1]: 1})
+            holder = _view(state, side, slot) or view
+            state = _put(state, side, slot, {**holder, "item": None})
     return state
+
+
+def charge_waived(move: dict[str, Any], weather: dict[str, Any]) -> bool:
+    """Whether the weather lets this two-turn move fire at once."""
+    waived_by = CHARGE_WAIVED_BY.get(str(move.get("id")), frozenset())
+    return any(name in weather for name in waived_by)
+
+
+def _charges_this_turn(
+    move: dict[str, Any], attacker: dict[str, Any], state: dict[str, Any]
+) -> bool:
+    """A two-turn move spends this turn charging unless its user is already
+    charged (poke-env's `preparing`) or the weather waives the charge."""
+    if not (move.get("flags") or {}).get("charge"):
+        return False
+    if attacker.get("preparing") or attacker.get("_preparing"):
+        return False
+    return not charge_waived(move, state.get("weather") or {})
 
 
 def _weather_ball(move: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:

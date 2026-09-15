@@ -380,7 +380,7 @@ def _last_event(path: Path, window: int = 65536) -> dict[str, Any] | None:
 
 
 #: What a run from the page plays when the page does not say.
-DEFAULT_LADDER_AGENT = "adaptive-belief"
+DEFAULT_LADDER_AGENT = "belief"
 DEFAULT_TEAM = DEFAULT
 #: "Until stopped": a game count the stop flag will end long before.
 UNTIL_STOPPED = 100_000

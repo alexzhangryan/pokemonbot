@@ -54,7 +54,7 @@ help:
 	@echo "make gate          run the M8 engine gate (GATE_GAMES=$(or $(GATE_GAMES),200) per arm per team)"
 	@echo "make review        review a game with the coach (GAME=trace .jsonl, replay .log, or replay id/URL)"
 	@echo "make calibrate-coach  fit the coach's label bands and check its loss against rating (CAL_GAMES=80)"
-	@echo "make ladder-live   play rated games on the official ladder with adaptive-belief, the coach between games (LIVE_GAMES=10; account in .env)"
+	@echo "make ladder-live   play rated games on the official ladder, the coach between games (LIVE_GAMES=10; account in .env)"
 	@echo "make viewer-live   watch the live ladder games as they are played (runs/live/)"
 	@echo "make ladder-summary  the record so far from the live ladder's ledger"
 	@echo ""

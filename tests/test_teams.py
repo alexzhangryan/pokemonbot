@@ -16,7 +16,7 @@ from champions.teams import (
     ALPHA,
     BETA,
     DEFAULT,
-    PERISH,
+    MENCE,
     RAIN,
     WORLDS,
     available_teams,
@@ -39,7 +39,7 @@ def _pack(team_text: str) -> str:
     return packed.stdout.strip()
 
 
-@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN, WORLDS, PERISH])
+@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN, WORLDS, MENCE])
 def test_team_is_legal_in_the_format(team_name: str) -> None:
     packed = _pack(load_team(team_name))
 
@@ -54,14 +54,14 @@ def test_team_is_legal_in_the_format(team_name: str) -> None:
     assert result.returncode == 0, f"{team_name} rejected: {result.stderr}"
 
 
-@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN, WORLDS, PERISH])
+@pytest.mark.parametrize("team_name", [ALPHA, BETA, RAIN, WORLDS, MENCE])
 def test_team_has_six_pokemon(team_name: str) -> None:
     # Reg M-B is bring 6, pick 4: min and max team size are both 6.
     assert len(_pack(load_team(team_name)).split("]")) == 6
 
 
 def test_available_teams_lists_the_checked_in_teams() -> None:
-    assert set(available_teams()) >= {ALPHA, BETA, RAIN, WORLDS, PERISH}
+    assert set(available_teams()) >= {ALPHA, BETA, RAIN, WORLDS, MENCE}
     assert DEFAULT in available_teams()
 
 

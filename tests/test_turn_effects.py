@@ -527,3 +527,50 @@ def test_entry_abilities_fire_on_a_mega_and_on_a_placed_switch(dex: Dex) -> None
     calm["ours"]["bench"] = [politoed]
     poured = _after(model, calm, rain_in, _act())
     assert "RAINDANCE" in poured["weather"]
+
+
+def test_electro_shot_charges_outside_rain_and_fires_in_it(dex: Dex, model: TurnModel) -> None:
+    """D88: the charge turn deals nothing and raises Special Attack; rain
+    waives it; a charged user fires."""
+    snapshot = _snapshot(
+        [_mon(dex, "Archaludon"), _mon(dex, "Politoed")],
+        [_mon(dex, "Kingambit", known=False), _mon(dex, "Rillaboom", known=False)],
+    )
+    shot = _act(_move(dex, "electroshot", 2), _pass())
+    dry = _after(model, snapshot, shot, _act())
+    assert dry["theirs"]["active"][1]["hp_pct"] == 100.0, "charging, not firing"
+    assert dry["ours"]["active"][0]["boosts"] == {"spa": 1}
+    assert dry["ours"]["active"][0]["_preparing"]
+
+    rain = dict(snapshot, weather={"RAINDANCE": 0})
+    wet = _after(model, rain, shot, _act())
+    assert wet["theirs"]["active"][1]["hp_pct"] < 100.0, "rain waives the charge"
+
+    charged = _snapshot(
+        [_mon(dex, "Archaludon"), _mon(dex, "Politoed")],
+        [_mon(dex, "Kingambit", known=False), _mon(dex, "Rillaboom", known=False)],
+    )
+    charged["ours"]["active"][0]["preparing"] = True
+    fired = _after(model, charged, shot, _act())
+    assert fired["theirs"]["active"][1]["hp_pct"] < 100.0, "the second turn fires"
+
+
+def test_weather_synergy_counts_the_side_that_uses_the_weather(dex: Dex) -> None:
+    archaludon = _mon(dex, "Archaludon")
+    archaludon["moves"] = [{"id": "electroshot"}, {"id": "flashcannon"}]
+    politoed = _mon(dex, "Politoed")
+    politoed["moves"] = [{"id": "weatherball"}, {"id": "perishsong"}]
+    politoed["ability"] = "drizzle"
+    snapshot = _snapshot(
+        [archaludon, politoed],
+        [_mon(dex, "Kingambit", known=False), _mon(dex, "Rillaboom", known=False)],
+    )
+    assert evaluate.features(snapshot)["weather_synergy"] == 0.0
+    rainy = dict(snapshot, weather={"RAINDANCE": 0})
+    assert evaluate.features(rainy)["weather_synergy"] == 2.0
+    snowy = dict(snapshot, weather={"SNOWSCAPE": 0})
+    assert evaluate.features(snowy)["weather_synergy"] == 1.0, "Weather Ball still wants it"
+    assert evaluate.win_prob(rainy) > evaluate.win_prob(snowy) > evaluate.win_prob(snapshot)
+    snapshot["theirs"]["active"][1]["revealed_moves"] = [{"id": "weatherball"}]
+    rainy = dict(snapshot, weather={"RAINDANCE": 0})
+    assert evaluate.features(rainy)["weather_synergy"] == 1.0

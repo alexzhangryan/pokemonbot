@@ -38,6 +38,14 @@ measures by resampling battles rather than by any threshold on how often a
 feature is nonzero. Weights the shipping source left undetermined are taken from
 the other source, and the blend is then re-calibrated and re-measured, so the
 reliability diagram describes the model that actually ships.
+
+A feature constant in *every* source is not written at all (D90). The fit has
+no opinion on it, and a zero in the file reads as one: the first M-C fit, on a
+team with no Tailwind and no weather, shipped `speed_control` and
+`weather_synergy` at exactly 0.0, which is an agent that believes Tailwind is
+worth nothing on a team built around it. Left out of the file, the weight
+keeps its hand-set value and `champions.search.evaluate.load_model` says so
+on the model's `source`.
 """
 
 from __future__ import annotations
@@ -137,7 +145,10 @@ def diagram(reliability: fitting.Reliability) -> list[str]:
 
 
 def report(
-    results: list[dict[str, Any]], primary: str, borrowed: dict[str, tuple[float, str]]
+    results: list[dict[str, Any]],
+    primary: str,
+    borrowed: dict[str, tuple[float, str]],
+    unfit: set[str] = frozenset(),  # type: ignore[assignment]
 ) -> str:
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     out = [
@@ -186,6 +197,8 @@ def report(
             fitted = borrowed[name][0] if (is_primary and name in borrowed) else model.weights[name]
             if is_primary and name in borrowed:
                 mark = f" *(taken from {borrowed[name][1]})*"
+            elif name in unfit:
+                mark = " *(constant here; not written)*"
             elif name in open_questions:
                 mark = " *(sign undetermined)*"
             else:
@@ -202,6 +215,14 @@ def report(
         if open_questions:
             named = ", ".join(f"`{name}`" for name in sorted(open_questions))
             out += ["", f"**Undetermined here**: {named}."]
+        if is_primary and unfit:
+            named = ", ".join(f"`{name}`" for name in sorted(unfit))
+            out += [
+                "",
+                f"**Constant in every source, not written**: {named}. No source varied",
+                "them, so no source measured them; `champions/search/evaluate.py` keeps",
+                "the hand-set weight for each and says so on the model's `source` (D90).",
+            ]
         if is_primary and borrowed:
             conflicting = sorted(name for name in borrowed if name not in open_questions)
             out += [
@@ -292,16 +313,32 @@ def blend(primary: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, t
     reliability diagram was measured over, so the caller re-calibrates and
     re-measures afterwards. The shipped numbers describe the shipped model.
 
+    Two grades of replacement, because a weight can fail to settle in two very
+    different ways and D90 found the difference shipping as a zero. A feature
+    the primary *varied* is weak evidence, and is only replaced by a source
+    that settled it. A feature the primary held **constant** is no evidence at
+    all -- its interval is the degenerate [0, 0], which reads in a table
+    exactly like a confident zero -- so any source that varied it is preferred,
+    settled or not. That is the case that shipped `speed_control` at 0.0 on the
+    first M-C fit: self-play on one team with no Tailwind in it held the
+    feature constant, the corpus put it at +0.20 with an interval spanning
+    zero, and the old rule kept the degenerate zero over the weak estimate. An
+    agent that believes Tailwind is worth nothing is a worse claim than one
+    that believes it is worth a little.
+
     Mutates the primary model in place and returns what it changed.
     """
     borrowed: dict[str, tuple[float, str]] = {}
     open_questions = fitting.undetermined(primary["intervals"])
+    degenerate = constant_features(primary["data"])
     for other in results:
         if other is primary:
             continue
         settled = set(other["intervals"]) - fitting.undetermined(other["intervals"])
+        varied = set(other["intervals"]) - constant_features(other["data"])
         take = (open_questions & settled) | contradictions(primary, other)
-        for name in sorted((take & settled) - set(borrowed)):
+        take |= degenerate & varied
+        for name in sorted(take - set(borrowed)):
             value = other["model"].weights[name]
             primary["model"].weights[name] = value
             borrowed[name] = (value, other["source"])
@@ -414,7 +451,12 @@ def main() -> None:
     if borrowed:
         for name, (value, lender) in borrowed.items():
             low, high = primary["intervals"][name]
-            why = "undetermined" if low <= 0 <= high else "confidently the other sign"
+            if low == high == 0.0:
+                why = "constant, so no estimate at all"
+            elif low <= 0 <= high:
+                why = "undetermined"
+            else:
+                why = "confidently the other sign"
             print(
                 f"  {name}: {value:+.4f} from {lender}; {primary['source']} had it "
                 f"{why} at 95% [{low:+.3f}, {high:+.3f}]"
@@ -441,6 +483,16 @@ def main() -> None:
         if not shippable(primary):
             raise SystemExit(f"the blend is worse than the base rate: {describe(primary)}")
 
+    # A feature no source varied is a feature no source measured. It is left
+    # out of the file so the hand-set weight stands, and named so nobody reads
+    # the omission as a fitted zero.
+    unfit = set.intersection(*(constant_features(r["data"]) for r in results))
+    if unfit:
+        print(
+            "  constant in every source, not written, hand-set weight stands: "
+            + ", ".join(sorted(unfit))
+        )
+
     if args.dry_run:
         print("dry run: nothing written")
         return
@@ -453,9 +505,11 @@ def main() -> None:
     payload["fitted_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     payload["feature_order"] = list(primary["data"].names)
     payload["borrowed"] = {name: lender for name, (_, lender) in borrowed.items()}
+    payload["weights"] = {k: v for k, v in payload["weights"].items() if k not in unfit}
+    payload["unfit"] = sorted(unfit)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
-    REPORT_PATH.write_text(report(results, primary["source"], borrowed), encoding="utf-8")
+    REPORT_PATH.write_text(report(results, primary["source"], borrowed, unfit), encoding="utf-8")
     print(f"wrote {path} ({format_key(args.format_id)}) and {REPORT_PATH}")
 
 

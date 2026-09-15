@@ -102,10 +102,11 @@ STATUS_NAME = "status.json"
 #: The viewer's "stop after this game": a flag file, read between games.
 STOP_NAME = "stop"
 REPLAY_HOST = "https://replay.pokemonshowdown.com"
-#: The agent a ladder run plays when none is named: the belief with the clock
-#: allocated and a second ply on close positions (D87's mirror, 17-7 over
-#: `belief` at the time of writing).
-DEFAULT_AGENT = "adaptive-belief"
+#: The agent a ladder run plays when none is named. `adaptive-belief` was the
+#: default for an evening on a 17-7 start in its mirror against `belief`; the
+#: mirror finished 26-22 (Wilson 0.40-0.67), not apart, and the incumbent
+#: stays (D89).
+DEFAULT_AGENT = "belief"
 
 
 def read_env(path: Path = ENV_PATH) -> dict[str, str]:

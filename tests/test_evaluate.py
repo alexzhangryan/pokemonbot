@@ -211,6 +211,26 @@ def test_opponent_faints_are_counted_even_when_the_rest_is_unrevealed() -> None:
     assert win_prob(_snapshot(ours=ours, theirs=theirs)) > 0.5
 
 
+def test_the_opponents_hp_is_their_bring_minus_the_damage_done_to_it() -> None:
+    """Their side is counted as the bring less what we have taken off it, so
+    six previewed Pokemon are still four (D90), and a battle position, where
+    at most four are ever revealed, scores exactly as it did before."""
+    from champions.search.evaluate import _hp_total
+
+    def mon(hp: float = 100.0, fainted: bool = False) -> dict[str, Any]:
+        return {"hp_pct": hp, "fainted": fainted, "status": None, "boosts": {}}
+
+    preview = {"active": [mon(), mon()], "bench": [mon(), mon(), mon(), mon()]}
+    assert _hp_total(preview, 4, known=False) == 4.0, "six previewed are still a bring of four"
+
+    # In battle: two revealed, one of them at half, two never seen.
+    revealed = {"active": [mon(50.0), mon()], "bench": []}
+    assert _hp_total(revealed, 4, known=False) == 3.5
+    # A faint costs a whole Pokemon, and the count cannot go below zero.
+    dead = {"active": [mon(0.0, True), mon(0.0, True)], "bench": [mon(0.0, True), mon(0.0, True)]}
+    assert _hp_total(dead, 4, known=False) == 0.0
+
+
 def test_picked_team_size_is_honoured() -> None:
     """Regulations change it, so it is a parameter and not a constant."""
     ours = _side([_mon("A", active=True)], [_mon("B")])
