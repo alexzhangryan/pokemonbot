@@ -36,7 +36,7 @@ from typing import Any
 import numpy as np
 
 from champions.dex.loader import Dex, to_id
-from champions.search.matrix import solve_both
+from champions.search.kinds import PRIOR_WEIGHT, KindPrior, solve_columns
 from champions.search.payoff import CellModel, OpponentHypothesis, entry_effects, payoff_matrix
 from champions.search.policy import PolicyProvider, opponent_candidates
 from champions.search.twoply import enumerate_joint
@@ -53,6 +53,9 @@ PREVIEW_BUDGET_S = 20.0
 #: sweep solves up to 225 openings rather than one.
 PREVIEW_K = 8
 PREVIEW_COLUMN_K = 12
+#: Switch columns at preview (D91): one per slot, so the sweep's cost grows by
+#: a sixth rather than the two thirds a live turn's eight would add.
+PREVIEW_SWITCH_COLUMNS = 2
 
 
 @dataclass
@@ -88,6 +91,8 @@ def lead_sweep(
     column_k: int = PREVIEW_COLUMN_K,
     turn_one_fields: dict[str, Any] | None = None,
     max_rounds: int | None = None,
+    kind_prior: KindPrior | None = None,
+    prior_weight: float = PRIOR_WEIGHT,
 ) -> LeadChoice:
     """Choose four and a lead from previewed views.
 
@@ -121,7 +126,9 @@ def lead_sweep(
                 out_of_time = True
                 break
             snapshot = opening(ours, theirs, pair, (a, b), dex, believed_ability, turn_one_fields)
-            pending[pair] = _value(snapshot, dex, model, policy, believed_moves, k, column_k)
+            pending[pair] = _value(
+                snapshot, dex, model, policy, believed_moves, k, column_k, kind_prior, prior_weight
+            )
             evaluated += 1
         if out_of_time:
             break
@@ -260,12 +267,21 @@ def _value(
     believed_moves: Callable[[str], list[str]] | None,
     k: int,
     column_k: int,
+    kind_prior: KindPrior | None = None,
+    prior_weight: float = PRIOR_WEIGHT,
 ) -> float:
     described = enumerate_joint(snapshot, dex)
     described = [d for d in described if "switch" not in d.get("kinds", [])]
     if not described:
         return 0.5
     rows = [s.action for s in policy.scored(described, k, snapshot)]
-    columns = opponent_candidates(snapshot, dex, column_k, believed_moves=believed_moves)
+    columns = opponent_candidates(
+        snapshot,
+        dex,
+        column_k,
+        believed_moves=believed_moves,
+        switch_columns=PREVIEW_SWITCH_COLUMNS,
+    )
     matrix = payoff_matrix(snapshot, rows, columns, model)
-    return float(solve_both(matrix).value)
+    equilibrium, _ = solve_columns(matrix, columns, 1, kind_prior, prior_weight)
+    return float(equilibrium.value)

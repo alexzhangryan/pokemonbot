@@ -75,7 +75,7 @@ def load_game(
         post = None
         if opponent_team is not None:
             post = truth_from_team_file(opponent_team.read_text(encoding="utf-8"))
-        return decisions.from_trace(events, post_truths=post), path
+        return decisions.from_trace(events, post_truths=post, dex=dex), path
 
     if path.is_file():
         log = path.read_text(encoding="utf-8")

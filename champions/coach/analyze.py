@@ -40,7 +40,8 @@ from champions.coach.decisions import REPLAY, Decision, Game
 from champions.coach.truth import PriorSource, TruthOracle
 from champions.dex.loader import Dex
 from champions.search.evaluate import evaluate, win_prob
-from champions.search.matrix import MASS_THRESHOLD, solve_both
+from champions.search.kinds import PRIOR_WEIGHT, KindPrior, load_kind_prior, solve_columns
+from champions.search.matrix import MASS_THRESHOLD
 from champions.search.payoff import TurnModel, payoff_matrix
 from champions.search.policy import opponent_candidates
 from champions.trace.schema import EventType
@@ -85,6 +86,11 @@ class Models:
     dex: Dex
     model: TurnModel
     believed_moves: Callable[[str], list[str]] | None
+    #: The prior on the opponent's kind of turn (D91), the same one the agent
+    #: solves with, so the ex-ante loss measures the decision and not the
+    #: solver. None is the plain equilibrium.
+    kind_prior: KindPrior | None = None
+    prior_weight: float = PRIOR_WEIGHT
 
 
 def prior_models(dex: Dex, prior: SetPrior) -> Models:
@@ -97,7 +103,7 @@ def prior_models(dex: Dex, prior: SetPrior) -> Models:
         effects=BeliefEffects(source),
         place_incoming=True,
     )
-    return Models(CORPUS_PRIOR, dex, model, source.believed_moves)
+    return Models(CORPUS_PRIOR, dex, model, source.believed_moves, load_kind_prior(dex.format_id))
 
 
 def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN_SHEET) -> Models:
@@ -113,7 +119,7 @@ def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN
             effects=BeliefEffects(None),
             place_incoming=True,
         )
-        return Models(REVEALED, dex, model, None)
+        return Models(REVEALED, dex, model, None, load_kind_prior(dex.format_id))
     oracle = TruthOracle(truths, dex)
     model = TurnModel(
         dex,
@@ -121,7 +127,7 @@ def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN
         effects=BeliefEffects(oracle),
         place_incoming=True,
     )
-    return Models(name, dex, model, oracle.believed_moves)
+    return Models(name, dex, model, oracle.believed_moves, load_kind_prior(dex.format_id))
 
 
 @dataclass
@@ -245,7 +251,9 @@ def analyze_decision(
             their = len(columns) - 1
 
     matrix = payoff_matrix(snapshot, rows, columns, ante.model)
-    equilibrium = solve_both(matrix)
+    equilibrium, _ = solve_columns(
+        matrix, columns, decision.turn, ante.kind_prior, ante.prior_weight
+    )
     x, y, value = equilibrium.row, equilibrium.column, float(equilibrium.value)
     ante_values = matrix @ y
     losses = np.maximum(0.0, value - ante_values)

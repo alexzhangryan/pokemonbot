@@ -1,0 +1,62 @@
+{
+  "format_id": "gen9championsvgc2026regmc",
+  "corpus_format": "gen9championsvgc2026regmcbo3",
+  "written_at": "2026-09-23T17:13:28.339943+00:00",
+  "replays": 945,
+  "sides": 1890,
+  "skipped_sides": 0,
+  "counts": {
+    "1": 1522,
+    "2": 1480,
+    "3": 1370,
+    "4+": 4302
+  },
+  "buckets": {
+    "1": {
+      "attack+attack": 0.4008,
+      "attack+switch": 0.1827,
+      "attack+fakeout": 0.1794,
+      "attack+protect": 0.1209,
+      "protect+switch": 0.0519,
+      "protect+protect": 0.0309,
+      "fakeout+switch": 0.0171,
+      "fakeout+protect": 0.0072,
+      "switch+switch": 0.0059,
+      "fakeout+fakeout": 0.0033
+    },
+    "2": {
+      "attack+attack": 0.4851,
+      "attack+switch": 0.2365,
+      "attack+protect": 0.1196,
+      "protect+switch": 0.0622,
+      "attack+fakeout": 0.0595,
+      "switch+switch": 0.0169,
+      "protect+protect": 0.0155,
+      "fakeout+switch": 0.0041,
+      "fakeout+protect": 0.0007
+    },
+    "3": {
+      "attack+attack": 0.4927,
+      "attack+switch": 0.2131,
+      "attack+protect": 0.1175,
+      "attack+fakeout": 0.073,
+      "protect+switch": 0.0635,
+      "protect+protect": 0.0226,
+      "switch+switch": 0.0117,
+      "fakeout+switch": 0.0036,
+      "fakeout+protect": 0.0015,
+      "fakeout+fakeout": 0.0007
+    },
+    "4+": {
+      "attack+attack": 0.5065,
+      "attack+protect": 0.1564,
+      "attack+switch": 0.1378,
+      "attack+fakeout": 0.093,
+      "protect+switch": 0.056,
+      "protect+protect": 0.0344,
+      "fakeout+switch": 0.0079,
+      "switch+switch": 0.0065,
+      "fakeout+protect": 0.0014
+    }
+  }
+}

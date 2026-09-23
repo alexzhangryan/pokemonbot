@@ -47,8 +47,8 @@ from poke_env.player.battle_order import BattleOrder
 from champions.dex.loader import Dex, DexNotBuiltError
 from champions.protocol import actions as action_describe
 from champions.protocol import state as state_snapshot
+from champions.search.kinds import PRIOR_WEIGHT, KindPrior, load_kind_prior, solve_columns
 from champions.search.lead import PREVIEW_BUDGET_S, LeadChoice, lead_sweep
-from champions.search.matrix import solve_both
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
 from champions.search.policy import (
     DEFAULT_COLUMN_K,
@@ -76,6 +76,8 @@ class OnePlyAgent(TracingPlayer):
         column_k: int = DEFAULT_COLUMN_K,
         hypothesis: OpponentHypothesis | None = None,
         policy: PolicyProvider | None = None,
+        kind_prior: KindPrior | None | str = "format",
+        prior_weight: float = PRIOR_WEIGHT,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, dex=dex, **kwargs)
@@ -101,6 +103,15 @@ class OnePlyAgent(TracingPlayer):
         # moves then resolve against what is actually on the field, which is
         # what made a switch worth considering at all.
         self._model = TurnModel(self.dex, hypothesis, place_incoming=True)
+        # The prior on what kind of turn the opponent plays (D91): the column
+        # player's kind marginals are pinned to the corpus's rates with
+        # `prior_weight`, so the equilibrium stops expecting a free Protect.
+        # "format" loads the format's file (or its lineage's); None plays the
+        # plain equilibrium, which is every number measured before D91.
+        self._kind_prior: KindPrior | None = (
+            load_kind_prior(self.dex.format_id) if kind_prior == "format" else kind_prior
+        )
+        self._prior_weight = prior_weight
 
     # -- preview --------------------------------------------------------
 
@@ -169,6 +180,8 @@ class OnePlyAgent(TracingPlayer):
             believed_ability=self._believed_ability(battle),
             seed=seed,
             budget_s=self.preview_budget_s,
+            kind_prior=self._kind_prior,
+            prior_weight=self._prior_weight,
         )
 
     async def _search(
@@ -193,6 +206,7 @@ class OnePlyAgent(TracingPlayer):
         started = time.perf_counter()
         snapshot = state_snapshot.snapshot(battle, self._dex)
         self._annotate_belief(battle, snapshot)
+        self._annotate_unseen(battle, snapshot)
         described = [action_describe.describe(order, self._dex) for order in orders]
         by_message = {d["message"]: order for d, order in zip(described, orders, strict=True)}
         scored = self._policy.scored(described, self._k, snapshot)
@@ -222,7 +236,9 @@ class OnePlyAgent(TracingPlayer):
 
         # -- solve ------------------------------------------------------
         started = time.perf_counter()
-        equilibrium = solve_both(matrix)
+        equilibrium, column_prior = solve_columns(
+            matrix, theirs, battle.turn, self._kind_prior, self._prior_weight
+        )
         timings["solve_s"] = time.perf_counter() - started
 
         index = self._sample(equilibrium.row, battle)
@@ -249,6 +265,7 @@ class OnePlyAgent(TracingPlayer):
                 ],
                 "opponent_joint": theirs,
                 "opponent_equilibrium": [float(p) for p in equilibrium.column],
+                "column_prior": column_prior,
                 "payoff": matrix.tolist(),
                 "game_value": float(equilibrium.value),
                 "is_pure": equilibrium.is_pure,
@@ -309,6 +326,21 @@ class OnePlyAgent(TracingPlayer):
     ) -> list[dict[str, Any]]:
         return opponent_candidates(
             snapshot, self.dex, self._column_k, believed_moves=self._believed_moves(battle)
+        )
+
+    def _annotate_unseen(self, battle: AbstractBattle, snapshot: dict[str, Any]) -> None:
+        """The opponent's previewed, not yet seen Pokemon go on their bench, so
+        the switch columns have somewhere to switch to (D91). The trace's own
+        snapshot was emitted before this and records what was observed."""
+        preview = [p.species for p in getattr(battle, "teampreview_opponent_team", None) or []]
+        if not preview:
+            return
+        state_snapshot.annotate_unseen(
+            snapshot,
+            preview,
+            self._dex,
+            believed_ability=self._believed_ability(battle),
+            believed_moves=self._believed_moves(battle),
         )
 
     def _annotate_belief(self, battle: AbstractBattle, snapshot: dict[str, Any]) -> None:

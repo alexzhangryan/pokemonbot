@@ -4,7 +4,48 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-14 (night, after the 76-game ladder run and D90), by Claude Code.
+Last updated: 2026-09-23 (cycle 1 of the autonomous ladder cycles, D91), by Claude Code.
+
+## The ladder cycles of 2026-09-23 (D91, in progress)
+
+Alex asked for play-analyse-improve cycles against the ladder, unattended,
+at most five. `scripts/ladder_analysis.py --trace-dir traces --seed N` is the
+table each cycle is read from; each batch plays under its own seed.
+
+**Before cycle 1: 101 more rated games had been played on `regmc-mence` with
+`belief` after D90 (50-51, Wilson 0.40-0.59), all reviewed, none analysed.**
+The 76-game section below is the previous read. What the 101 said, and what
+D91 built from it:
+
+- The model's columns expected a Protect on 30-68% of turns; opponents
+  protected on 4-14% and never double-protected (the model: up to 34%).
+  Opponents switched on 29% of first turns; the columns held no switch, ever.
+  And in 160 of 783 scored decisions the opponent had only its second slot
+  alive and the column generator put that action where the payoff model
+  found no unit, so the opponent's last Pokemon was inert in the model.
+- D91: the column player's kind of turn is pinned (weight 0.8) to the
+  corpus's rates (`data/policy/actionkinds.<format>.json`,
+  `docs/action-kinds.md`), opponent columns gain up to eight switches to the
+  seen bench and the previewed-unseen Pokemon, and columns keep their slot
+  index. The coach solves the same way, so reviews before D91 are not
+  comparable to reviews after; `make review` re-solves.
+- Also seen and not acted on: the `belief` agent uses 0.1 s of a 45 s turn
+  (mean, p95 0.2 s); the preview sweep completes all 15 rounds in 13.6 s;
+  luck by turn is worst on turn 1 (+4.5 points against us per decision) and
+  the turn-1 win probability still does not separate wins (0.537) from
+  losses (0.535).
+
+**Cycle 1 batch (seed 1, 12 games, played on the pre-D91 code while D91 was
+built): 5-7.** Re-reviewed under the D91 coach: the opponent's realised line
+is on the model's support 30% (was 12% under the old columns), and the coach's
+preferred lines on mistakes are attack+attack 9, attack+fakeout 6,
+attack+switch 5, attack+protect 2 (the 101 games: attack+protect 41 of 158).
+
+**Cycle 2 is the first batch played on D91.** Read it for: the implied kind
+mass against the realised one by turn; turn-1 luck; whether the lead
+distribution moves (cycle 1 led Gholdengo+Incineroar 7 of 12). Next lever if
+the model holds: the clock, since 45 s a turn is unused.
+
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
 manually exercise everything, including playing against the bot yourself in a

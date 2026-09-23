@@ -30,6 +30,7 @@ constant for our own spread that the model uses for the opponent's.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -38,6 +39,7 @@ from champions.belief.evaluate import TruthSet, truth_from_replay
 from champions.corpus.replay import ReplayRecord, parse_replay
 from champions.corpus.replay_state import SIDES, Observer
 from champions.dex.loader import Dex, to_id
+from champions.protocol.state import annotate_unseen
 from champions.search.evaluate import evaluate
 from champions.search.policy_data import SlotChoice, slot_choices
 from champions.trace.schema import EventType
@@ -109,8 +111,16 @@ def from_trace(
     *,
     post_truths: Mapping[str, TruthSet] | None = None,
     ante_truths: Mapping[str, TruthSet] | None = None,
+    dex: Dex | None = None,
 ) -> Game:
-    """A game out of the events a `TracingPlayer` wrote."""
+    """A game out of the events a `TracingPlayer` wrote.
+
+    With a `dex`, each decision's snapshot gets the opponent's previewed and
+    not yet seen Pokemon on the bench, as the agent's own search did (D91),
+    so the coach's switch columns are the same set the agent had rather than
+    only the switch the opponent turned out to make. The recorded state is
+    copied first; the trace itself is what was observed.
+    """
     plain = [dict(e) for e in events]
     start = next((e for e in plain if e.get("type") == EventType.BATTLE_START), None)
     if start is None:
@@ -160,6 +170,9 @@ def from_trace(
         snapshot = start_payload.get("state")
         if not snapshot:
             continue
+        if dex is not None and head.get("opponent_team_preview"):
+            snapshot = copy.deepcopy(snapshot)
+            annotate_unseen(snapshot, list(head["opponent_team_preview"]), dex)
         legal = slot.get("legal") or {}
         joint = legal.get("joint") or (slot.get("pruned") or {}).get("joint") or []
         rows = [dict(a) for a in joint]

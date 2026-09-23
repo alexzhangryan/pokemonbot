@@ -21,11 +21,12 @@ poke-env, whose mainline Gen 9 figures are wrong here for 303 moves.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from poke_env.battle import AbstractBattle, DoubleBattle, Move, Pokemon
 
-from champions.dex.loader import Dex
+from champions.dex.loader import Dex, to_id
 
 # poke-env tracks the opponent's HP on a 0-100 scale because that is all the
 # protocol gives us. Percent HP is quantized, and damage-based inference off it
@@ -235,3 +236,90 @@ def _opponent_active_of(battle: AbstractBattle) -> list[Pokemon | None]:
     if isinstance(battle, DoubleBattle):
         return list(battle.opponent_active_pokemon)
     return [battle.opponent_active_pokemon]
+
+
+def unseen_pokemon(species: str, dex: Dex) -> dict[str, Any]:
+    """An opponent's previewed Pokemon that has not walked on yet, as a view (D91).
+
+    Full health, benched, nothing revealed, flagged `unseen`. What the dex
+    knows about the species -- name, types, base stats -- and nothing else,
+    which is what team preview tells a player.
+    """
+    entry = dex.species.get(to_id(species)) or {}
+    name = str(entry.get("name") or species)
+    return {
+        "species": species,
+        "name": name,
+        "level": 50,
+        "types": list(entry.get("types") or []),
+        "base_stats": dict(entry.get("baseStats") or {}),
+        "hp_pct": 100.0,
+        "status": None,
+        "status_counter": 0,
+        "fainted": False,
+        "active": False,
+        "boosts": {},
+        "effects": [],
+        "must_recharge": False,
+        "preparing": False,
+        "protect_counter": 0,
+        "first_turn": False,
+        "known": False,
+        "hp": None,
+        "max_hp": None,
+        "hp_is_percent": OPPONENT_HP_IS_PERCENT,
+        "item": None,
+        "ability": None,
+        "possible_abilities": [],
+        "stats": None,
+        "revealed_moves": [],
+        "last_move": None,
+        "unseen": True,
+    }
+
+
+def annotate_unseen(
+    snapshot: dict[str, Any],
+    preview: Sequence[str],
+    dex: Dex,
+    believed_ability: Callable[[str], str | None] | None = None,
+    believed_moves: Callable[[str], list[str]] | None = None,
+) -> int:
+    """Put the opponent's previewed, not yet seen Pokemon on their bench (D91).
+
+    The snapshot lists what has walked on; the opponent's switch columns need
+    somewhere to switch *to*, and until every one of their four has been seen
+    that is one of the previewed Pokemon that has not. Each arrives as
+    `unseen_pokemon` builds it, with the ability and moves the belief
+    expects when a belief is given. As many as the bring still leaves
+    unaccounted for, so a side that has shown all four gets none; the
+    evaluation derives the opponent's HP and count from the bring, so
+    full-health entries change no value. Returns how many were added.
+    Mutates `snapshot`; callers annotating a recorded state copy it first.
+    """
+    theirs = snapshot.get("theirs") or {}
+    on_board = [p for p in [*theirs.get("active", []), *theirs.get("bench", [])] if p]
+    seen = {to_id(str(p.get("species") or "")) for p in on_board}
+    # `remaining` on the opponent's side counts what has been seen and lives,
+    # not the bring; the bring is the format's, and what is unaccounted for
+    # is the bring less everything that has walked on, fainted or not.
+    room = int(dex.picked_team_size) - len(on_board)
+    if room <= 0:
+        return 0
+    added: list[dict[str, Any]] = []
+    for species in preview:
+        if to_id(species) in seen:
+            continue
+        view = unseen_pokemon(species, dex)
+        if believed_ability is not None:
+            ability = believed_ability(species)
+            if ability:
+                view["ability"] = to_id(ability)
+        if believed_moves is not None:
+            view["believed_moves"] = list(believed_moves(species))
+        added.append(view)
+    if not added:
+        return 0
+    theirs["bench"] = [*theirs.get("bench", []), *added]
+    theirs["unseen"] = min(room, len(added))
+    return len(added)

@@ -371,7 +371,8 @@ def test_pruning_returns_at_most_k_and_is_deterministic(dex: Dex) -> None:
 
 def test_opponent_candidates_come_only_from_revealed_moves(dex: Dex, snapshot: Any) -> None:
     """Nothing revealed means one "no action" column, not an invented move set."""
-    blank = opponent_candidates(snapshot, dex)
+    # Without the switch columns D91 adds, which are a separate test.
+    blank = opponent_candidates(snapshot, dex, switch_columns=0)
     assert len(blank) == 1
     assert all(slot["kind"] == "none" for slot in blank[0]["slots"])
 
@@ -383,7 +384,7 @@ def test_opponent_candidates_come_only_from_revealed_moves(dex: Dex, snapshot: A
         ],
         [],
     )
-    seen = opponent_candidates(revealed, dex)
+    seen = opponent_candidates(revealed, dex, switch_columns=0)
     # One column per way of aiming the two revealed moves at our two slots,
     # and nothing that was not revealed (D85).
     assert len(seen) == 4

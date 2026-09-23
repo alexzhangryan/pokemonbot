@@ -35,7 +35,7 @@ from poke_env.battle import AbstractBattle
 from poke_env.player.battle_order import BattleOrder
 
 from champions.agents.oneply import OnePlyAgent
-from champions.search.matrix import solve_both
+from champions.search.kinds import solve_columns
 from champions.search.payoff import payoff_matrix
 from champions.search.twoply import DEFAULT_K2, TwoPlyModel
 from champions.search.watchdog import AnytimeDecision
@@ -86,7 +86,7 @@ class TwoPlyAgent(OnePlyAgent):
         # something as good as `OnePlyAgent` would have played.
         started = time.perf_counter()
         shallow = payoff_matrix(snapshot, ours, theirs, self._turn_model(battle))
-        first = solve_both(shallow)
+        first, _ = solve_columns(shallow, theirs, battle.turn, self._kind_prior, self._prior_weight)
         timings["payoff_one_ply_s"] = time.perf_counter() - started
         chosen = ours[self._sample(first.row, battle)]
         decision.propose(by_message[chosen["message"]], value=float(first.value))

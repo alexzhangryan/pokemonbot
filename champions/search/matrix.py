@@ -22,6 +22,7 @@ so a correct value here is load bearing twice over.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -148,6 +149,128 @@ def solve_both(payoff: np.ndarray) -> Equilibrium:
             "This should be impossible for a finite zero sum game."
         )
     return Equilibrium(row=row, column=column, value=value)
+
+
+def solve_constrained(
+    payoff: np.ndarray,
+    kinds: Sequence[str],
+    prior: Mapping[str, float],
+    weight: float,
+) -> Equilibrium:
+    """The row player's best strategy against a column player whose *kind*
+    marginals are partly pinned (D91).
+
+    With probability `weight` the column player draws the kind of its joint
+    action from `prior` and then plays the worst column of that kind for us;
+    with probability `1 - weight` it plays the plain adversary. The row
+    player's payoff is therefore
+
+        (1 - w) * v + w * sum_k prior[k] * v_k
+
+    where `v <= (x^T A)_j` for every column j and `v_k <= (x^T A)_j` for every
+    column j of kind k. One LP in `[x, v, v_k...]`, the same shape as
+    `_solve_for_row` with one extra value variable per kind; at `weight == 0`
+    it is that LP exactly, and at `weight == 1` the plain `v` drops out.
+
+    The column strategy is read off the duals of the two constraint families,
+    which sum to one across the columns as the objective weights do, so
+    `x^T A y == value` holds and the coach and the trace see one opponent
+    mixture rather than a kind-by-kind one. `prior` must be over the kinds
+    present in `kinds` and sum to one; `kinds` names one kind per column.
+    """
+    payoff = np.asarray(payoff, dtype=float)
+    if payoff.ndim != 2 or payoff.size == 0:
+        raise ValueError(f"Payoff must be a non-empty 2D matrix, got shape {payoff.shape}")
+    if not np.all(np.isfinite(payoff)):
+        raise ValueError("Payoff matrix contains non-finite entries")
+    rows, columns = payoff.shape
+    if len(kinds) != columns:
+        raise ValueError(f"{len(kinds)} kinds for {columns} columns")
+    weight = float(min(1.0, max(0.0, weight)))
+    pinned = [k for k in dict.fromkeys(kinds) if prior.get(k, 0.0) > 0.0]
+    if weight <= 0.0 or not pinned:
+        return solve_both(payoff)
+    total = sum(prior[k] for k in pinned)
+
+    shift = float(np.min(payoff)) - 1.0
+    shifted = payoff - shift
+    free = weight < 1.0
+    n_var = rows + (1 if free else 0) + len(pinned)
+    k_index = {k: rows + (1 if free else 0) + i for i, k in enumerate(pinned)}
+
+    objective = np.zeros(n_var)
+    if free:
+        objective[rows] = -(1.0 - weight)
+    for k, i in k_index.items():
+        objective[i] = -weight * prior[k] / total
+
+    constraints: list[np.ndarray] = []
+    families: list[tuple[str | None, int]] = []
+    for j in range(columns):
+        if free:
+            row = np.zeros(n_var)
+            row[:rows] = -shifted[:, j]
+            row[rows] = 1.0
+            constraints.append(row)
+            families.append((None, j))
+        k = kinds[j]
+        if k in k_index:
+            row = np.zeros(n_var)
+            row[:rows] = -shifted[:, j]
+            row[k_index[k]] = 1.0
+            constraints.append(row)
+            families.append((k, j))
+    inequality = np.vstack(constraints)
+    equality = np.zeros((1, n_var))
+    equality[0, :rows] = 1.0
+
+    result = linprog(
+        c=objective,
+        A_ub=inequality,
+        b_ub=np.zeros(len(constraints)),
+        A_eq=equality,
+        b_eq=np.ones(1),
+        bounds=[(0.0, None)] * rows + [(None, None)] * (n_var - rows),
+        method="highs",
+    )
+    if not result.success:
+        raise RuntimeError(f"Constrained matrix game LP failed: {result.message}")
+
+    strategy = np.clip(np.asarray(result.x[:rows], dtype=float), 0.0, None)
+    total_x = strategy.sum()
+    strategy = strategy / total_x if total_x > 0 else np.full(rows, 1.0 / rows)
+
+    column = np.zeros(columns)
+    marginals = np.asarray(result.ineqlin.marginals, dtype=float)
+    for (_, j), m in zip(families, marginals, strict=True):
+        column[j] += max(0.0, -m)
+    total_y = column.sum()
+    if total_y > 0:
+        column = column / total_y
+    else:
+        # A degenerate dual (every constraint slack at the optimum, which the
+        # shift makes impossible in exact arithmetic). Fall back to the
+        # adversary within the pinned kinds, so the trace still has a column.
+        column = _pinned_best_response(shifted, strategy, kinds, prior, pinned, total)
+    value = float(strategy @ payoff @ column)
+    return Equilibrium(row=strategy, column=column, value=value)
+
+
+def _pinned_best_response(
+    shifted: np.ndarray,
+    strategy: np.ndarray,
+    kinds: Sequence[str],
+    prior: Mapping[str, float],
+    pinned: Sequence[str],
+    total: float,
+) -> np.ndarray:
+    against = strategy @ shifted
+    column = np.zeros(shifted.shape[1])
+    for k in pinned:
+        members = [j for j, kind in enumerate(kinds) if kind == k]
+        worst = min(members, key=lambda j: against[j])
+        column[worst] += prior[k] / total
+    return column
 
 
 def solve(payoff: np.ndarray) -> tuple[np.ndarray, float]:

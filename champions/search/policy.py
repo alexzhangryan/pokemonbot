@@ -58,6 +58,7 @@ that measurement; it is not called during play.
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -94,6 +95,12 @@ DEFAULT_K = 12
 #: missing row is only a reply it cannot make -- so the budget is larger.
 DEFAULT_COLUMN_K = 24
 DEFAULT_PER_SLOT = 6
+
+#: How many switch columns follow the move columns (D91): one per living slot
+#: and bench Pokemon, round robin, so a two-slot side with four unseen
+#: Pokemon at turn one gets all eight. On top of `DEFAULT_COLUMN_K`, not
+#: inside it, because a missing switch is a pivot the search cannot see.
+DEFAULT_SWITCH_COLUMNS = 8
 
 
 class PolicyProvider(Protocol):
@@ -940,8 +947,10 @@ def opponent_candidates(
     k: int = DEFAULT_COLUMN_K,
     believed_moves: Callable[[str], list[str]] | None = None,
     per_slot: int = DEFAULT_PER_SLOT,
+    switch_columns: int = DEFAULT_SWITCH_COLUMNS,
 ) -> list[dict[str, Any]]:
-    """Joint actions the opponent might take, most threatening first.
+    """Joint actions the opponent might take, most threatening first, then up
+    to `switch_columns` in which one slot switches out (D91).
 
     Built in the same described-action shape our own candidates use, so the
     payoff model does not need two code paths.
@@ -968,12 +977,19 @@ def opponent_candidates(
     our_active = snapshot["ours"]["active"]
     our_slots = [i for i, p in enumerate(our_active) if p is not None and not p.get("fainted")]
     board = Board.read(snapshot, dex, _chart_for(dex), OpponentHypothesis())
-    per_slot_options: list[list[tuple[float, dict[str, Any]]]] = []
+    # One entry per slot index, None for a slot with nothing in it. The payoff
+    # model reads a column's slots by index (`TurnModel._order`), so a column
+    # built for their only living Pokemon has to sit at that Pokemon's index:
+    # until D91 a side with slot 1 alive and slot 0 empty had its one action
+    # placed at index 0, where the model found no unit and dropped it, and the
+    # opponent's last Pokemon did nothing in a fifth of the live positions.
+    per_slot_options: list[list[tuple[float, dict[str, Any]]] | None] = []
 
     for slot_index, pokemon in enumerate(active):
         if slot_index >= 2:
             break
         if pokemon is None or pokemon.get("fainted"):
+            per_slot_options.append(None)
             continue
         move_ids = [m.get("id") or "" for m in pokemon.get("revealed_moves", [])]
         seen = set(move_ids)
@@ -1013,19 +1029,79 @@ def opponent_candidates(
             options = [(0.0, {"kind": "none", "label": "unrevealed"})]
         per_slot_options.append(options)
 
+    while per_slot_options and per_slot_options[-1] is None:
+        per_slot_options.pop()
     if not per_slot_options:
         return [_joint([])]
 
-    first = per_slot_options[0]
-    second: list[tuple[float, dict[str, Any] | None]] = (
-        list(per_slot_options[1]) if len(per_slot_options) > 1 else [(0.0, None)]
-    )
+    # A slot with nothing in it contributes a no-op, so the living slot's
+    # action keeps its index.
+    slot_lists: list[list[tuple[float, dict[str, Any]]]] = [
+        options if options is not None else [(0.0, dict(EMPTY_SLOT))]
+        for options in per_slot_options
+    ]
     joint: list[tuple[float, dict[str, Any]]] = []
-    for score_a, a in first:
-        for score_b, b in second:
-            joint.append((score_a + score_b, _joint([s for s in (a, b) if s is not None])))
+    for combo in itertools.product(*slot_lists):
+        joint.append((sum(score for score, _ in combo), _joint([a for _, a in combo])))
     joint.sort(key=lambda pair: (-pair[0], pair[1]["label"]))
-    return [action for _, action in joint[:k]]
+    columns = [action for _, action in joint[:k]]
+    if switch_columns > 0:
+        columns.extend(_switch_columns(snapshot, per_slot_options, switch_columns))
+    return columns
+
+
+#: The column slot for a position with nothing in it. `kind: none` is what the
+#: payoff model and the coach's realised columns already use for a slot that
+#: did nothing.
+EMPTY_SLOT: dict[str, Any] = {"kind": "none", "label": "no action"}
+
+
+def _switch_columns(
+    snapshot: dict[str, Any],
+    per_slot_options: list[list[tuple[float, dict[str, Any]]] | None],
+    cap: int,
+) -> list[dict[str, Any]]:
+    """Columns in which one of their slots switches out (D91).
+
+    One column per living slot and bench Pokemon, taken round robin so a
+    two-slot side with a full bench gets a switch from each slot before a
+    second from either, up to `cap`. The partner plays its top-threat option,
+    which is what a pivot usually looks like. The bench is the snapshot's:
+    what has been seen, plus whatever the agent wrote there for the Pokemon
+    previewed and not yet seen (`OnePlyAgent._annotate_unseen`). The payoff
+    model places the incoming Pokemon (`TurnModel._switch`), so the column
+    prices a hit aimed at the slot landing on the switch-in instead.
+
+    Before this, opponent columns never contained a switch; the first 101
+    ladder games of the M-C cycle saw a switch on 29 percent of first turns.
+    """
+    bench = [p for p in snapshot["theirs"].get("bench", []) if p and not p.get("fainted")]
+    living = [i for i, options in enumerate(per_slot_options) if options is not None]
+    if not bench or not living or cap <= 0:
+        return []
+    out: list[dict[str, Any]] = []
+    for incoming in bench:
+        for slot_index in living:
+            if len(out) >= cap:
+                return out
+            species = str(incoming.get("species") or "")
+            slots: list[dict[str, Any]] = []
+            for j, options in enumerate(per_slot_options):
+                if j == slot_index:
+                    slots.append(
+                        {
+                            "kind": "switch",
+                            "species": species,
+                            "name": incoming.get("name") or species,
+                            "label": f"switch to {species}",
+                        }
+                    )
+                elif options is None:
+                    slots.append(dict(EMPTY_SLOT))
+                else:
+                    slots.append(dict(options[0][1]))
+            out.append(_joint(slots))
+    return out
 
 
 def _opponent_targets(
