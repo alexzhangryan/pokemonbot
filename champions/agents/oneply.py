@@ -56,6 +56,7 @@ from champions.search.policy import (
     HeuristicPolicy,
     PolicyProvider,
     opponent_candidates,
+    widen_by_kind,
 )
 from champions.search.watchdog import AnytimeDecision
 from champions.trace.schema import EventType
@@ -75,12 +76,17 @@ class OnePlyAgent(TracingPlayer):
     #: third of positions. The two-ply agents keep the budget, because their
     #: second ply multiplies it.
     row_budget: int | None = None
+    #: With a numeric `row_budget`, how many rows of each kind of turn the
+    #: budget leaves out are added on top of it (`policy.widen_by_kind`);
+    #: None adds none. Meaningless with `row_budget` None.
+    extra_per_kind: int | None = None
 
     def __init__(
         self,
         *args: Any,
         dex: Dex | None = None,
         k: int | None | str = "class",
+        extra_per_kind: int | None | str = "class",
         column_k: int = DEFAULT_COLUMN_K,
         hypothesis: OpponentHypothesis | None = None,
         policy: PolicyProvider | None = None,
@@ -101,6 +107,9 @@ class OnePlyAgent(TracingPlayer):
         # this point on and the type checker should know it.
         self.dex: Dex = self._dex
         self._k: int | None = self.row_budget if k == "class" else k  # type: ignore[assignment]
+        self._extra_per_kind: int | None = (
+            self.extra_per_kind if extra_per_kind == "class" else extra_per_kind  # type: ignore[assignment]
+        )
         self._column_k = column_k
         # The candidate provider is swappable so that implementation B (the
         # learned prior) and C (the language model) can play through the same
@@ -224,6 +233,9 @@ class OnePlyAgent(TracingPlayer):
         # would otherwise reach the matrix.
         legal = [s for s in scored if s.score != DISQUALIFIED]
         scored = legal or scored
+        if self._k is not None and self._extra_per_kind:
+            ranking = self._policy.scored(described, len(described), snapshot)
+            scored = widen_by_kind(ranking, scored, self._extra_per_kind)
         timings["candidates_s"] = time.perf_counter() - started
 
         if not scored:
@@ -266,7 +278,11 @@ class OnePlyAgent(TracingPlayer):
                 "phase": "pruned",
                 "pruned": True,
                 "k": self._k,
-                "row_budget": "all" if self._k is None else self._k,
+                "row_budget": "all"
+                if self._k is None
+                else (
+                    f"{self._k}+{self._extra_per_kind}/kind" if self._extra_per_kind else self._k
+                ),
                 "n_legal_joint_actions": len(orders),
                 "joint": [
                     {

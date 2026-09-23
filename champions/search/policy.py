@@ -1236,6 +1236,39 @@ def diversify(ranked: list[ScoredAction], k: int) -> list[ScoredAction]:
     return kept
 
 
+def widen_by_kind(
+    ranked: list[ScoredAction], kept: list[ScoredAction], per_kind: int
+) -> list[ScoredAction]:
+    """`kept` plus the top `per_kind` rows of every kind `kept` does not contain.
+
+    The middle ground between the heuristic's budget and every legal row
+    (D92): the twelve rows the heuristic likes, and for each kind of turn
+    they leave out -- a pivot, a Protect beside an attack, a double Protect
+    -- its best-ranked rows, so the equilibrium can consider the kind without
+    the whole legal set's exposure to the model's noise. `ranked` is the
+    full ranking, best first; disqualified rows are never added; order is
+    the ranking's, so the first row is still the anytime proposal.
+    """
+    from champions.search.kinds import action_kind
+
+    have = {action_kind(s.action) for s in kept}
+    chosen = {s.action.get("message") for s in kept}
+    added: dict[str, int] = {}
+    out = list(kept)
+    for scored in ranked:
+        if scored.score == DISQUALIFIED:
+            continue
+        kind = action_kind(scored.action)
+        if kind in have or scored.action.get("message") in chosen:
+            continue
+        if added.get(kind, 0) >= per_kind:
+            continue
+        added[kind] = added.get(kind, 0) + 1
+        out.append(scored)
+        chosen.add(scored.action.get("message"))
+    return out
+
+
 _CHARTS: dict[str, TypeChart] = {}
 
 
