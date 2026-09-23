@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-23 (cycle 3 of the autonomous ladder cycles, D93), by Claude Code.
+Last updated: 2026-09-23 (after the five autonomous ladder cycles, D91-D94), by Claude Code.
 
 ## The ladder cycles of 2026-09-23 (D91, in progress)
 
@@ -71,13 +71,52 @@ D91's, and the lines it recovered are the worst of it: our `attack+switch`
 named -- more rows, the same noisy cell values, the max is biased up -- on
 90 decisions, which is suggestive and not settled.
 
-**Cycle 4 (seed 4) plays the same D92 agent under the D93 coach** to double
-the sample. If the optimism holds at ~200 decisions, cycle 5's change is a
-bounded row set: the heuristic's twelve plus the top few rows of each kind
-the twelve do not contain (pivots, Protects), rather than every legal row.
-If it does not hold, D92 stands and the next lever is the belief (the
-opponent's line was on the model's support 23-31% of the time, top column
-9-13%).
+**Cycle 4 batch (seed 4, D92 agent, D93 coach): 5-7.** Pooled over both D92
+batches (24 games, 177 decisions) luck is +1.5 (se 1.4) against -2.4 (se 1.3)
+on the two D91 batches, and it sits on one kind of line: our attack beside a
+voluntary switch, +11.1 a decision over 17 decisions in both D92 batches
+alike, every other kind within noise. On those turns the partner that stayed
+in was knocked out 59% of the time (30% on plain attacking turns) where the
+model had it moving first or surviving: the belief's speed and spread
+errors, selected on. `scripts/kind_luck.py` on 60 corpus games with open
+sheets: every kind within a point of zero (attack+switch -1.6, n=72), so
+with known sets the one-turn model is calibrated ex post and the error is
+the belief. **D94: a measured row offset by kind**, `attack+switch: 0.111`,
+subtracted before the solve by the agent and the coach's ex-ante, not the
+ex-post. The kind-widened row set (`policy.widen_by_kind`, 14 rows mean on
+real positions) is in the code, off, as the alternative.
+
+**Cycle 5 batch (seed 5, D94): 6-6.** The pivot was played 0 of 108 times
+(17 of 217 under D92), so the offset removed the line rather than repriced
+it, and luck did not come down: +3.9 (se 2.0), now on plain attacking turns
+and on turn 3 (+11.8, n=12). Twelve games; not settled.
+
+**Where the five cycles leave it.** Five batches, 60 rated games: 29-31
+(Wilson 0.36-0.61), the same coin flip as the 101 before them, which the D71
+arithmetic said twelve-game batches could not move. What changed is what the
+model and the coach get right: the opponent's kind of turn, their switches,
+their last Pokemon, their Protect ex post, the forced switch ex post. What
+the cycles measured and did not settle: whether solving every legal row
+(D92) is worth its exposure to the belief's errors -- luck -2.4 on twelve
+rows against +1.5 and +3.9 on every row, with the offset moving the error
+rather than removing it. **Two things to do next, in order.** (1) A/B the
+row set on more games than a cycle can play: `belief` as is against
+`belief` with `row_budget = 12` and `extra_per_kind = 2` (the widened set),
+alternating batches, and read luck and ex-ante loss together, since twelve
+rows lower the one and raise the other. (2) The belief's speed and spread
+inference, because that is where the corpus says the remaining error is:
+in three of the four worst pivot turns the opponent had invested in Speed
+where the belief assumed otherwise. The offset in `rowoffsets.<format>.json`
+should be re-measured after either and removed when it reads near zero.
+
+**Also from the cycles**: the lead sweep completes 15 rounds every game
+(12-14 s of 20); the turn takes 0.5 s of 45 with every row; the opponent's
+realised line is on the model's support 20-31% of the time and its top
+column 5-13%; the lead is Gholdengo+Incineroar in 32 of 60 games (15-17).
+Reviews written before D93 mis-score the opponent's Protect turns ex post;
+`docs/coach-calibration.md` was measured with that defect and should be
+re-run. `make ladder-analysis LIVE_ARGS="--trace-dir traces --seed N"` is
+the per-batch table; `make action-prior` rebuilds the kind prior.
 
 **Not comparable across the D93 line:** every luck, ex-post loss and
 `best_ex_post` in a review written before D93 on a turn where the opponent
