@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-23 (cycle 2 of the autonomous ladder cycles, D92), by Claude Code.
+Last updated: 2026-09-23 (cycle 3 of the autonomous ladder cycles, D93), by Claude Code.
 
 ## The ladder cycles of 2026-09-23 (D91, in progress)
 
@@ -52,10 +52,36 @@ blunders -- pivots and Protects the heuristic ranks below attacks.
 **D92: the one-ply agents now solve over every legal row** (0.7 s a turn mean,
 1.6 s max on batch-2 positions); the two-ply agents keep 12.
 
-**Cycle 3 is the first batch played on D92.** Read it for: ex-ante loss per
-game (should fall by construction), luck per decision (says whether the
-recovered pivot and Protect lines are model error), the kind table, and the
-lead distribution (cycle 2 led Gholdengo+Incineroar 8 of 12, 5-3).
+**Cycle 3 batch (seed 3, 12 games, the first on D92): 6-6.** Ex-ante loss
+fell to 20 (wins) and 12 (losses) points a game from 36 and 41, and the
+coach's best line was in the agent's rows 111 of 111 times (mean 39 rows,
+max 118; 0.5 s a turn, 1.7 s max). But luck rose to +4.5 a decision, and the
+breakdown found a **coach defect that had biased every batch (D93)**: the
+opponent's realised Protect column carried no priority, so ex post their
+Protect resolved after our attacks and protected nothing -- +8 to +12 points
+of "luck" on every Protect turn since D79. Also: a faint's forced switch was
+scored against the opponent's already-resolved turn. Both fixed; batches 1-3
+re-reviewed.
+
+**The corrected read.** Luck per decision: batch 1 -1.5, batch 2 -3.4,
+batch 3 (D92) +4.2, the opponent's Protect turns now within noise in all
+three. So D92's agent reads about 6 points a decision more optimistic than
+D91's, and the lines it recovered are the worst of it: our `attack+switch`
++11.2 (n=7), `pass+protect` +8.9 (n=7). That is the winner's curse D92
+named -- more rows, the same noisy cell values, the max is biased up -- on
+90 decisions, which is suggestive and not settled.
+
+**Cycle 4 (seed 4) plays the same D92 agent under the D93 coach** to double
+the sample. If the optimism holds at ~200 decisions, cycle 5's change is a
+bounded row set: the heuristic's twelve plus the top few rows of each kind
+the twelve do not contain (pivots, Protects), rather than every legal row.
+If it does not hold, D92 stands and the next lever is the belief (the
+opponent's line was on the model's support 23-31% of the time, top column
+9-13%).
+
+**Not comparable across the D93 line:** every luck, ex-post loss and
+`best_ex_post` in a review written before D93 on a turn where the opponent
+Protected. `docs/coach-calibration.md` was measured with the defect.
 
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to
