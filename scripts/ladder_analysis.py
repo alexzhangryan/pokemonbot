@@ -140,6 +140,9 @@ def main() -> None:
     first_faint_result: dict[str, Counter] = defaultdict(Counter)
     tags = Counter()
     mistakes: list[tuple[float, str, int, str, str, str]] = []
+    best_in_rows = [0, 0]
+    loss_in_rows = [0.0, 0.0]
+    live_rows: list[int] = []
     kind_actual: dict[str, Counter] = defaultdict(Counter)
     kind_model: dict[str, Counter] = defaultdict(Counter)
     kind_n: Counter = Counter()
@@ -207,6 +210,7 @@ def main() -> None:
         for e in by_type["candidates"]:
             if "opponent_joint" in e["payload"]:
                 cands_by_turn[e["payload"]["turn"]].append(e["payload"])
+                live_rows.append(len(e["payload"].get("joint") or []))
         cands_used: Counter = Counter()
         ea = sum(a.get("ex_ante_loss") or 0 for a in analyses)
         ep = sum(a.get("ex_post_loss") or 0 for a in analyses)
@@ -249,9 +253,16 @@ def main() -> None:
                 opp_top[1] += 1
             # The model's kind of turn against the realised one (D91).
             lst = cands_by_turn.get(a["turn"], [])
-            if op and lst:
+            if lst:
                 c = lst[min(cands_used[a["turn"]], len(lst) - 1)]
                 cands_used[a["turn"]] += 1
+                # Was the coach's best line one the agent could consider (D92)?
+                labels_live = {j.get("label") for j in c.get("joint") or []}
+                hit = a.get("best") in labels_live
+                best_in_rows[0] += hit
+                best_in_rows[1] += 1
+                loss_in_rows[0 if hit else 1] += a.get("ex_ante_loss") or 0
+            if op and lst:
                 lbl = op if isinstance(op, str) else op.get("label") or ""
                 realised = _kind(lbl)
                 cols = c.get("opponent_joint") or []
@@ -347,6 +358,13 @@ def main() -> None:
                 f"({pct(on_support[0] / on_support[1])}%); "
                 f"mean prob given it {st.mean(opp_prob):.3f}; "
                 f"was the model's top column {opp_top[0]}/{opp_top[1]}"
+            )
+        if best_in_rows[1]:
+            print(
+                f"\ncoach's best line in the agent's rows: {best_in_rows[0]}/{best_in_rows[1]}"
+                f" ({pct(best_in_rows[0] / best_in_rows[1])}%); ex-ante loss pts when in"
+                f" {100 * loss_in_rows[0]:.0f}, when not {100 * loss_in_rows[1]:.0f};"
+                f" live rows mean {st.mean(live_rows):.0f}, max {max(live_rows)}"
             )
         if kind_n:
             print("\nthe opponent's kind of turn, realised against the model's mass (D91):")
