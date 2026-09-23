@@ -161,6 +161,7 @@ def from_trace(
     final_state = (end or {}).get("payload", {}).get("state") if end else None
     turns = [int(s["turn"]) for s in slots if isinstance(s.get("turn"), int)]
     decisions: list[Decision] = []
+    seen_turns: set[int] = set()
     for index, slot in enumerate(slots):
         turn = slot.get("turn")
         start_payload = slot.get("start")
@@ -190,15 +191,23 @@ def from_trace(
             continue
 
         pruned = slot.get("pruned") or {}
+        # A second decision at the same turn number is the switch a faint
+        # forced after the turn's moves resolved. The opponent has no
+        # simultaneous action there -- theirs for this turn already
+        # happened -- so there is no ex-post cell to score: resolving their
+        # turn's attacks a second time against our switch-in read every
+        # forced switch as eight to twenty points luckier than it was (D93).
+        forced = turn in seen_turns
+        seen_turns.add(turn)
         decisions.append(
             Decision(
                 turn=turn,
                 snapshot=snapshot,
                 rows=rows,
                 played=played,
-                their_played=_their_action_from_observations(
-                    observations, turn, opponent_side, snapshot
-                ),
+                their_played=None
+                if forced
+                else _their_action_from_observations(observations, turn, opponent_side, snapshot),
                 next_snapshot=next_snapshot,
                 for_seq=int(slot.get("equilibrium_seq", -1)),
                 recorded={

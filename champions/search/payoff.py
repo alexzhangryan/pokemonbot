@@ -557,7 +557,7 @@ class TurnModel:
 
         def key(action: _Action) -> tuple:
             speed = effective_speed(action.unit, snapshot, action.side == "ours")
-            priority = action.priority
+            priority = self._priority(action)
             if (
                 action.move_id == "grassyglide"
                 and "GRASSY_TERRAIN" in fields
@@ -573,6 +573,23 @@ class TurnModel:
             )
 
         return sorted(actions, key=key)
+
+    def _priority(self, action: _Action) -> int:
+        """A move's priority from the dex, whatever the described slot carries.
+
+        The agent's own rows and its opponent columns carry `priority` from
+        the dex already; the coach's realised opponent column, rebuilt from
+        the log's observations, carried none (D93). So in every ex-post cell
+        the opponent's Protect resolved at priority 0 -- after our attacks --
+        and protected nothing: the model had Kingambit knocked out through
+        its Protect, and every luck reading on a Protect turn was optimistic
+        by eight to twelve points. The dex is the authority for every caller.
+        """
+        if action.kind == "move":
+            entry = self._dex.moves.get(action.move_id or "")
+            if entry is not None:
+                return int(entry.get("priority", 0) or 0)
+        return action.priority
 
     def _unit(self, snapshot: dict[str, Any], side: str, slot: int) -> Combatant | None:
         active = snapshot[side]["active"]

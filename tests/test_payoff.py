@@ -409,3 +409,19 @@ def test_opponent_candidates_respect_k(dex: Dex, snapshot: Any) -> None:
         [],
     )
     assert len(opponent_candidates(revealed, dex, k=5)) <= 5
+
+
+def test_a_realised_protect_column_without_a_priority_still_protects(
+    dex: Dex, model: TurnModel, snapshot: dict[str, Any]
+) -> None:
+    """D93: the coach rebuilds the opponent's realised column from the log's
+    observations, which carry no priority. The model reads a move's priority
+    from the dex, so their Protect resolves before our attack whatever the
+    column says, and our attack into it does nothing."""
+    ours = _act(_move(dex, "meteormash", 1), _move(dex, "surf", 0))
+    bare_protect = {"kind": "move", "move": "protect", "target": -1, "label": "Protect"}
+    theirs = _act(bare_protect, {"kind": "none", "label": "no recorded action"})
+    outcomes = model.outcomes(snapshot, ours, theirs)
+    skarmory = outcomes[0].snapshot["theirs"]["active"][0]
+    assert skarmory["hp_pct"] == 100.0
+    assert all(o.snapshot["theirs"]["active"][0]["hp_pct"] == 100.0 for o in outcomes)

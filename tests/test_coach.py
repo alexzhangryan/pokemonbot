@@ -788,9 +788,7 @@ def test_the_corpus_prior_is_an_information_state_with_columns_on_turn_one(dex: 
     models = prior_models(dex, prior)
     assert models.name == CORPUS_PRIOR
     assert models.believed_moves("farigiraf")[:2] == ["protect", "trickroom"]
-    assert "foulplay" not in models.believed_moves("farigiraf"), (
-        "one in ten is under the threshold"
-    )
+    assert "foulplay" not in models.believed_moves("farigiraf"), "one in ten is under the threshold"
     assert models.believed_moves("nothing") == []
     assert (
         models.model.hypothesis.stats_for(
@@ -798,3 +796,26 @@ def test_the_corpus_prior_is_an_information_state_with_columns_on_turn_one(dex: 
         )["spe"]
         > 0
     )
+
+
+def test_a_forced_mid_turn_switch_has_no_opponent_action_to_score(
+    trace: list[dict[str, Any]],
+) -> None:
+    """D93: a second decision at the same turn number is the switch a faint
+    forced; the opponent's turn already happened, so scoring it again against
+    our switch-in would count their attacks twice."""
+    events = list(trace)
+    end = next(i for i, e in enumerate(events) if e["type"] == "battle_end")
+    repeat = [
+        {**e, "seq": e["seq"] + 100}
+        for e in events[:end]
+        if e["type"] in ("turn_start", "candidates", "equilibrium")
+        and e["payload"].get("turn") == 2
+    ]
+    # The repeat goes right after turn 2's own events, as the tracer writes it.
+    first_three = next(i for i, e in enumerate(events) if e["payload"].get("turn") == 3)
+    events = events[:first_three] + repeat + events[first_three:]
+    game = decisions.from_trace(events)
+    assert [d.turn for d in game.decisions] == [2, 2, 3]
+    assert game.decisions[0].their_played is not None
+    assert game.decisions[1].their_played is None
