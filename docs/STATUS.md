@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-23 (cycle 1 of the autonomous ladder cycles, D91), by Claude Code.
+Last updated: 2026-09-23 (cycle 2 of the autonomous ladder cycles, D92), by Claude Code.
 
 ## The ladder cycles of 2026-09-23 (D91, in progress)
 
@@ -41,10 +41,21 @@ is on the model's support 30% (was 12% under the old columns), and the coach's
 preferred lines on mistakes are attack+attack 9, attack+fakeout 6,
 attack+switch 5, attack+protect 2 (the 101 games: attack+protect 41 of 158).
 
-**Cycle 2 is the first batch played on D91.** Read it for: the implied kind
-mass against the realised one by turn; turn-1 luck; whether the lead
-distribution moves (cycle 1 led Gholdengo+Incineroar 7 of 12). Next lever if
-the model holds: the clock, since 45 s a turn is unused.
+**Cycle 2 batch (seed 2, 12 games, the first on D91): 7-5.** The model's kind
+mass now tracks what opponents do (turn 1: attack+attack 40% model against
+22% realised on 9 turns; double Protect 4% against 11%; the rest within
+noise). Preview still completes 15 rounds (13.2 s); the solve is 0.2 s with
+32 columns. What the batch exposed: with the coach solving over every legal
+row, its best line was outside the agent's 12 pruned rows in 38 of 90
+decisions, carrying two thirds of the ex-ante loss and 18 of 26 mistakes and
+blunders -- pivots and Protects the heuristic ranks below attacks.
+**D92: the one-ply agents now solve over every legal row** (0.7 s a turn mean,
+1.6 s max on batch-2 positions); the two-ply agents keep 12.
+
+**Cycle 3 is the first batch played on D92.** Read it for: ex-ante loss per
+game (should fall by construction), luck per decision (says whether the
+recovered pivot and Protect lines are model error), the kind table, and the
+lead distribution (cycle 2 led Gholdengo+Incineroar 8 of 12, 5-3).
 
 
 New to this project: read `docs/QUICKSTART.md`. It covers setup and how to

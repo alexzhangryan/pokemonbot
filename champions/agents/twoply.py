@@ -37,12 +37,17 @@ from poke_env.player.battle_order import BattleOrder
 from champions.agents.oneply import OnePlyAgent
 from champions.search.kinds import solve_columns
 from champions.search.payoff import payoff_matrix
+from champions.search.policy import DEFAULT_K
 from champions.search.twoply import DEFAULT_K2, TwoPlyModel
 from champions.search.watchdog import AnytimeDecision
 
 
 class TwoPlyAgent(OnePlyAgent):
     """Two plies on the analytic model; otherwise `OnePlyAgent`."""
+
+    #: The second ply multiplies the row count, so this agent keeps the
+    #: heuristic's budget rather than the whole legal set (D92).
+    row_budget: int | None = DEFAULT_K
 
     strategy = "two-ply-equilibrium"
     payoff_model = "analytic-two-ply"

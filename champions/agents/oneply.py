@@ -52,7 +52,7 @@ from champions.search.lead import PREVIEW_BUDGET_S, LeadChoice, lead_sweep
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
 from champions.search.policy import (
     DEFAULT_COLUMN_K,
-    DEFAULT_K,
+    DISQUALIFIED,
     HeuristicPolicy,
     PolicyProvider,
     opponent_candidates,
@@ -68,11 +68,19 @@ class OnePlyAgent(TracingPlayer):
 
     strategy = "one-ply-equilibrium"
 
+    #: How many of our joint actions the equilibrium is solved over. None is
+    #: every legal one (D92): the one-ply payoff loop costs a few tenths of a
+    #: second a turn against a 45 s budget, and the pruning guard measured the
+    #: heuristic's twelve as dropping the unpruned equilibrium's mass on a
+    #: third of positions. The two-ply agents keep the budget, because their
+    #: second ply multiplies it.
+    row_budget: int | None = None
+
     def __init__(
         self,
         *args: Any,
         dex: Dex | None = None,
-        k: int = DEFAULT_K,
+        k: int | None | str = "class",
         column_k: int = DEFAULT_COLUMN_K,
         hypothesis: OpponentHypothesis | None = None,
         policy: PolicyProvider | None = None,
@@ -92,7 +100,7 @@ class OnePlyAgent(TracingPlayer):
         # just refused to build without it, so `self._dex` is not optional from
         # this point on and the type checker should know it.
         self.dex: Dex = self._dex
-        self._k = k
+        self._k: int | None = self.row_budget if k == "class" else k  # type: ignore[assignment]
         self._column_k = column_k
         # The candidate provider is swappable so that implementation B (the
         # learned prior) and C (the language model) can play through the same
@@ -209,7 +217,13 @@ class OnePlyAgent(TracingPlayer):
         self._annotate_unseen(battle, snapshot)
         described = [action_describe.describe(order, self._dex) for order in orders]
         by_message = {d["message"]: order for d, order in zip(described, orders, strict=True)}
-        scored = self._policy.scored(described, self._k, snapshot)
+        budget = self._k if self._k is not None else len(described)
+        scored = self._policy.scored(described, budget, snapshot)
+        # A disqualified row (friendly fire, a status move at our own partner)
+        # is never worth a cell; with the whole legal set as the budget it
+        # would otherwise reach the matrix.
+        legal = [s for s in scored if s.score != DISQUALIFIED]
+        scored = legal or scored
         timings["candidates_s"] = time.perf_counter() - started
 
         if not scored:
@@ -252,6 +266,7 @@ class OnePlyAgent(TracingPlayer):
                 "phase": "pruned",
                 "pruned": True,
                 "k": self._k,
+                "row_budget": "all" if self._k is None else self._k,
                 "n_legal_joint_actions": len(orders),
                 "joint": [
                     {

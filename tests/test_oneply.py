@@ -91,7 +91,8 @@ async def test_the_solved_game_reaches_the_trace(showdown_server: int, tmp_path:
             assert 0.0 <= payload["game_value"] <= 1.0
             assert len(payload["payoff"]) == len(payload["joint"])
             assert len(payload["payoff"][0]) == len(payload["opponent_joint"])
-            assert payload["k"] >= len(payload["joint"])
+            assert payload["k"] is None or payload["k"] >= len(payload["joint"])
+            assert len(payload["joint"]) <= payload["n_legal_joint_actions"]
             assert 0 <= payload["chosen_index"] < len(payload["joint"])
             # Naming the model on every decision, so a reader never mistakes an
             # analytic estimate for a simulator-backed one.
@@ -102,9 +103,13 @@ async def test_the_solved_game_reaches_the_trace(showdown_server: int, tmp_path:
     assert solved > 0, "no solved decisions on the trace"
 
 
-async def test_pruning_actually_prunes(showdown_server: int, tmp_path: Path) -> None:
-    """About 100 to 156 joint actions become at most k. If this stops being
-    true the budget arithmetic in `docs/02` section 7 stops applying."""
+async def test_the_one_ply_agent_keeps_every_legal_row_but_the_disqualified(
+    showdown_server: int, tmp_path: Path
+) -> None:
+    """D92: the row budget is the whole legal set, less the rows the policy
+    disqualifies (friendly fire, a status move at our own partner). Until D92
+    this test asserted the opposite -- at most `k` rows -- and the pruning
+    guard measured what that cost."""
     await run_matchup(
         build_arm("oneply", showdown_server, ALPHA),
         build_arm("greedy", showdown_server, ALPHA),
@@ -113,18 +118,22 @@ async def test_pruning_actually_prunes(showdown_server: int, tmp_path: Path) -> 
         seed=5,
     )
 
-    pruned_from_many = 0
+    many = 0
     for path in sorted(tmp_path.glob("*.oneply5.jsonl")):
         for line in path.open(encoding="utf-8"):
             event = json.loads(line)
             payload = event.get("payload", {})
             if event["type"] != "candidates" or payload.get("phase") != "pruned":
                 continue
-            assert len(payload["joint"]) <= payload["k"]
-            if payload["n_legal_joint_actions"] > payload["k"]:
-                pruned_from_many += 1
+            assert payload["k"] is None and payload["row_budget"] == "all"
+            rows = payload["joint"]
+            assert len(rows) <= payload["n_legal_joint_actions"]
+            assert all(row["policy_score"] != float("-inf") for row in rows)
+            if payload["n_legal_joint_actions"] > 12:
+                many += 1
+                assert len(rows) > 12
 
-    assert pruned_from_many > 0, "never saw a turn with more legal actions than k"
+    assert many > 0, "never saw a turn with more than twelve legal actions"
 
 
 async def test_the_pruned_candidates_carry_reasons_only_the_position_can_give(
