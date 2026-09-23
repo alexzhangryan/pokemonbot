@@ -140,6 +140,9 @@ def main() -> None:
     first_faint_result: dict[str, Counter] = defaultdict(Counter)
     tags = Counter()
     mistakes: list[tuple[float, str, int, str, str, str]] = []
+    kind_actual: dict[str, Counter] = defaultdict(Counter)
+    kind_model: dict[str, Counter] = defaultdict(Counter)
+    kind_n: Counter = Counter()
 
     for g in games:
         r = g["row"]
@@ -200,6 +203,11 @@ def main() -> None:
         ]
         if not analyses:
             continue
+        cands_by_turn: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        for e in by_type["candidates"]:
+            if "opponent_joint" in e["payload"]:
+                cands_by_turn[e["payload"]["turn"]].append(e["payload"])
+        cands_used: Counter = Counter()
         ea = sum(a.get("ex_ante_loss") or 0 for a in analyses)
         ep = sum(a.get("ex_post_loss") or 0 for a in analyses)
         lk = [a["luck"] for a in analyses if a.get("luck") is not None]
@@ -239,6 +247,24 @@ def main() -> None:
                 else:
                     opp_prob.append(0.0)
                 opp_top[1] += 1
+            # The model's kind of turn against the realised one (D91).
+            lst = cands_by_turn.get(a["turn"], [])
+            if op and lst:
+                c = lst[min(cands_used[a["turn"]], len(lst) - 1)]
+                cands_used[a["turn"]] += 1
+                lbl = op if isinstance(op, str) else op.get("label") or ""
+                realised = _kind(lbl)
+                cols = c.get("opponent_joint") or []
+                probs = c.get("opponent_equilibrium") or []
+                kinds_ = (c.get("column_prior") or {}).get("kinds") or [
+                    _kind(col.get("label", "")) for col in cols
+                ]
+                if "none" not in realised and len(kinds_) == len(probs):
+                    b = _bucket(a["turn"])
+                    kind_n[b] += 1
+                    kind_actual[b][realised] += 1
+                    for k, pr in zip(kinds_, probs, strict=True):
+                        kind_model[b][k] += pr
             if lab in ("mistake", "blunder"):
                 best = a.get("best") or ""
                 preferred[best] += 1
@@ -322,6 +348,21 @@ def main() -> None:
                 f"mean prob given it {st.mean(opp_prob):.3f}; "
                 f"was the model's top column {opp_top[0]}/{opp_top[1]}"
             )
+        if kind_n:
+            print("\nthe opponent's kind of turn, realised against the model's mass (D91):")
+            for b in ("1", "2", "3", "4+"):
+                n_b = kind_n[b]
+                if not n_b:
+                    continue
+                print(f"  turn {b} (n={n_b})")
+                ks = sorted(
+                    set(kind_actual[b]) | set(kind_model[b]), key=lambda k: -kind_actual[b][k]
+                )
+                for k in ks:
+                    print(
+                        f"    {k:18s} realised {kind_actual[b][k] / n_b:6.1%}"
+                        f"   model {kind_model[b][k] / n_b:6.1%}"
+                    )
         print(
             "\non mistakes and blunders, the coach preferred (kind):",
             dict(preferred_kind.most_common()),
@@ -338,11 +379,17 @@ def main() -> None:
             )
 
 
+def _bucket(turn: int) -> str:
+    return "1" if turn <= 1 else "2" if turn == 2 else "3" if turn == 3 else "4+"
+
+
 def _kind(label: str) -> str:
     parts = [p.strip() for p in label.split("+")]
     kinds = []
     for p in parts:
-        if p.startswith("switch"):
+        if p in ("no recorded action", "no action", "unrevealed"):
+            kinds.append("none")
+        elif p.startswith("switch"):
             kinds.append("switch")
         elif p.lower().startswith("protect") or p.lower().startswith("detect"):
             kinds.append("protect")

@@ -22,7 +22,7 @@ EVAL_TRACES ?= runs/m6-selfplay
 .PHONY: help venv install vendor dex test lint format typecheck check \
         server play selfplay ladder bench differential trace viewer clean-traces \
         scrape scrape-full corpus priors eval-belief eval-games fit-eval fit-policy discard \
-        llm-smoke discard-llm gate review calibrate-coach ladder-live viewer-live ladder-summary
+        llm-smoke discard-llm gate review calibrate-coach ladder-live viewer-live ladder-summary \n        ladder-analysis action-prior
 
 help:
 	@echo "make venv          create .venv and install dependencies"
@@ -57,6 +57,8 @@ help:
 	@echo "make ladder-live   play rated games on the official ladder, the coach between games (LIVE_GAMES=10; account in .env)"
 	@echo "make viewer-live   watch the live ladder games as they are played (runs/live/)"
 	@echo "make ladder-summary  the record so far from the live ladder's ledger"
+	@echo "make ladder-analysis  the table a ladder batch is read from (LIVE_ARGS=\"--trace-dir traces --seed 2\")"
+	@echo "make action-prior  distil the corpus into the prior on the opponent's kind of turn (D91)"
 	@echo ""
 	@echo "make scrape        fetch new replays for both formats (incremental)"
 	@echo "make scrape-full   backfill the Bo3 corpus to exhaustion (hours)"
@@ -223,3 +225,12 @@ viewer-live:
 
 ladder-summary:
 	$(PYTHON) scripts/ladder_live.py --summary $(LIVE_ARGS)
+
+# The per-batch table of a play-analyse-improve cycle (D91): record, openings,
+# the coach's aggregates, and the opponent's kind of turn against the model's.
+ladder-analysis:
+	$(PYTHON) scripts/ladder_analysis.py $(LIVE_ARGS)
+
+# The prior on what kind of turn people play, from the corpus (D91).
+action-prior:
+	$(PYTHON) scripts/build_action_prior.py
