@@ -306,3 +306,32 @@ def test_unseen_previewed_pokemon_join_the_bench_up_to_the_bring(dex: Dex) -> No
     columns = opponent_candidates(state, dex, 24)
     switched = {s["species"] for c in columns for s in c["slots"] if s["kind"] == "switch"}
     assert switched == {"Garchomp", "Pelipper", "Farigiraf", "Kingambit"}
+
+
+# -- row offsets (D94) ---------------------------------------------------------
+
+
+def test_row_offsets_subtract_the_measured_optimism_from_rows_of_that_kind(tmp_path: Path) -> None:
+    from champions.search.kinds import RowOffsets, apply_row_offsets, load_row_offsets
+
+    attack = {"kind": "move", "move": "closecombat"}
+    switch = {"kind": "switch", "species": "rillaboom"}
+    rows = [{"slots": [attack, attack]}, {"slots": [attack, switch]}, {"slots": [switch, attack]}]
+    payoff = np.full((3, 2), 0.5)
+    offsets = RowOffsets(FORMAT_ID, {"attack+switch": 0.11}, {})
+    shifted, applied = apply_row_offsets(payoff, rows, offsets)
+    assert applied == {"attack+switch": 0.11}
+    assert shifted[0].tolist() == [0.5, 0.5]
+    assert shifted[1].tolist() == pytest.approx([0.39, 0.39])
+    assert shifted[2].tolist() == pytest.approx([0.39, 0.39])
+    assert payoff[1, 0] == 0.5  # the input is not mutated
+    same, none = apply_row_offsets(payoff, rows, None)
+    assert same is payoff and none == {}
+    # Loading: the format's own file, else the lineage's, else nothing.
+    assert load_row_offsets(FORMAT_ID, tmp_path) is None
+    (tmp_path / f"rowoffsets.{FORMAT_ID}.json").write_text(
+        json.dumps({"offsets": {"attack+switch": 0.11}, "source": "test"})
+    )
+    loaded = load_row_offsets(FORMAT_ID, tmp_path)
+    assert loaded is not None and loaded.for_row(rows[1]) == 0.11 and loaded.for_row(rows[0]) == 0.0
+    assert loaded.provenance == {"source": "test"}

@@ -192,3 +192,81 @@ def implied_kind_mass(column: np.ndarray, kinds: Sequence[str]) -> dict[str, flo
     for p, k in zip(column, kinds, strict=True):
         out[k] = out.get(k, 0.0) + float(p)
     return out
+
+
+# -- row offsets (D94) ---------------------------------------------------------
+#
+# The one-turn model's systematic error by the kind of *our* line, measured as
+# the coach's luck (expected minus realised) on the ladder, and subtracted
+# from every cell of a row of that kind before the solve. The first cycles
+# on every legal row (D92) found the optimism concentrated on one kind: an
+# attack beside a voluntary switch read +11 points a decision over 17
+# decisions, because the agent chooses that row exactly when the model
+# overrates the partner that stays in, and that partner was knocked out on
+# 59 percent of those turns against 30 percent of plain attacking turns.
+# `scripts/kind_luck.py` measures the same on corpus games with open sheets,
+# where the belief's errors are absent.
+
+
+@dataclass(frozen=True)
+class RowOffsets:
+    """Win-probability points to subtract from a row, by its kind."""
+
+    format_id: str
+    offsets: dict[str, float]
+    provenance: dict[str, Any]
+    lent: bool = False
+
+    def for_row(self, action: Mapping[str, Any]) -> float:
+        return self.offsets.get(action_kind(action), 0.0)
+
+
+def offsets_path(format_id: str, data_dir: Path = DATA_DIR) -> Path:
+    return data_dir / f"rowoffsets.{format_id}.json"
+
+
+def load_row_offsets(format_id: str, data_dir: Path = DATA_DIR) -> RowOffsets | None:
+    """The offsets for a format, its lineage's if it has none of its own, else None."""
+    own = offsets_path(format_id, data_dir)
+    if own.exists():
+        return _read_offsets(own, format_id, lent=False)
+    lent_from = lender(format_id)
+    if lent_from is not None:
+        borrowed = offsets_path(lent_from, data_dir)
+        if borrowed.exists():
+            return _read_offsets(borrowed, format_id, lent=True)
+    return None
+
+
+def _read_offsets(path: Path, format_id: str, lent: bool) -> RowOffsets:
+    with path.open(encoding="utf-8") as f:
+        raw = json.load(f)
+    return RowOffsets(
+        format_id=format_id,
+        offsets={str(k): float(v) for k, v in (raw.get("offsets") or {}).items()},
+        provenance={k: v for k, v in raw.items() if k != "offsets"},
+        lent=lent,
+    )
+
+
+def apply_row_offsets(
+    payoff: np.ndarray, rows: Sequence[Mapping[str, Any]], offsets: RowOffsets | None
+) -> tuple[np.ndarray, dict[str, float]]:
+    """The payoff with each row's kind offset subtracted, and what was applied.
+
+    Returns the same array when there is nothing to apply, so the coach's and
+    the agent's numbers are unchanged wherever no offset is defined.
+    """
+    if offsets is None or not offsets.offsets:
+        return payoff, {}
+    applied: dict[str, float] = {}
+    shifted = np.array(payoff, dtype=float, copy=True)
+    for i, row in enumerate(rows):
+        off = offsets.for_row(row)
+        if off:
+            shifted[i, :] -= off
+            applied[action_kind(row)] = off
+    if not applied:
+        return payoff, applied
+    # A cell is a win probability; an offset must not take it outside one.
+    return np.clip(shifted, 0.0, 1.0), applied

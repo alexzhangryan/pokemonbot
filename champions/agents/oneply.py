@@ -47,7 +47,15 @@ from poke_env.player.battle_order import BattleOrder
 from champions.dex.loader import Dex, DexNotBuiltError
 from champions.protocol import actions as action_describe
 from champions.protocol import state as state_snapshot
-from champions.search.kinds import PRIOR_WEIGHT, KindPrior, load_kind_prior, solve_columns
+from champions.search.kinds import (
+    PRIOR_WEIGHT,
+    KindPrior,
+    RowOffsets,
+    apply_row_offsets,
+    load_kind_prior,
+    load_row_offsets,
+    solve_columns,
+)
 from champions.search.lead import PREVIEW_BUDGET_S, LeadChoice, lead_sweep
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
 from champions.search.policy import (
@@ -92,6 +100,7 @@ class OnePlyAgent(TracingPlayer):
         policy: PolicyProvider | None = None,
         kind_prior: KindPrior | None | str = "format",
         prior_weight: float = PRIOR_WEIGHT,
+        row_offsets: RowOffsets | None | str = "format",
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, dex=dex, **kwargs)
@@ -129,6 +138,11 @@ class OnePlyAgent(TracingPlayer):
             load_kind_prior(self.dex.format_id) if kind_prior == "format" else kind_prior
         )
         self._prior_weight = prior_weight
+        # The model's measured optimism by the kind of our line, subtracted
+        # from the rows before the solve (D94). None applies nothing.
+        self._row_offsets: RowOffsets | None = (
+            load_row_offsets(self.dex.format_id) if row_offsets == "format" else row_offsets
+        )
 
     # -- preview --------------------------------------------------------
 
@@ -262,6 +276,7 @@ class OnePlyAgent(TracingPlayer):
 
         # -- solve ------------------------------------------------------
         started = time.perf_counter()
+        matrix, row_offsets_applied = apply_row_offsets(matrix, ours, self._row_offsets)
         equilibrium, column_prior = solve_columns(
             matrix, theirs, battle.turn, self._kind_prior, self._prior_weight
         )
@@ -297,6 +312,7 @@ class OnePlyAgent(TracingPlayer):
                 "opponent_joint": theirs,
                 "opponent_equilibrium": [float(p) for p in equilibrium.column],
                 "column_prior": column_prior,
+                "row_offsets": row_offsets_applied,
                 "payoff": matrix.tolist(),
                 "game_value": float(equilibrium.value),
                 "is_pure": equilibrium.is_pure,

@@ -40,7 +40,15 @@ from champions.coach.decisions import REPLAY, Decision, Game
 from champions.coach.truth import PriorSource, TruthOracle
 from champions.dex.loader import Dex
 from champions.search.evaluate import evaluate, win_prob
-from champions.search.kinds import PRIOR_WEIGHT, KindPrior, load_kind_prior, solve_columns
+from champions.search.kinds import (
+    PRIOR_WEIGHT,
+    KindPrior,
+    RowOffsets,
+    apply_row_offsets,
+    load_kind_prior,
+    load_row_offsets,
+    solve_columns,
+)
 from champions.search.matrix import MASS_THRESHOLD
 from champions.search.payoff import TurnModel, payoff_matrix
 from champions.search.policy import opponent_candidates
@@ -91,6 +99,10 @@ class Models:
     #: solver. None is the plain equilibrium.
     kind_prior: KindPrior | None = None
     prior_weight: float = PRIOR_WEIGHT
+    #: The model's measured optimism by the kind of our line (D94), applied
+    #: to the ex-ante matrix as the agent applies it. The ex-post cell and
+    #: luck are left raw, so luck keeps measuring the model.
+    row_offsets: RowOffsets | None = None
 
 
 def prior_models(dex: Dex, prior: SetPrior) -> Models:
@@ -103,7 +115,14 @@ def prior_models(dex: Dex, prior: SetPrior) -> Models:
         effects=BeliefEffects(source),
         place_incoming=True,
     )
-    return Models(CORPUS_PRIOR, dex, model, source.believed_moves, load_kind_prior(dex.format_id))
+    return Models(
+        CORPUS_PRIOR,
+        dex,
+        model,
+        source.believed_moves,
+        load_kind_prior(dex.format_id),
+        row_offsets=load_row_offsets(dex.format_id),
+    )
 
 
 def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN_SHEET) -> Models:
@@ -119,7 +138,14 @@ def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN
             effects=BeliefEffects(None),
             place_incoming=True,
         )
-        return Models(REVEALED, dex, model, None, load_kind_prior(dex.format_id))
+        return Models(
+            REVEALED,
+            dex,
+            model,
+            None,
+            load_kind_prior(dex.format_id),
+            row_offsets=load_row_offsets(dex.format_id),
+        )
     oracle = TruthOracle(truths, dex)
     model = TurnModel(
         dex,
@@ -127,7 +153,14 @@ def models_for(dex: Dex, truths: Mapping[str, TruthSet] | None, name: str = OPEN
         effects=BeliefEffects(oracle),
         place_incoming=True,
     )
-    return Models(name, dex, model, oracle.believed_moves, load_kind_prior(dex.format_id))
+    return Models(
+        name,
+        dex,
+        model,
+        oracle.believed_moves,
+        load_kind_prior(dex.format_id),
+        row_offsets=load_row_offsets(dex.format_id),
+    )
 
 
 @dataclass
@@ -251,6 +284,8 @@ def analyze_decision(
             their = len(columns) - 1
 
     matrix = payoff_matrix(snapshot, rows, columns, ante.model)
+    raw = matrix
+    matrix, _ = apply_row_offsets(matrix, rows, ante.row_offsets)
     equilibrium, _ = solve_columns(
         matrix, columns, decision.turn, ante.kind_prior, ante.prior_weight
     )
@@ -279,7 +314,7 @@ def analyze_decision(
     rolls: list[dict[str, Any]] = []
     if their is not None:
         if post is ante:
-            post_column = matrix[:, their]
+            post_column = raw[:, their]
         else:
             post_column = np.array(
                 [post.model.value(snapshot, r, columns[their]) for r in rows], dtype=float
