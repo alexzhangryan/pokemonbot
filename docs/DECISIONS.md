@@ -1185,3 +1185,15 @@ Decision. `OnePlyAgent.row_budget = DEFAULT_K` and `extra_per_kind = 2` are the 
 Rationale, and what is and is not claimed. 55-45 is not apart from a coin flip on its own; the decision rests on it together with the ladder read, both pointing the same way, and on the argument D92 made against itself: a wider row set gives model error more to exploit, and the coach's preferred lines it recovered are kinds, not particular rows, so two rows of each kind keep them available. The D94 offset stays, since the widened set still holds two attack-beside-a-switch rows. What is not claimed is a measured gain against humans; the next ladder run reads luck by kind again.
 
 Consequences: `champions/agents/oneply.py`, `champions/agents/twoply.py`, `tests/test_row_budget.py`, `tests/test_oneply.py`. The team tournament (D95) was restarted under this default so its games are the agent that will play the ladder.
+
+## D97. The adaptive second ply loses to the one-ply belief agent 39-61; depth stays off the ladder — 2026-09-26, Claude Code
+
+Context: D71 measured the extra ply as not apart from one ply under the M8 model and D89 measured `adaptive-belief` against `belief` at 26-22 under D87's. Both were before D91 to D94 changed the columns, the rows and the solver, and the turn still uses under a second of its 45, so the re-measurement was due. `adaptive-belief` (twelve rows, escalating to a second ply on close positions inside the allocated budget) played `belief` (every legal row at the time the run started, D92) for 100 mirror games on `regmc-mence` (`runs/mc-depth`, seed 100, common random numbers).
+
+Result: **39-61** (Wilson 0.30-0.49). The second ply is worse, not merely not apart, at about two minutes a game against one.
+
+Decision: the ladder agent stays one ply. The adaptive agents remain in the registry for the next model change; nothing about the escalation machinery is removed.
+
+Rationale, and what is and is not claimed. The clock is not the constraint and depth is not the lever: a second ply of a model whose ex-post error with known sets is a point (D94's corpus measurement) but whose belief about the opponent's speed and sets is where the error lives compounds that belief error rather than correcting it, and the mirror says so. What is not claimed is that depth can never help; it would help a model whose one-turn values were already trusted, which is the belief work D94 named. The comparison's other arm was every legal row, not D96's widened set, because the run began before D96; the direction is not in doubt at this margin.
+
+Consequences: none in code. `docs/engine-gate.md` and D71's verdict stand; STATUS lists the belief's speed and spread inference as the next lever after the team.
