@@ -57,6 +57,7 @@ from champions.search.kinds import (
     solve_columns,
 )
 from champions.search.lead import PREVIEW_BUDGET_S, LeadChoice, lead_sweep
+from champions.search.leadprior import TeamPrior, load_team_prior
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
 from champions.search.policy import (
     DEFAULT_COLUMN_K,
@@ -143,6 +144,9 @@ class OnePlyAgent(TracingPlayer):
         self._row_offsets: RowOffsets | None = (
             load_row_offsets(self.dex.format_id) if row_offsets == "format" else row_offsets
         )
+        # The corpus's leads and brings for the six we play (D95), looked up
+        # once per six and blended into the lead sweep.
+        self._team_priors: dict[str, TeamPrior | None] = {}
 
     # -- preview --------------------------------------------------------
 
@@ -170,6 +174,11 @@ class OnePlyAgent(TracingPlayer):
                 "selected": [p.species for p in battle.team.values() if p._selected_in_teampreview],
                 "policy": "one-ply-lead-sweep",
                 "lead": [team[i].species for i in choice.lead],
+                "lead_prior": choice.prior,
+                "blended_values": {
+                    f"{team[a].species}+{team[b].species}": round(v, 4)
+                    for (a, b), v in choice.blended.items()
+                },
                 "pair_values": {
                     f"{team[a].species}+{team[b].species}": round(v, 4)
                     for (a, b), v in choice.scores.items()
@@ -213,7 +222,15 @@ class OnePlyAgent(TracingPlayer):
             budget_s=self.preview_budget_s,
             kind_prior=self._kind_prior,
             prior_weight=self._prior_weight,
+            team_prior=self._team_prior(battle),
         )
+
+    def _team_prior(self, battle: AbstractBattle) -> TeamPrior | None:
+        six = sorted(p.species for p in battle.team.values())
+        key = "+".join(six)
+        if key not in self._team_priors:
+            self._team_priors[key] = load_team_prior(self.dex.format_id, six)
+        return self._team_priors[key]
 
     async def _search(
         self,

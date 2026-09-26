@@ -37,6 +37,7 @@ import numpy as np
 
 from champions.dex.loader import Dex, to_id
 from champions.search.kinds import PRIOR_WEIGHT, KindPrior, solve_columns
+from champions.search.leadprior import LEAD_PRIOR_WEIGHT, TeamPrior, blend, pair_key
 from champions.search.payoff import CellModel, OpponentHypothesis, entry_effects, payoff_matrix
 from champions.search.policy import PolicyProvider, opponent_candidates
 from champions.search.twoply import enumerate_joint
@@ -72,6 +73,11 @@ class LeadChoice:
     evaluated: int
     #: Per Pokemon (0-based index), the mean value of the pairs it led in.
     singles: dict[int, float] = field(default_factory=dict)
+    #: The pair values after the corpus prior is blended in (D95); what the
+    #: lead was chosen from. Equal to `scores` without a prior.
+    blended: dict[tuple[int, int], float] = field(default_factory=dict)
+    #: What the prior was, for the trace: games, wins, top leads, weight.
+    prior: dict[str, Any] | None = None
 
     def as_message(self) -> str:
         return "/team " + "".join(str(i) for i in self.order)
@@ -93,6 +99,8 @@ def lead_sweep(
     max_rounds: int | None = None,
     kind_prior: KindPrior | None = None,
     prior_weight: float = PRIOR_WEIGHT,
+    team_prior: TeamPrior | None = None,
+    lead_prior_weight: float = LEAD_PRIOR_WEIGHT,
 ) -> LeadChoice:
     """Choose four and a lead from previewed views.
 
@@ -137,7 +145,17 @@ def lead_sweep(
         rounds += 1
 
     scores = {pair: (totals[pair] / rounds) if rounds else float("nan") for pair in our_pairs}
-    scored = [(s, p) for p, s in scores.items() if s == s]
+    # The corpus's leads and brings for this six, blended in (D95): a lead
+    # people play with the team counts for something beside the one-turn
+    # value, which is ordered rather than calibrated and on 161 rated games
+    # did not separate the openings that won from the ones that lost.
+    species = [str(v.get("species") or "") for v in ours]
+    lead_shares = team_prior.lead_shares() if team_prior is not None else {}
+    bring_shares = team_prior.bring_shares() if team_prior is not None else {}
+    weight = lead_prior_weight if lead_shares else 0.0
+    by_pair = {p: lead_shares.get(pair_key(species[p[0]], species[p[1]]), 0.0) for p in our_pairs}
+    blended = blend({p: s for p, s in scores.items() if s == s}, by_pair, weight)
+    scored = [(s, p) for p, s in blended.items()]
     # Nothing priced (a zero budget) leads with the first two, which is what
     # a person watching would notice; ties break toward the earlier pair.
     lead = max(scored, key=lambda sp: (sp[0], -sp[1][0], -sp[1][1]))[1] if scored else (0, 1)
@@ -147,7 +165,13 @@ def lead_sweep(
         values = [scores[p] for p in our_pairs if index in p and scores[p] == scores[p]]
         singles[index] = sum(values) / len(values) if values else float("nan")
     rest = [i for i in range(len(ours)) if i not in lead]
-    rest.sort(key=lambda i: (-(singles[i] if singles[i] == singles[i] else -1.0), i))
+    bring_weight = lead_prior_weight if bring_shares else 0.0
+
+    def back_value(i: int) -> float:
+        value = singles[i] if singles[i] == singles[i] else -1.0
+        return (1.0 - bring_weight) * value + bring_weight * bring_shares.get(species[i], 0.0)
+
+    rest.sort(key=lambda i: (-back_value(i), i))
     back = rest[:2]
     order = [lead[0] + 1, lead[1] + 1, *[i + 1 for i in back]]
     return LeadChoice(
@@ -159,6 +183,8 @@ def lead_sweep(
         elapsed_s=time.perf_counter() - started,
         evaluated=evaluated,
         singles=singles,
+        blended=blended,
+        prior=({**team_prior.as_dict(), "weight": weight} if team_prior is not None else None),
     )
 
 
