@@ -112,6 +112,16 @@ def main() -> None:
     turns = [g["row"].get("turns") or 0 for g in games]
     if turns:
         print(f"game length: mean {st.mean(turns):.1f} turns, median {st.median(turns)}")
+    # The public rating after each game, when the ledger recorded it (D95).
+    rated = [g["row"] for g in games if g["row"].get("elo") is not None]
+    if rated:
+        elos = [float(r["elo"]) for r in rated]
+        gxes = [float(r["gxe"]) for r in rated if r.get("gxe") is not None]
+        print(
+            f"rating: elo first {elos[0]:.0f}, last {elos[-1]:.0f}, peak {max(elos):.0f}"
+            + (f"; gxe last {gxes[-1]:.1f}, peak {max(gxes):.1f}" if gxes else "")
+            + f" ({len(rated)} games with a recorded rating)"
+        )
 
     # Openings.
     lead_rec: dict[str, list[int]] = defaultdict(lambda: [0, 0])
