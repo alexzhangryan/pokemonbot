@@ -1,0 +1,59 @@
+archaludon @ leftovers
+Ability: stamina
+Level: 50
+EVs: 32 HP / 32 Def
+Bold Nature
+- dragonpulse
+- flashcannon
+- electroshot
+- protect
+
+froslass @ froslassite
+Ability: cursedbody
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- blizzard
+- auroraveil
+- raindance
+- protect
+
+gengar @ gengarite
+Ability: cursedbody
+Level: 50
+EVs: 32 SpA / 32 Spe
+Modest Nature
+- sludgebomb
+- shadowball
+- perishsong
+- protect
+
+incineroar @ passhoberry
+Ability: intimidate
+Level: 50
+EVs: 32 HP / 32 SpD
+Sassy Nature
+- flareblitz
+- partingshot
+- fakeout
+- protect
+
+politoed @ sitrusberry
+Ability: drizzle
+Level: 50
+EVs: 32 HP / 32 SpD
+Calm Nature
+- weatherball
+- perishsong
+- encore
+- protect
+
+rillaboom @ ejectbutton
+Ability: grassysurge
+Level: 50
+EVs: 32 HP / 32 SpD
+Sassy Nature
+- grassyglide
+- uturn
+- fakeout
+- protect

@@ -1,0 +1,59 @@
+floetteeternal @ floettite
+Ability: flowerveil
+Level: 50
+EVs: 32 SpA / 32 Spe
+Modest Nature
+- dazzlinggleam
+- drainingkiss
+- calmmind
+- protect
+
+gholdengo @ lifeorb
+Ability: goodasgold
+Level: 50
+EVs: 32 SpA / 32 Spe
+Modest Nature
+- protect
+- nastyplot
+- makeitrain
+- shadowball
+
+incineroar @ sitrusberry
+Ability: intimidate
+Level: 50
+EVs: 32 HP / 32 SpD
+Careful Nature
+- fakeout
+- flareblitz
+- throatchop
+- partingshot
+
+raichu @ raichunitey
+Ability: static
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- zapcannon
+- encore
+- protect
+- focusblast
+
+rillaboom @ miracleseed
+Ability: grassysurge
+Level: 50
+EVs: 32 Atk / 32 Spe
+Adamant Nature
+- highhorsepower
+- fakeout
+- grassyglide
+- woodhammer
+
+sneasler @ grassyseed
+Ability: unburden
+Level: 50
+EVs: 32 Atk / 32 Spe
+Adamant Nature
+- direclaw
+- closecombat
+- rocktomb
+- protect

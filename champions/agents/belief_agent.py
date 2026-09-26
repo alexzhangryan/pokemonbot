@@ -36,6 +36,7 @@ from typing import Any
 from poke_env.battle import AbstractBattle
 
 from champions.agents.adaptive import AdaptiveAgent
+from champions.search.policy import DEFAULT_K
 from champions.agents.oneply import OnePlyAgent
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.priors import PriorNotBuiltError
@@ -138,6 +139,16 @@ class BeliefMovesOnly(BeliefAgent):
 
     def _turn_model(self, battle: AbstractBattle) -> TurnModel:
         return self._model
+
+
+class WideBeliefAgent(BeliefAgent):
+    """The belief agent on the heuristic's twelve rows plus the best two rows of
+    every kind of turn the twelve leave out (`policy.widen_by_kind`): the
+    bounded alternative to D92's every-legal-row, for the A/B D94 asked for."""
+
+    strategy = "one-ply-belief-wide"
+    row_budget: int | None = DEFAULT_K
+    extra_per_kind: int | None = 2
 
 
 class AdaptiveBeliefAgent(BeliefAgent, AdaptiveAgent):

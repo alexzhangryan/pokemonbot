@@ -1,0 +1,59 @@
+arcaninehisui @ focussash
+Ability: rockhead
+Level: 50
+EVs: 32 Atk / 32 Spe
+Jolly Nature
+- flareblitz
+- headsmash
+- extremespeed
+- protect
+
+indeedee @ choicescarf
+Ability: psychicsurge
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- expandingforce
+- trick
+- mysticalfire
+- protect
+
+metagross @ metagrossite
+Ability: clearbody
+Level: 50
+EVs: 32 Atk / 32 Spe
+Adamant Nature
+- steelroller
+- psychicfangs
+- bodypress
+- protect
+
+milotic @ sitrusberry
+Ability: competitive
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- scald
+- icebeam
+- protect
+- icywind
+
+salamence @ salamencite
+Ability: intimidate
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- dracometeor
+- heatwave
+- hypervoice
+- protect
+
+sneasler @ psychicseed
+Ability: unburden
+Level: 50
+EVs: 32 Atk / 32 Spe
+Adamant Nature
+- direclaw
+- closecombat
+- rockslide
+- protect

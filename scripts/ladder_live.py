@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import subprocess
@@ -165,6 +166,47 @@ def result_of(battle: Any) -> str:
     return "win" if won else ("tie" if won is None else "loss")
 
 
+LADDER_JSON = "https://pokemonshowdown.com/users/{user}.json"
+
+
+def fetch_ladder_rating(username: str, format_id: str, delay_s: float = 3.0) -> dict[str, Any]:
+    """The account's public rating for the format, from the site's user JSON.
+
+    Showdown posts the new rating into the battle room after a rated game,
+    but poke-env drops it once the battle is finished and `battle.rating` has
+    been None on every rated game this project played, so the ledger never
+    held a rating and the peak had to be reconstructed. The public JSON is
+    updated within a few seconds of the result; `delay_s` waits for it. Empty
+    on any failure, so a network hiccup never costs the row.
+    """
+    import ssl
+    import urllib.request
+
+    time.sleep(delay_s)
+    try:
+        context = ssl.create_default_context(cafile=certifi.where())
+        request = urllib.request.Request(
+            LADDER_JSON.format(user=username.lower().replace(" ", "")),
+            # The site answers Python's default agent string with a 403.
+            headers={"User-Agent": "pokemonbot ladder ledger (github.com/alexzhangryan)"},
+        )
+        with urllib.request.urlopen(request, context=context, timeout=10) as response:
+            data = json.load(response)
+    except Exception:  # noqa: BLE001 - the ledger row must be written regardless
+        return {}
+    rating = (data.get("ratings") or {}).get(format_id) or {}
+    if not rating:
+        return {}
+    out: dict[str, Any] = {}
+    for key, name in (("elo", "elo"), ("gxe", "gxe"), ("rpr", "glicko"), ("rprd", "glicko_dev")):
+        with contextlib.suppress(KeyError, TypeError, ValueError):
+            out[name] = round(float(rating[key]), 1)
+    for key in ("w", "l"):
+        if rating.get(key) is not None:
+            out[f"ladder_{key}"] = int(rating[key])
+    return out
+
+
 def ledger_row(battle: Any, run: dict[str, Any], trace_path: Path | None) -> dict[str, Any]:
     """One finished game as the ledger keeps it. `run` is what was constant
     for the whole invocation (agent, team, format, seed, username)."""
@@ -256,6 +298,16 @@ class Report:
         )
         trace = self.trace_path(battle.battle_tag) if self.trace_path is not None else None
         row = ledger_row(battle, self.run, trace)
+        if self.run.get("username") and self.run.get("format"):
+            public = fetch_ladder_rating(str(self.run["username"]), str(self.run["format"]))
+            row.update(public)
+            if public:
+                print(
+                    f"  ladder: elo {public.get('elo')} gxe {public.get('gxe')} "
+                    f"glicko {public.get('glicko')}+-{public.get('glicko_dev')} "
+                    f"record {public.get('ladder_w')}-{public.get('ladder_l')}",
+                    flush=True,
+                )
         self.rows.append(row)
         if self.ledger is not None:
             self.ledger.parent.mkdir(parents=True, exist_ok=True)

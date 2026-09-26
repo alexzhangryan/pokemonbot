@@ -1,0 +1,59 @@
+aerodactyl @ aerodactylite
+Ability: unnerve
+Level: 50
+EVs: 32 Atk / 32 Spe
+Jolly Nature
+- rockslide
+- dualwingbeat
+- tailwind
+- protect
+
+charizard @ charizarditey
+Ability: blaze
+Level: 50
+EVs: 32 SpA / 32 Spe
+Modest Nature
+- heatwave
+- overheat
+- solarbeam
+- protect
+
+farigiraf @ sitrusberry
+Ability: armortail
+Level: 50
+EVs: 32 HP / 32 SpD
+Calm Nature
+- expandingforce
+- hypervoice
+- trickroom
+- imprison
+
+garchomp @ lifeorb
+Ability: roughskin
+Level: 50
+EVs: 32 Atk / 32 Spe
+Jolly Nature
+- earthquake
+- dragonclaw
+- rocktomb
+- protect
+
+kingambit @ focussash
+Ability: defiant
+Level: 50
+EVs: 32 HP / 32 Atk
+Adamant Nature
+- kowtowcleave
+- ironhead
+- suckerpunch
+- lowkick
+
+sylveon @ fairyfeather
+Ability: pixilate
+Level: 50
+EVs: 32 HP / 32 SpA
+Modest Nature
+- hypervoice
+- hyperbeam
+- quickattack
+- detect

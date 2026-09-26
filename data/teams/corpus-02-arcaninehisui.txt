@@ -1,0 +1,59 @@
+arcaninehisui @ focussash
+Ability: rockhead
+Level: 50
+EVs: 32 Atk / 32 Spe
+Jolly Nature
+- flareblitz
+- headsmash
+- extremespeed
+- protect
+
+gholdengo @ lifeorb
+Ability: goodasgold
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- makeitrain
+- shadowball
+- nastyplot
+- protect
+
+raichu @ raichunitey
+Ability: lightningrod
+Level: 50
+EVs: 32 SpA / 32 Spe
+Timid Nature
+- zapcannon
+- focusblast
+- fakeout
+- protect
+
+rillaboom @ miracleseed
+Ability: grassysurge
+Level: 50
+EVs: 32 Atk / 32 Spe
+Adamant Nature
+- fakeout
+- woodhammer
+- grassyglide
+- highhorsepower
+
+staraptor @ staraptite
+Ability: intimidate
+Level: 50
+EVs: 32 Atk / 32 Spe
+Jolly Nature
+- closecombat
+- bravebird
+- tailwind
+- protect
+
+sylveon @ fairyfeather
+Ability: pixilate
+Level: 50
+EVs: 32 HP / 32 SpA
+Modest Nature
+- hypervoice
+- hyperbeam
+- quickattack
+- detect
