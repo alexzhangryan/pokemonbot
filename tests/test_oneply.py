@@ -91,7 +91,9 @@ async def test_the_solved_game_reaches_the_trace(showdown_server: int, tmp_path:
             assert 0.0 <= payload["game_value"] <= 1.0
             assert len(payload["payoff"]) == len(payload["joint"])
             assert len(payload["payoff"][0]) == len(payload["opponent_joint"])
-            assert payload["k"] is None or payload["k"] >= len(payload["joint"])
+            budget = payload["row_budget"]
+            if isinstance(budget, int):
+                assert len(payload["joint"]) <= budget
             assert len(payload["joint"]) <= payload["n_legal_joint_actions"]
             assert 0 <= payload["chosen_index"] < len(payload["joint"])
             # Naming the model on every decision, so a reader never mistakes an
