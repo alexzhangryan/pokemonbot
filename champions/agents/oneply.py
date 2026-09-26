@@ -61,6 +61,7 @@ from champions.search.leadprior import TeamPrior, load_team_prior
 from champions.search.payoff import OpponentHypothesis, TurnModel, payoff_matrix
 from champions.search.policy import (
     DEFAULT_COLUMN_K,
+    DEFAULT_K,
     DISQUALIFIED,
     HeuristicPolicy,
     PolicyProvider,
@@ -79,16 +80,16 @@ class OnePlyAgent(TracingPlayer):
     strategy = "one-ply-equilibrium"
 
     #: How many of our joint actions the equilibrium is solved over. None is
-    #: every legal one (D92): the one-ply payoff loop costs a few tenths of a
-    #: second a turn against a 45 s budget, and the pruning guard measured the
-    #: heuristic's twelve as dropping the unpruned equilibrium's mass on a
-    #: third of positions. The two-ply agents keep the budget, because their
-    #: second ply multiplies it.
-    row_budget: int | None = None
+    #: every legal one (D92); a number is the heuristic's top rows, widened by
+    #: `extra_per_kind` (D96). The two-ply agents keep the plain budget,
+    #: because their second ply multiplies it.
+    row_budget: int | None = DEFAULT_K
     #: With a numeric `row_budget`, how many rows of each kind of turn the
     #: budget leaves out are added on top of it (`policy.widen_by_kind`);
-    #: None adds none. Meaningless with `row_budget` None.
-    extra_per_kind: int | None = None
+    #: None adds none. Meaningless with `row_budget` None. The default is the
+    #: widened set (D96): every legal row (D92) read as more optimistic on the
+    #: ladder and lost the 100-game mirror 45-55 to this.
+    extra_per_kind: int | None = 2
 
     def __init__(
         self,

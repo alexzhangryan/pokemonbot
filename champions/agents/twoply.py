@@ -48,6 +48,7 @@ class TwoPlyAgent(OnePlyAgent):
     #: The second ply multiplies the row count, so this agent keeps the
     #: heuristic's budget rather than the whole legal set (D92).
     row_budget: int | None = DEFAULT_K
+    extra_per_kind: int | None = None
 
     strategy = "two-ply-equilibrium"
     payoff_model = "analytic-two-ply"

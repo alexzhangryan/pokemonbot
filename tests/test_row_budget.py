@@ -13,13 +13,14 @@ from champions.search.policy import DEFAULT_K
 
 
 def test_one_ply_agents_take_every_row_and_two_ply_agents_keep_the_budget() -> None:
-    assert OnePlyAgent.row_budget is None
-    assert BeliefAgent.row_budget is None
-    assert TwoPlyAgent.row_budget == DEFAULT_K
-    assert AdaptiveAgent.row_budget == DEFAULT_K
+    # D96: twelve rows widened by two of each missing kind for the one-ply agents.
+    assert (OnePlyAgent.row_budget, OnePlyAgent.extra_per_kind) == (DEFAULT_K, 2)
+    assert (BeliefAgent.row_budget, BeliefAgent.extra_per_kind) == (DEFAULT_K, 2)
+    assert (TwoPlyAgent.row_budget, TwoPlyAgent.extra_per_kind) == (DEFAULT_K, None)
+    assert (AdaptiveAgent.row_budget, AdaptiveAgent.extra_per_kind) == (DEFAULT_K, None)
     # The adaptive belief agent is a belief agent that escalates; the budget
     # comes from the escalating side of its ancestry.
-    assert AdaptiveBeliefAgent.row_budget == DEFAULT_K
+    assert (AdaptiveBeliefAgent.row_budget, AdaptiveBeliefAgent.extra_per_kind) == (DEFAULT_K, None)
 
 
 def test_widening_by_kind_adds_the_best_rows_of_each_kind_the_budget_left_out() -> None:

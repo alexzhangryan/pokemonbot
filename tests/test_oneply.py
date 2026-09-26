@@ -103,13 +103,12 @@ async def test_the_solved_game_reaches_the_trace(showdown_server: int, tmp_path:
     assert solved > 0, "no solved decisions on the trace"
 
 
-async def test_the_one_ply_agent_keeps_every_legal_row_but_the_disqualified(
+async def test_the_one_ply_agent_widens_its_twelve_rows_by_kind(
     showdown_server: int, tmp_path: Path
 ) -> None:
-    """D92: the row budget is the whole legal set, less the rows the policy
-    disqualifies (friendly fire, a status move at our own partner). Until D92
-    this test asserted the opposite -- at most `k` rows -- and the pruning
-    guard measured what that cost."""
+    """D96: the heuristic's twelve rows plus the best two of each kind of turn
+    they leave out, never a disqualified one. D92 solved every legal row and
+    the ladder and the mirror read that as worse; before D92 it was twelve."""
     await run_matchup(
         build_arm("oneply", showdown_server, ALPHA),
         build_arm("greedy", showdown_server, ALPHA),
@@ -125,13 +124,13 @@ async def test_the_one_ply_agent_keeps_every_legal_row_but_the_disqualified(
             payload = event.get("payload", {})
             if event["type"] != "candidates" or payload.get("phase") != "pruned":
                 continue
-            assert payload["k"] is None and payload["row_budget"] == "all"
+            assert payload["k"] == 12 and payload["row_budget"] == "12+2/kind"
             rows = payload["joint"]
             assert len(rows) <= payload["n_legal_joint_actions"]
             assert all(row["policy_score"] != float("-inf") for row in rows)
             if payload["n_legal_joint_actions"] > 12:
                 many += 1
-                assert len(rows) > 12
+                assert 12 <= len(rows) <= 12 + 2 * 12
 
     assert many > 0, "never saw a turn with more than twelve legal actions"
 
