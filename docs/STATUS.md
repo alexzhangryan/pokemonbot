@@ -4,7 +4,30 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (D95-D98 built and measured; the first ladder run on `regmc-aero` starting), by Claude Code.
+Last updated: 2026-09-28 (the first ladder run on `regmc-aero`: 19-11, Elo 1190 to 1347), by Claude Code.
+
+## The first ladder run on `regmc-aero` (seed 6, 30 games): 19-11
+
+**Elo 1190 to 1347 over the run, measured peak 1377; GXE 44.6 to 48.2;
+Glicko 1459 to about 1560.** Wilson on 19/30 is 0.46-0.78, so the record on
+its own is not yet apart from a coin flip, but the account's record went from
+125-139 to 144-150 and the Elo climb is the first the project has produced.
+`make ladder-analysis LIVE_ARGS="--trace-dir traces --seed 6"`.
+
+What the run says beyond the record: the sweep led Farigiraf with Kingambit
+in 26 of 30 games (15-11), which is the corpus's lead for this six; games are
+short (5.2 turns); the turn takes 0.2 s; the coach's best line was in the
+agent's rows 81% of the time under the widened set; ex-ante loss per game is
+12.6 in wins and 8.0 in losses, lower than any earlier batch; luck is +0.9 a
+decision in wins and +4.6 in losses, with turn 3 and later still optimistic.
+The kind table: opponents attacked with both slots 75% of first turns against
+the model's 44%, so the prior's Protect and switch mass is now too high for
+what this team draws. **Open**: re-measure the D94 offset on this team's
+decisions; the belief's speed and spread inference remains the next model
+lever; published stat points for this six would replace the guessed ones.
+
+A second 30-game run (seed 7) follows, same agent and team.
+
 
 ## The rating programme of 2026-09-26 to 28 (D95-D98)
 
