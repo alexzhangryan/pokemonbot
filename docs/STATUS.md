@@ -9,7 +9,7 @@ Last updated: 2026-09-28 (the first ladder run on `regmc-aero`: 19-11, Elo 1190 
 ## The first ladder run on `regmc-aero` (seed 6, 30 games): 19-11
 
 **Elo 1190 to 1347 over the run, measured peak 1377; GXE 44.6 to 48.2;
-Glicko 1459 to about 1560.** Wilson on 19/30 is 0.46-0.78, so the record on
+Glicko 1459 to 1486.** Wilson on 19/30 is 0.46-0.78, so the record on
 its own is not yet apart from a coin flip, but the account's record went from
 125-139 to 144-150 and the Elo climb is the first the project has produced.
 `make ladder-analysis LIVE_ARGS="--trace-dir traces --seed 6"`.
