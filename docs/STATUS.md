@@ -4,7 +4,68 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (two ladder runs on `regmc-aero`: 19-11 then 10-20; Elo peak 1377, now 1074), by Claude Code.
+Last updated: 2026-09-28 (D99 corrected the move marginal and LOST its A/B 35-55; D100 found why and is in its own A/B now), by Claude Code.
+
+## In flight: D100's A/B, and why D99 lost (read this first)
+
+The first defect found in the opponent model itself (D99, a move marginal
+reported at a quarter of its true value) was corrected, **and the corrected
+agent lost: 35-55 over 90 self-play games, 38.9% with a Wilson 95% interval of
+[29.5%, 49.2%].** The upper bound is below even, so that is a real regression,
+not noise. Its mechanism did work -- on the A/B's own traces, against the
+observation stream, the opponent's actual move reached the payoff matrix on
+94.8% of 442 observed moves against 86.3% of 408 for the ablation. The belief
+got better and the agent got worse.
+
+**Why, and this is the useful part.** `matrix.solve_constrained` pins the
+column player's *kind* marginals to the corpus prior (D91) and leaves the
+choice *within* a kind adversarial. That residual is unbounded in the size of
+the kind group: the column player takes the worst member while holding the
+whole kind's rate, so every column added to a kind makes the modelled opponent
+strictly stronger. D99 grew the largest group from 11.2 columns to 13.5, and
+`attack+attack` carries 54.5% of the turn-one prior. In the traces the mean
+reported game value fell from 0.528 to 0.381 and the agent switched on 16.8%
+of slot choices against 14.5% and protected on 8.9% against 6.4%. It believed
+it was losing nearly every position and played for safety.
+
+D100 makes the pinned marginals the columns themselves, each kind's rate split
+across its members by the posterior that the opponent holds the moves that
+column plays. **Confirmed in live play at 43 decisions: the game value is back
+to 0.532, now above its opponents' 0.424.** The clock is untouched (solve 1.7
+ms, payoff 0.12 s).
+
+**The generalisable lesson for the rest of this project.** Accuracy in the
+opponent model is not automatically worth anything, and can be worth less than
+nothing, because it enters the search as "more things the opponent could do".
+Anything that widens what the model admits has to arrive with a statement of
+how likely each admitted thing is, or the minimax converts the new information
+into pessimism. That is the same failure D91 fixed one level up, and it is
+worth checking before the next widening, not after.
+
+**Two A/Bs are running now** (80 games each, ports 8090 and 8091):
+`belief` against `belief-legacy` on `regmc-aero` seed 700, which is D99+D100
+against the configuration that actually laddered and is the arm the shipping
+decision is made against; and `belief` against `belief-kindcolumns` on
+`regmc-mence` seed 800, which isolates D100 from D99. Logs in the scratchpad
+as `d100-a.log` and `d100-b.log`. **If `belief-legacy` wins, both D99 and D100
+revert** -- the win rate is the standard, not the conditioning.
+
+Also fixed, all three measured on 2,388 species-turns: the move ranking was
+censored at eight entries in 90.9% of species-turns (now 12, and it matters
+because D100 reads the entries past the threshold as its weights); the column
+generator re-truncated the union of revealed and believed moves at six in 9.2%
+(`DEFAULT_PER_SLOT` now 8); and the coach's `PRIOR_MOVE_THRESHOLD` never
+followed the agent's from 0.15 to 0.20, so the instrument was grading the
+agent by a different rule. **That last one moves the coach, so coach numbers
+from before 2026-09-28 are not comparable with numbers after it.**
+
+Not done and worth doing: `PRIOR_WEIGHT` has been 0.8 by taste since D91 and
+now bounds the pessimism directly, so it is the next thing to fit rather than
+guess -- at 0.8 a single ruinous column still takes 21% of the column
+strategy. And the payoff loop has enormous headroom (0.12 s), so
+`DEFAULT_COLUMN_K = 24` is a cap that no longer needs to bind now that
+columns are priced rather than merely admitted.
+
 
 ## The second run on `regmc-aero` (seed 7, 30 games): 10-20, and the pooled read
 
