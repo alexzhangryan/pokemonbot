@@ -50,7 +50,7 @@ from champions.belief.evidence import (
     SpeedEvidence,
     parse_hp,
 )
-from champions.belief.filter import BattleBelief
+from champions.belief.filter import MINIMUM_MOVES, BattleBelief
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.particles import ParticleFilter, TeamConstraints
 from champions.belief.priors import SetHypothesis, SetPrior
@@ -998,3 +998,67 @@ def test_an_unobserved_spread_is_two_maxed_stats_chosen_by_the_nature(dex: Dex) 
     assert allocation["spa"] == 10 and allocation["spe"] == 32
     assert sum(allocation.values()) <= MAX_POINTS_TOTAL
     assert all(capped.lower[s] <= allocation[s] <= capped.upper[s] for s in STAT_IDS)
+
+
+# -- the move marginal's scale (D99) -----------------------------------------
+
+
+def test_move_marginals_are_probabilities_not_quarter_probabilities(
+    dex: Dex, prior: SetPrior
+) -> None:
+    """A move marginal is P(move is in the set), so the four moves of a set each
+    contribute their particle's whole weight and the masses sum to about four.
+
+    Until D99 `_ranked` normalised moves by their own total, which is four times
+    the weight, so every reported move probability was a quarter of the truth.
+    Nothing could exceed 0.25, the shipped `MOVE_THRESHOLD` of 0.15 silently
+    meant "in more than 60% of particles", and the agent modelled an opponent
+    with a single move in 47% of live positions.
+    """
+    particles = _filter(dex, prior, n=128)
+    species = TEAM[0]
+    marginals = particles.marginals(species)
+
+    total = sum(entry["probability"] for entry in marginals["moves"])
+    assert 3.0 <= total <= 4.0, f"move masses should sum to about four, got {total}"
+    assert max(entry["probability"] for entry in marginals["moves"]) > 0.25, (
+        "no move can exceed 0.25 when the scale is still divided by four"
+    )
+
+    # The exclusive fields are unchanged: one value per particle, summing to one.
+    for field in ("item", "ability", "nature"):
+        mass = sum(entry["probability"] for entry in marginals[field])
+        assert mass <= 1.0 + 1e-6
+        assert mass > 0.5, f"{field} mass collapsed to {mass}"
+
+    # And it is the real quantity: recompute it straight off the particles.
+    weights = particles.weights()
+    raw: dict[str, float] = {}
+    carried = 0.0
+    for particle, weight in zip(particles.particles, weights, strict=True):
+        hypothesis = particle.sets.get(species)
+        if hypothesis is None or weight <= 0:
+            continue
+        carried += float(weight)
+        for move in hypothesis.moves:
+            raw[move] = raw.get(move, 0.0) + float(weight)
+    for entry in marginals["moves"]:
+        assert entry["probability"] == pytest.approx(raw[entry["value"]] / carried, abs=1e-3)
+
+
+def test_believed_moves_never_offers_fewer_than_a_pokemon_has(dex: Dex, prior: SetPrior) -> None:
+    """Every Pokemon has four moves, so offering fewer is a claim about our
+    uncertainty that the column generator downstream cannot recover from."""
+    belief = BattleBelief(
+        dex=dex, prior=prior, opponent_species=TEAM, player_role="p1", n_particles=64, seed=3
+    )
+    species = TEAM[0]
+    # A threshold nothing can clear still yields the floor, in ranked order.
+    floored = belief.believed_moves(species, threshold=1.01)
+    assert len(floored) == MINIMUM_MOVES
+    ranked = [e["value"] for e in belief.particles.marginals(species)["moves"]]
+    assert floored == ranked[:MINIMUM_MOVES]
+    # Opting out reproduces the pre-D99 behaviour for the ablation arm.
+    assert belief.believed_moves(species, threshold=1.01, minimum=0) == []
+    # A permissive threshold is not truncated to the floor.
+    assert len(belief.believed_moves(species, threshold=0.0)) >= MINIMUM_MOVES

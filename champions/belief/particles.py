@@ -975,12 +975,16 @@ class ParticleFilter:
         lower: dict[str, int] = {}
         upper: dict[str, int] = {}
 
+        # The weight that actually carried a hypothesis for this species, which
+        # is what a move probability is conditioned on (D99).
+        carried = 0.0
         for particle, weight in zip(self.particles, weights, strict=True):
             if weight <= 0:
                 continue
             hypothesis = particle.sets.get(species)
             if hypothesis is None:
                 continue
+            carried += float(weight)
             sets[hypothesis] = sets.get(hypothesis, 0.0) + float(weight)
             if hypothesis.item:
                 items[hypothesis.item] = items.get(hypothesis.item, 0.0) + float(weight)
@@ -1004,7 +1008,9 @@ class ParticleFilter:
             "item": _ranked(items),
             "ability": _ranked(abilities),
             "nature": _ranked(natures),
-            "moves": _ranked(moves, limit=8),
+            # A set holds four moves, so these masses sum to four times the
+            # weight; the normaliser is the weight, not the sum (D99).
+            "moves": _ranked(moves, limit=8, total=carried),
             "sets": [{**h.as_dict(), "probability": round(p, 4)} for h, p in top],
             # The union across live particles. A superset of any one particle's
             # box, so it is the honest thing to *display* -- the filter is not
@@ -1232,7 +1238,27 @@ def _effect_key(effects: effect_table.SetEffects) -> tuple:
     )
 
 
-def _ranked(distribution: Mapping[str, float], limit: int = 6) -> list[dict[str, Any]]:
-    total = sum(distribution.values()) or 1.0
+def _ranked(
+    distribution: Mapping[str, float], limit: int = 6, total: float | None = None
+) -> list[dict[str, Any]]:
+    """The top `limit` values with their probabilities, most likely first.
+
+    `total` is the normaliser. It defaults to the sum of the distribution,
+    which is correct for a field where each particle contributes exactly one
+    value: items, abilities and natures are mutually exclusive, so their masses
+    already sum to the total weight.
+
+    Moves are not mutually exclusive -- every particle contributes four of them
+    -- so their masses sum to four times the weight, and dividing by that sum
+    reported P(move in set) / 4 (D99). Nothing could then exceed 0.25, a
+    `believed_moves` threshold of 0.15 silently meant "in more than 60% of
+    particles", and the calibration table read as non-monotonic because move
+    predictions were compressed into the bottom quarter of the scale while the
+    other fields used all of it. Callers with a non-exclusive field pass the
+    weight total explicitly.
+    """
+    if total is None:
+        total = sum(distribution.values())
+    total = total or 1.0
     ranked = sorted(distribution.items(), key=lambda kv: -kv[1])[:limit]
     return [{"value": key, "probability": round(value / total, 4)} for key, value in ranked]

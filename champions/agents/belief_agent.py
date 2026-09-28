@@ -36,17 +36,26 @@ from typing import Any
 from poke_env.battle import AbstractBattle
 
 from champions.agents.adaptive import AdaptiveAgent
-from champions.search.policy import DEFAULT_K
 from champions.agents.oneply import OnePlyAgent
+from champions.belief.filter import MINIMUM_MOVES
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.priors import PriorNotBuiltError
 from champions.search.payoff import TurnModel
+from champions.search.policy import DEFAULT_K
 
 #: Posterior mass a move needs before it becomes a column of the matrix. Low,
 #: because a column costs one payoff evaluation and a missing column costs the
 #: equilibrium the ability to see the action at all -- the asymmetry that made
 #: the revealed-moves-only model degenerate.
-MOVE_THRESHOLD = 0.15
+#: Probability a move needs before the columns offer it. A probability that the
+#: move is in the opponent's set, which is what the marginal reports since D99;
+#: before that it reported that quantity divided by four, so 0.15 silently meant
+#: 0.6 and the columns were offered a single move in 47% of live positions.
+#: Measured on 5,994 ladder belief snapshots against the moves those Pokemon
+#: turned out to use: 0.6 offers 3.3 moves at 85% recall, 0.4 offers 4.2 at 90%,
+#: 0.2 offers 5.3 at 93%, 0.08 offers 6.5 at 95%. 0.2 is the knee, and
+#: `filter.MINIMUM_MOVES` floors it at four.
+MOVE_THRESHOLD = 0.20
 
 
 class BeliefAgent(OnePlyAgent):
@@ -55,7 +64,17 @@ class BeliefAgent(OnePlyAgent):
     strategy = "one-ply-belief"
     opponent_model = "belief-particles"
 
-    def __init__(self, *args: Any, move_threshold: float = MOVE_THRESHOLD, **kwargs: Any) -> None:
+    #: Moves offered per opponent Pokemon even when none clears the threshold.
+    #: `BeliefNarrowAgent` sets it to 0 to reproduce the pre-D99 behaviour.
+    move_minimum: int = MINIMUM_MOVES
+
+    def __init__(
+        self,
+        *args: Any,
+        move_threshold: float = MOVE_THRESHOLD,
+        move_minimum: int | None = None,
+        **kwargs: Any,
+    ) -> None:
         kwargs.setdefault("belief", True)
         super().__init__(*args, **kwargs)
         if not self._belief_enabled:
@@ -66,6 +85,7 @@ class BeliefAgent(OnePlyAgent):
                 f"(and `make scrape` first if there is no corpus yet)."
             )
         self._move_threshold = move_threshold
+        self._move_minimum = self.move_minimum if move_minimum is None else move_minimum
         self._models: dict[str, TurnModel] = {}
 
     def _turn_model(self, battle: AbstractBattle) -> TurnModel:
@@ -105,7 +125,9 @@ class BeliefAgent(OnePlyAgent):
         belief = self.belief_for(battle)
         if belief is None:
             return None
-        return lambda species: belief.believed_moves(species, self._move_threshold)
+        return lambda species: belief.believed_moves(
+            species, self._move_threshold, self._move_minimum
+        )
 
     def _battle_finished_callback(self, battle: AbstractBattle) -> None:
         self._models.pop(battle.battle_tag, None)
@@ -139,6 +161,26 @@ class BeliefMovesOnly(BeliefAgent):
 
     def _turn_model(self, battle: AbstractBattle) -> TurnModel:
         return self._model
+
+
+class BeliefNarrowAgent(BeliefAgent):
+    """The pre-D99 move rule, kept as the ablation arm.
+
+    Before D99 the move marginal reported P(move in set) / 4, so the shipped
+    threshold of 0.15 meant P >= 0.60, and there was no floor. Against
+    open-sheet ground truth that offered 3.34 moves per species at 73.0% move
+    recall, with the opponent's whole four-move set available to the column
+    generator in 26.2% of positions; the corrected rule offers 5.23 at 90.0%
+    and 66.0%. This arm reproduces the old behaviour so the difference can be
+    played rather than argued.
+    """
+
+    strategy = "one-ply-belief-narrow"
+    move_minimum = 0
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("move_threshold", 0.60)
+        super().__init__(*args, **kwargs)
 
 
 class WideBeliefAgent(BeliefAgent):

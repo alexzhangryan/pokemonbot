@@ -41,6 +41,11 @@ from champions.protocol.parser import Observation
 
 SLOT_LETTERS = ("a", "b")
 
+#: Moves `believed_moves` returns even when none clears the threshold. Four,
+#: because every Pokemon has four and offering fewer models an opponent that
+#: cannot exist (D99).
+MINIMUM_MOVES = 4
+
 
 class BattleBelief:
     """One battle's belief about the opponent's six.
@@ -115,8 +120,15 @@ class BattleBelief:
     def set_for(self, species: str) -> SetHypothesis | None:
         return self.particles.most_likely(species)
 
-    def believed_moves(self, species: str, threshold: float = 0.15) -> list[str]:
-        """Moves carrying at least `threshold` posterior mass.
+    def believed_moves(
+        self, species: str, threshold: float = 0.15, minimum: int = MINIMUM_MOVES
+    ) -> list[str]:
+        """Moves carrying at least `threshold` posterior mass, and never fewer
+        than `minimum` of them.
+
+        `threshold` is a probability that the move is in the set, which since
+        D99 is what the marginal actually reports; before that it was that
+        probability divided by four.
 
         This is what replaces "their revealed moves, and nothing if they have
         revealed none". `docs/STATUS.md` records that degeneracy as an open
@@ -126,7 +138,19 @@ class BattleBelief:
         was to have a prior over them, which is this.
         """
         marginals = self.particles.marginals(species)
-        return [entry["value"] for entry in marginals["moves"] if entry["probability"] >= threshold]
+        ranked = marginals["moves"]
+        kept = [entry["value"] for entry in ranked if entry["probability"] >= threshold]
+        if len(kept) >= minimum:
+            return kept
+        # Every Pokemon has four moves, so reporting fewer is a statement about
+        # our uncertainty rather than about the opponent, and the column
+        # generator downstream can only leave out what it is never offered. On
+        # the ladder the threshold alone credited an active foe with a single
+        # move in 47% of positions (D99), and the opponent's actual line then
+        # reached the payoff matrix 18% of the time. The floor is the top of
+        # the same ranking, so it costs nothing when the threshold already
+        # clears it.
+        return [entry["value"] for entry in ranked[:minimum]]
 
     def summary(self) -> dict[str, Any]:
         """The `belief` trace event payload."""

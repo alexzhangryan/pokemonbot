@@ -17,7 +17,12 @@ from poke_env.ps_client.server_configuration import ServerConfiguration
 from champions.agents import commands
 from champions.agents.adaptive import AdaptiveAgent
 from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPlayer
-from champions.agents.belief_agent import AdaptiveBeliefAgent, BeliefAgent, WideBeliefAgent
+from champions.agents.belief_agent import (
+    AdaptiveBeliefAgent,
+    BeliefAgent,
+    BeliefNarrowAgent,
+    WideBeliefAgent,
+)
 from champions.agents.language_agent import LanguageAgent
 from champions.agents.oneply import OnePlyAgent
 from champions.agents.oracle import OraclePlyAgent, SimOracleAgent, TwoPlyOracleAgent
@@ -93,6 +98,7 @@ AGENTS = {
     "belief": BeliefAgent,
     "adaptive-belief": AdaptiveBeliefAgent,
     "belief-wide": WideBeliefAgent,
+    "belief-narrow": BeliefNarrowAgent,
     "llm": LanguageAgent,
 }
 
