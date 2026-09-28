@@ -215,7 +215,7 @@ calibrate-coach:
 # one battle at a time, the coach reviewing each before the next is searched,
 # traces under runs/live/. `LIVE_ARGS="--agent adaptive --no-review"`.
 ladder-live:
-	$(PYTHON) scripts/ladder_live.py $(or $(LIVE_GAMES),10) --team $(or $(TEAM),regmb-worlds) $(LIVE_ARGS)
+	$(PYTHON) scripts/ladder_live.py $(or $(LIVE_GAMES),10) --team $(or $(TEAM),regmc-aero) $(LIVE_ARGS)
 
 # The viewer on the live ladder's traces, in a second terminal while
 # `make ladder-live` plays. No local simulator: the games are on the official

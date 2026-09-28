@@ -38,7 +38,13 @@ BETA = "regmb-beta"
 RAIN = "regmb-rain"
 WORLDS = "regmb-worlds"
 MENCE = "regmc-mence"
-DEFAULT = MENCE
+#: The corpus's eighth most-played Reg M-C team (Mega Aerodactyl, Mega Charizard Y,
+#: Farigiraf, Garchomp, Kingambit, Sylveon), the most common set of each member and
+#: stat points by the belief's rule for a nature. Chosen by the team tournament
+#: (D98): 35-21 against the eight most-played teams with this agent on both sides,
+#: and 55-25 as a defender, where `MENCE` went 32-32.
+AERO = "regmc-aero"
+DEFAULT = AERO
 
 
 def load_team(name: str) -> str:

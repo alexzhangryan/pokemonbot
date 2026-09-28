@@ -4,7 +4,40 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-23 (after the five autonomous ladder cycles, D91-D94), by Claude Code.
+Last updated: 2026-09-28 (D95-D98 built and measured; the first ladder run on `regmc-aero` starting), by Claude Code.
+
+## The rating programme of 2026-09-26 to 28 (D95-D98)
+
+Alex asked what would move the rating (Elo 1170, GXE 44.3, 125-139 over 264
+rated games; top-500 cutoff 1564) and then to do all of it and run the ladder
+again. Built and measured, all local self-play so far:
+
+- **Lead prior (D95)**: the corpus's leads and brings for the six we play,
+  blended into the sweep at 0.3. **Rating on the ledger**: elo/gxe/glicko
+  fetched after every game, so the peak is measured from now on.
+- **Row set (D96)**: the widened set (12 + 2 of each missing kind) beat every
+  legal row 55-45 in a 100-game mirror; it is the default.
+- **Depth (D97)**: `adaptive-belief` lost 39-61 to `belief` in a 100-game
+  mirror; depth stays off.
+- **Team (D98)**: eleven candidates against the eight most-played corpus
+  teams, 632 games: `corpus-08` (Aerodactyl) 0.62 (0.49-0.74), `regmc-mence`
+  0.50 (0.38-0.62). **The default team is now `regmc-aero`.**
+  `docs/team-tournament.md` is the table.
+- **Not changed**: the belief's speed and spread inference (inspected; the
+  allocation rule already maxes Speed for base 70+, and the pivot-turn failures
+  had no single rule behind them). It remains the next lever after the ladder
+  says what the team is worth.
+
+**The ladder run on `regmc-aero` (seed 6) is the first against people with any
+of this.** Read it with `make ladder-analysis LIVE_ARGS="--trace-dir traces
+--seed 6"`: the record, the rating trajectory (now on the ledger), luck by
+kind, and the leads against the corpus's. A new account was offered; none was
+registered, so it plays on `reallynotgenjigod`.
+
+Gotchas learned: two self-play runs must not share a local server (same
+account names); a run killed mid-game leaves ghost sessions on its server,
+which must be restarted before reuse.
+
 
 ## The ladder cycles of 2026-09-23 (D91, in progress)
 
