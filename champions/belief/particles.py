@@ -1010,7 +1010,12 @@ class ParticleFilter:
             "nature": _ranked(natures),
             # A set holds four moves, so these masses sum to four times the
             # weight; the normaliser is the weight, not the sum (D99).
-            "moves": _ranked(moves, limit=8, total=carried),
+            # Twelve, not eight: at D99's corrected scale the ranking was pinned
+            # at an eight-entry cap in 90.9% of 2,388 species-turns, and since
+            # D100 the entries past the threshold are still read -- they are the
+            # weights that split a kind's prior mass across its columns, and a
+            # censored tail silently sends them to `UNRANKED_MOVE`.
+            "moves": _ranked(moves, limit=12, total=carried),
             "sets": [{**h.as_dict(), "probability": round(p, 4)} for h, p in top],
             # The union across live particles. A superset of any one particle's
             # box, so it is the honest thing to *display* -- the filter is not

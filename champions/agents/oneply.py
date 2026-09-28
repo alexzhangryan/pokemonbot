@@ -91,6 +91,12 @@ class OnePlyAgent(TracingPlayer):
     #: ladder and lost the 100-game mirror 45-55 to this.
     extra_per_kind: int | None = 2
 
+    #: Whether the kind prior pins the *columns* or only their kinds (D100).
+    #: `KindColumnAgent` sets it False to reproduce the pre-D100 solve, in
+    #: which the column player took the worst member of each kind and the
+    #: pessimism therefore grew with every move the belief got right.
+    per_column_prior: bool = True
+
     def __init__(
         self,
         *args: Any,
@@ -296,7 +302,12 @@ class OnePlyAgent(TracingPlayer):
         started = time.perf_counter()
         matrix, row_offsets_applied = apply_row_offsets(matrix, ours, self._row_offsets)
         equilibrium, column_prior = solve_columns(
-            matrix, theirs, battle.turn, self._kind_prior, self._prior_weight
+            matrix,
+            theirs,
+            battle.turn,
+            self._kind_prior,
+            self._prior_weight,
+            per_column=self.per_column_prior,
         )
         timings["solve_s"] = time.perf_counter() - started
 
@@ -390,7 +401,11 @@ class OnePlyAgent(TracingPlayer):
         snapshot: dict[str, Any],
     ) -> list[dict[str, Any]]:
         return opponent_candidates(
-            snapshot, self.dex, self._column_k, believed_moves=self._believed_moves(battle)
+            snapshot,
+            self.dex,
+            self._column_k,
+            believed_moves=self._believed_moves(battle),
+            move_probability=self._move_probability(battle),
         )
 
     def _annotate_unseen(self, battle: AbstractBattle, snapshot: dict[str, Any]) -> None:
@@ -429,6 +444,16 @@ class OnePlyAgent(TracingPlayer):
         callable from species, or None for the revealed-only model. Also what
         the two-ply child uses for its columns, which is why it is a seam of
         its own rather than folded into `_opponent_candidates`."""
+        return None
+
+    def _move_probability(self, battle: AbstractBattle) -> Callable[[str, str], float] | None:
+        """How likely the opponent is to hold a given move, as a callable from
+        species and move, or None when there is nothing better than "possible".
+
+        This is what splits a kind's prior mass across its columns (D100). None
+        leaves the split even, which is still the correction that matters: the
+        pinned part of the column player stops being the worst member of each
+        kind. A belief makes it the expectation the belief actually implies."""
         return None
 
     def _believed_ability(self, battle: AbstractBattle) -> Callable[[str], str | None] | None:

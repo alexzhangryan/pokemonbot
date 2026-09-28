@@ -167,13 +167,27 @@ def solve_columns(
     turn: int,
     prior: KindPrior | None,
     weight: float = PRIOR_WEIGHT,
+    per_column: bool = True,
 ) -> tuple[Equilibrium, dict[str, Any]]:
-    """Solve the turn's game, the column player's kinds pinned to the prior.
+    """Solve the turn's game, the column player's play pinned to the prior.
 
     Returns the equilibrium and a note for the trace saying what was pinned:
     the weight, the bucket, the prior over the kinds present, and the kind of
     every column. Without a prior, or with a column set none of whose kinds
     the prior has seen, this is `solve_both` and the note says so.
+
+    With `per_column`, the pinned marginals are the columns themselves rather
+    than their kinds (D100). Pinning a kind leaves the choice *within* it
+    adversarial, and that residual is unbounded in the size of the kind: the
+    column player takes the worst of the group while holding the whole kind's
+    mass. D99 widened the believed move set, which grew the largest kind group
+    from 11.2 columns to 13.5 and dropped the mean reported game value from
+    0.528 to 0.381 -- a model that got *more* accurate made the agent think it
+    was losing, and it switched and protected more. Splitting the kind's rate
+    across its members by their belief weight makes the pinned part an
+    expectation over the lines the opponent is actually believed to play; the
+    `1 - weight` residual is still the plain adversary, so a position where a
+    Protect is plainly right still gets one.
     """
     kinds = [action_kind(c) for c in columns]
     note: dict[str, Any] = {"weight": 0.0, "bucket": bucket(turn), "kinds": kinds, "prior": None}
@@ -183,7 +197,48 @@ def solve_columns(
     if rates is None:
         return solve_both(payoff), note
     note.update({"weight": float(weight), "prior": rates, "lent": prior.lent})
-    return solve_constrained(payoff, kinds, rates, weight), note
+    if not per_column:
+        return solve_constrained(payoff, kinds, rates, weight), note
+    groups, spread = _per_column_prior(columns, kinds, rates)
+    # A column whose kind carries no prior mass gets no group of its own and is
+    # left to the free adversary, so read the spread defensively.
+    note.update(
+        {"per_column": True, "column_prior": [round(spread.get(g, 0.0), 5) for g in groups]}
+    )
+    return solve_constrained(payoff, groups, spread, weight), note
+
+
+def _per_column_prior(
+    columns: Sequence[Mapping[str, Any]],
+    kinds: Sequence[str],
+    rates: Mapping[str, float],
+) -> tuple[list[str], dict[str, float]]:
+    """One group per column, each kind's rate split across its members.
+
+    The split is by `prior_weight`, which `policy.opponent_candidates` writes
+    onto a column as the posterior probability that the opponent holds the
+    moves the column plays. Columns carrying no weight -- switches, and every
+    column when there is no belief -- split their kind evenly, which is already
+    the right correction: it replaces "the worst member of this kind" with "a
+    member of this kind", and that is where most of the pessimism was.
+    """
+    members: dict[str, list[int]] = {}
+    for index, kind in enumerate(kinds):
+        members.setdefault(kind, []).append(index)
+    groups = [str(index) for index in range(len(kinds))]
+    spread: dict[str, float] = {}
+    for kind, indices in members.items():
+        rate = float(rates.get(kind, 0.0))
+        if rate <= 0.0:
+            continue
+        weights = [max(0.0, float(columns[i].get("prior_weight") or 0.0)) for i in indices]
+        total = sum(weights)
+        if total <= 0.0:
+            weights = [1.0] * len(indices)
+            total = float(len(indices))
+        for index, w in zip(indices, weights, strict=True):
+            spread[groups[index]] = rate * w / total
+    return groups, spread
 
 
 def implied_kind_mass(column: np.ndarray, kinds: Sequence[str]) -> dict[str, float]:

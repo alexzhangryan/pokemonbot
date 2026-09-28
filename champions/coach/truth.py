@@ -74,10 +74,15 @@ class TruthOracle:
 
 
 #: Posterior-free mass a move needs in the prior before the coach treats it as
-#: a column: the belief agent's own threshold (`BeliefAgent.MOVE_THRESHOLD`).
-PRIOR_MOVE_THRESHOLD = 0.15
-#: Moves per species the prior contributes, most common first.
-PRIOR_MOVES = 6
+#: a column: the belief agent's own threshold (`BeliefAgent.MOVE_THRESHOLD`),
+#: which D99 moved to 0.20. This constant is computed on a genuine probability
+#: (`n / entry.count`) and always was, so before D99 corrected the agent's scale
+#: the same 0.15 meant 0.15 here and 0.60 there, and the coach graded the agent
+#: while seeing about six of its opponent's moves to the agent's 3.3.
+PRIOR_MOVE_THRESHOLD = 0.20
+#: Moves per species the prior contributes, most common first. Tracks
+#: `policy.DEFAULT_PER_SLOT`, which is the cap the agent's own columns hit.
+PRIOR_MOVES = 8
 
 
 class PriorSource:

@@ -40,6 +40,7 @@ from champions.agents.oneply import OnePlyAgent
 from champions.belief.filter import MINIMUM_MOVES
 from champions.belief.hypothesis import BeliefEffects, BeliefHypothesis
 from champions.belief.priors import PriorNotBuiltError
+from champions.dex.loader import to_id
 from champions.search.payoff import TurnModel
 from champions.search.policy import DEFAULT_K
 
@@ -56,6 +57,11 @@ from champions.search.policy import DEFAULT_K
 #: 0.2 offers 5.3 at 93%, 0.08 offers 6.5 at 95%. 0.2 is the knee, and
 #: `filter.MINIMUM_MOVES` floors it at four.
 MOVE_THRESHOLD = 0.20
+
+#: Weight given to a column whose move the posterior does not rank at all.
+#: Small but not zero: an unranked move is one no particle carries, which is a
+#: statement about the prior's coverage rather than about the opponent.
+UNRANKED_MOVE = 0.02
 
 
 class BeliefAgent(OnePlyAgent):
@@ -129,6 +135,30 @@ class BeliefAgent(OnePlyAgent):
             species, self._move_threshold, self._move_minimum
         )
 
+    def _move_probability(self, battle: AbstractBattle) -> Callable[[str, str], float] | None:
+        """The posterior over each foe's moves, for weighting the columns (D100).
+
+        Memoised per species for the life of the call: the column generator asks
+        once per move per target per slot, and `marginals` walks every particle.
+        """
+        belief = self.belief_for(battle)
+        if belief is None:
+            return None
+        cache: dict[str, dict[str, float]] = {}
+
+        def probability(species: str, move: str) -> float:
+            key = to_id(species)
+            if key not in cache:
+                cache[key] = belief.move_probabilities(key)
+            # A move the posterior does not rank at all is one no particle
+            # carries. It is in the columns because it was revealed, and a
+            # revealed move never reaches here, or because the floor offered
+            # it; either way it is possible but unsupported, so it gets the
+            # smallest weight rather than zero.
+            return cache[key].get(to_id(move), UNRANKED_MOVE)
+
+        return probability
+
     def _battle_finished_callback(self, battle: AbstractBattle) -> None:
         self._models.pop(battle.battle_tag, None)
         super()._battle_finished_callback(battle)
@@ -181,6 +211,31 @@ class BeliefNarrowAgent(BeliefAgent):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs.setdefault("move_threshold", 0.60)
         super().__init__(*args, **kwargs)
+
+
+class LegacyBeliefAgent(BeliefNarrowAgent):
+    """The belief agent exactly as it laddered: pre-D99 moves, pre-D100 solve.
+
+    The configuration behind every belief-agent win rate the project has, all
+    of them between 47 and 50 percent. Both corrections have to beat *this*,
+    not each other, so this is the arm the shipping decision is made against.
+    """
+
+    strategy = "one-ply-belief-legacy"
+    per_column_prior = False
+
+
+class KindColumnAgent(BeliefAgent):
+    """The pre-D100 solve, kept as the ablation arm.
+
+    Pins the column player's *kind* marginals and leaves the choice within a
+    kind adversarial, so the opponent takes the worst of a group that D99 grew
+    from 11.2 columns to 13.5. This is the arm that says whether pinning the
+    columns themselves is what turns the belief's accuracy into wins.
+    """
+
+    strategy = "one-ply-belief-kindcolumns"
+    per_column_prior = False
 
 
 class WideBeliefAgent(BeliefAgent):

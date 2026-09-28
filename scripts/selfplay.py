@@ -21,6 +21,8 @@ from champions.agents.belief_agent import (
     AdaptiveBeliefAgent,
     BeliefAgent,
     BeliefNarrowAgent,
+    KindColumnAgent,
+    LegacyBeliefAgent,
     WideBeliefAgent,
 )
 from champions.agents.language_agent import LanguageAgent
@@ -99,6 +101,8 @@ AGENTS = {
     "adaptive-belief": AdaptiveBeliefAgent,
     "belief-wide": WideBeliefAgent,
     "belief-narrow": BeliefNarrowAgent,
+    "belief-kindcolumns": KindColumnAgent,
+    "belief-legacy": LegacyBeliefAgent,
     "llm": LanguageAgent,
 }
 

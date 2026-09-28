@@ -94,7 +94,13 @@ DEFAULT_K = 12
 #: the equilibrium -- a missing column is a threat the search cannot see, a
 #: missing row is only a reply it cannot make -- so the budget is larger.
 DEFAULT_COLUMN_K = 24
-DEFAULT_PER_SLOT = 6
+#: Eight since D100. D99's rule offers more than six moves in 9.2% of
+#: species-turns and at most eight, and this cap is applied to the union of
+#: revealed and believed moves, so six threw away the tail of exactly the
+#: positions the belief was most informative about. Widening was only safe
+#: once the columns were weighted: before D100 an extra column made the
+#: within-kind adversary stronger.
+DEFAULT_PER_SLOT = 8
 
 #: How many switch columns follow the move columns (D91): one per living slot
 #: and bench Pokemon, round robin, so a two-slot side with four unseen
@@ -948,6 +954,7 @@ def opponent_candidates(
     believed_moves: Callable[[str], list[str]] | None = None,
     per_slot: int = DEFAULT_PER_SLOT,
     switch_columns: int = DEFAULT_SWITCH_COLUMNS,
+    move_probability: Callable[[str, str], float] | None = None,
 ) -> list[dict[str, Any]]:
     """Joint actions the opponent might take, most threatening first, then up
     to `switch_columns` in which one slot switches out (D91).
@@ -993,6 +1000,7 @@ def opponent_candidates(
             continue
         move_ids = [m.get("id") or "" for m in pokemon.get("revealed_moves", [])]
         seen = set(move_ids)
+        revealed = frozenset(seen)
         extra: list[str] = []
         if believed_moves is not None:
             extra = list(believed_moves(pokemon.get("species") or ""))
@@ -1023,6 +1031,16 @@ def opponent_candidates(
                     "target": target,
                     "label": _opponent_label(entry, target),
                 }
+                # The posterior that they hold this move at all, which is what
+                # splits a kind's prior mass across its columns in
+                # `kinds._per_column_prior` (D100). A revealed move is certain;
+                # anything else is the belief's marginal, or 1.0 with no belief,
+                # which leaves the split even and the behaviour unchanged.
+                option["prior_weight"] = (
+                    1.0
+                    if move_probability is None or move_id in revealed
+                    else float(move_probability(pokemon.get("species") or "", move_id))
+                )
                 score = _threat(entry, slot_index, target, pokemon, board, snapshot)
                 options.append((score, option))
         if not options:
@@ -1042,7 +1060,15 @@ def opponent_candidates(
     ]
     joint: list[tuple[float, dict[str, Any]]] = []
     for combo in itertools.product(*slot_lists):
-        joint.append((sum(score for score, _ in combo), _joint([a for _, a in combo])))
+        actions = [a for _, a in combo]
+        column = _joint(actions)
+        # The slots are independent under the belief -- one Pokemon's set says
+        # nothing about its partner's -- so the column's weight is the product.
+        weight = 1.0
+        for action in actions:
+            weight *= float(action.get("prior_weight", 1.0))
+        column["prior_weight"] = weight
+        joint.append((sum(score for score, _ in combo), column))
     joint.sort(key=lambda pair: (-pair[0], pair[1]["label"]))
     columns = [action for _, action in joint[:k]]
     if switch_columns > 0:

@@ -152,6 +152,18 @@ class BattleBelief:
         # clears it.
         return [entry["value"] for entry in ranked[:minimum]]
 
+    def move_probabilities(self, species: str) -> dict[str, float]:
+        """P(move in set) for every move the posterior ranks, by move id.
+
+        The same numbers `believed_moves` thresholds, handed over whole so the
+        column generator can weight a line by how likely it is rather than only
+        decide whether to offer it (D100).
+        """
+        return {
+            str(entry["value"]): float(entry["probability"])
+            for entry in self.particles.marginals(species)["moves"]
+        }
+
     def summary(self) -> dict[str, Any]:
         """The `belief` trace event payload."""
         return {

@@ -19,6 +19,7 @@ from champions.formats import FORMAT_ID
 from champions.search import kinds
 from champions.search.kinds import (
     KindPrior,
+    _per_column_prior,
     action_kind,
     implied_kind_mass,
     load_kind_prior,
@@ -335,3 +336,97 @@ def test_row_offsets_subtract_the_measured_optimism_from_rows_of_that_kind(tmp_p
     loaded = load_row_offsets(FORMAT_ID, tmp_path)
     assert loaded is not None and loaded.for_row(rows[1]) == 0.11 and loaded.for_row(rows[0]) == 0.0
     assert loaded.provenance == {"source": "test"}
+
+
+# -- D100: the pinned marginals are the columns, not their kinds ---------------
+
+
+def _column(kind: str, weight: float) -> dict[str, object]:
+    slots: list[dict[str, object]] = [
+        {"kind": "move", "move": "closecombat"},
+        {"kind": "move", "move": "protect" if kind.endswith("protect") else "ironhead"},
+    ]
+    return {
+        "slots": slots,
+        "kinds": sorted({str(s["kind"]) for s in slots}),
+        "prior_weight": weight,
+    }
+
+
+def _prior() -> KindPrior:
+    return KindPrior(
+        format_id="t",
+        source_format="t",
+        buckets={"1": {"attack+attack": 0.7, "attack+protect": 0.3}},
+        counts={"1": 1000},
+    )
+
+
+def test_an_unlikely_column_does_not_collapse_the_solve() -> None:
+    """The defect D100 fixes.
+
+    Pinning a kind leaves the choice within it adversarial, so one improbable
+    but devastating column takes the whole kind's mass. Pinning the columns
+    splits that mass by the belief's own weights, and the same column can only
+    take the share the belief gives it.
+    """
+    columns = [_column("attack+attack", 0.9), _column("attack+protect", 0.9)]
+    payoff = np.full((4, 2), 0.55)
+    payoff[:, 1] = 0.5
+
+    before_kind, _ = solve_columns(payoff, columns, 1, _prior(), 0.8, per_column=False)
+    before_col, _ = solve_columns(payoff, columns, 1, _prior(), 0.8, per_column=True)
+
+    ruinous = np.hstack([payoff, np.zeros((4, 1))])
+    columns = [*columns, _column("attack+attack", 0.02)]
+    after_kind, _ = solve_columns(ruinous, columns, 1, _prior(), 0.8, per_column=False)
+    after_col, note = solve_columns(ruinous, columns, 1, _prior(), 0.8, per_column=True)
+
+    # The kind-pinned solve loses most of the value to a column the belief gives
+    # two percent of the weight; the per-column solve gives up far less.
+    assert before_kind.value - after_kind.value > 0.3
+    assert before_col.value - after_col.value < 0.15
+    assert after_col.value - after_kind.value > 0.15
+    assert note["per_column"] is True
+
+    # What the per-column solve still concedes is the free adversary's share and
+    # not a failure of the pinning: at weight 0.8 the ruinous column's pinned
+    # mass is 0.8 * 0.7 * 0.02/0.92 = 0.012, and the 0.2 residual sits entirely
+    # on it. D91 put that residual there on purpose.
+    assert after_col.column[-1] == pytest.approx(0.2 + 0.8 * 0.7 * 0.02 / 0.92, abs=5e-3)
+
+
+def test_the_per_column_prior_keeps_the_kind_marginals_it_was_given() -> None:
+    """Splitting a kind across its members must not change the kind's own rate."""
+    columns = [
+        _column("attack+attack", 0.9),
+        _column("attack+attack", 0.1),
+        _column("attack+protect", 0.5),
+    ]
+    kinds = [action_kind(c) for c in columns]
+    rates = _prior().over(1, kinds)
+    assert rates is not None
+    groups, spread = _per_column_prior(columns, kinds, rates)
+
+    assert len(groups) == len(columns)
+    assert sum(spread.values()) == pytest.approx(1.0)
+    by_kind: dict[str, float] = {}
+    for group, kind in zip(groups, kinds, strict=True):
+        by_kind[kind] = by_kind.get(kind, 0.0) + spread[group]
+    for kind, rate in rates.items():
+        assert by_kind[kind] == pytest.approx(rate)
+    # and within the kind, in proportion to the belief's weights
+    assert spread[groups[0]] == pytest.approx(spread[groups[1]] * 9.0)
+
+
+def test_columns_with_no_belief_weight_split_their_kind_evenly() -> None:
+    """No belief, or a switch column, still gets the correction that matters:
+    the pinned player stops being the worst member of its kind."""
+    columns = [_column("attack+attack", 0.0), _column("attack+attack", 0.0)]
+    for column in columns:
+        column.pop("prior_weight")
+    kinds = [action_kind(c) for c in columns]
+    rates = {"attack+attack": 1.0}
+    groups, spread = _per_column_prior(columns, kinds, rates)
+    assert spread[groups[0]] == pytest.approx(0.5)
+    assert spread[groups[1]] == pytest.approx(0.5)
