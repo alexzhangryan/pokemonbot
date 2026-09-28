@@ -4,7 +4,35 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (the first ladder run on `regmc-aero`: 19-11, Elo 1190 to 1347), by Claude Code.
+Last updated: 2026-09-28 (two ladder runs on `regmc-aero`: 19-11 then 10-20; Elo peak 1377, now 1074), by Claude Code.
+
+## The second run on `regmc-aero` (seed 7, 30 games): 10-20, and the pooled read
+
+**Pooled over the 60 games on the new team: 29-31 (48%, Wilson 0.36-0.61).
+Elo went 1190 to 1377 (the measured peak, game 24) and back to 1074; GXE
+peaked at 48.3 and ended 45.8.** The record is the same below 1200 (12-13)
+as at 1300 or more (9-10), so it is not matchmaking; the sequence is a 12-3
+run then 5-19, and the second batch drew more Trick Room and sun teams
+(Indeedee-F 9 of 30 previews, Torkoal 5). The new team is at parity with the
+old on the ladder, as the old was; the mirror's 0.62 did not transfer, which
+its entry (D98) named as the risk. In the second batch luck per decision was
+-6.8 in wins and +6.1 in losses, turns 2 and 3 optimistic by 7 to 9 points,
+so the losses were again the model expecting more than it got rather than
+lines the coach faulted (ex-ante loss 15-17 points a game, labels mostly best
+and solid).
+
+**Where it stands for the rating**: measured peak Elo 1377 on 2026-09-28 (the
+first measured peak; the earlier ~1280 was reconstructed); current Elo 1074,
+GXE 45.8, Glicko about 1470; account record 154-170 over 324 rated games.
+
+**What to do next, and it is not more games of this configuration**: a third
+30-game batch at parity is a coin flip for the rating. The two levers with
+evidence behind them are the belief's speed and spread inference (D94, D97:
+the model's error with known sets is a point; against people it is the
+belief) and the opponent-kind prior conditioned on the opponent's team (this
+team drew 75% double attacks on turn one against the model's 44%). Either
+should be measured offline before it plays rated games.
+
 
 ## The first ladder run on `regmc-aero` (seed 6, 30 games): 19-11
 
