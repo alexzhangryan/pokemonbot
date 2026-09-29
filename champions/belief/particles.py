@@ -257,7 +257,13 @@ class ParticleFilter:
         for species_id in self.species:
             self.constraints.note_species(species_id)
         self._chart = TypeChart.from_dex(dex)
-        self._replay: list[Evidence] = []
+        #: Soft evidence kept for replay onto particles drawn after it arrived,
+        #: each paired with the board it was observed on. Paired because a speed
+        #: ordering or a damage figure is only an inequality about their stats
+        #: relative to OUR side at that moment: until D102 the replay scored
+        #: every remembered observation against the latest context, so a turn-2
+        #: ordering was replayed against whoever stood in that slot at turn 11.
+        self._replay: list[tuple[Evidence, BeliefContext]] = []
         self._replay_context: BeliefContext | None = None
         self._bounds_cache: dict[tuple, tuple[int, int]] = {}
         #: All sixteen rolls under the same key, for the damage likelihood (D102).
@@ -470,7 +476,7 @@ class ParticleFilter:
 
         for item in soft:
             self._apply_soft(item, context)
-        self._replay.extend(soft)
+        self._replay.extend((item, context) for item in soft)
         del self._replay[:-REPLAY_LIMIT]
 
         self._renormalise()
@@ -546,10 +552,16 @@ class ParticleFilter:
             self._apply_damage(evidence, context)
 
     def _replay_onto(self, particle: Particle) -> None:
-        context = self._replay_context
-        if context is None:
-            return
-        for evidence in self._replay:
+        """Re-apply the remembered soft evidence to one freshly drawn particle.
+
+        Each observation is replayed against the board it was actually observed
+        on, not the current one. The whole reason a damage figure or an ordering
+        constrains their stats is that our side of the comparison is exactly
+        known -- so scoring it against a different one of our Pokemon, which is
+        what a single shared context did before D102, turns the inequality into
+        a statement about nothing.
+        """
+        for evidence, context in self._replay:
             if isinstance(evidence, SpeedEvidence):
                 self._apply_speed(evidence, context, only=particle)
             elif isinstance(evidence, DamageEvidence):
