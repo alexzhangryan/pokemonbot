@@ -260,6 +260,9 @@ class ParticleFilter:
         self._replay: list[Evidence] = []
         self._replay_context: BeliefContext | None = None
         self._bounds_cache: dict[tuple, tuple[int, int]] = {}
+        #: All sixteen rolls under the same key, for the damage likelihood (D102).
+        self._rolls_cache: dict[tuple, tuple[int, ...]] = {}
+        self._last_key: tuple = ()
         self.resamples = 0
         self.particles: list[Particle] = []
         self._candidates: dict[str, list[tuple[SetHypothesis, float]]] = {}
@@ -686,11 +689,15 @@ class ParticleFilter:
             tolerance = DAMAGE_TOLERANCE if certain else UNCERTAIN_TOLERANCE
 
             feasible = spread.feasible_points(attack_stat)
-            allowed = [
-                points
-                for points in feasible
-                if _damage_consistent(
-                    self._roll_bounds(
+            # P(the figure we saw | this point value), as the share of the
+            # sixteen damage rolls that would have produced it. Exact, correctly
+            # normalised and automatically soft, where the old interval-overlap
+            # test needed DAMAGE_TOLERANCE to stand in for a distribution it
+            # never had (D102). We are the defender here, so our own maximum HP
+            # is exact and there is no quantisation to absorb.
+            masses = [
+                _roll_mass(
+                    self._roll_damages(
                         move=move,
                         attack=boosted(
                             spread.stat_at(attack_stat, points, attacker_base),
@@ -710,11 +717,18 @@ class ParticleFilter:
                     tolerance,
                     clamped,
                 )
+                for points in feasible
             ]
-            if not allowed:
+            total = sum(masses)
+            if total <= 0.0:
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
                 continue
-            particle.log_weight += _contraction(len(feasible), len(allowed))
+            allowed = [points for points, mass in zip(feasible, masses, strict=True) if mass > 0.0]
+            # log of the mean of P(figure | points) over the feasible set, which
+            # is P(figure | particle) marginalised over the nuisance parameter
+            # under the uniform the box already represents. Subsumes
+            # `_contraction`: that is this quantity when every mass is 0 or 1.
+            particle.log_weight += math.log(total / len(feasible))
             if not spread.restrict_points(attack_stat, allowed):
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
 
@@ -853,6 +867,7 @@ class ParticleFilter:
             _effect_key(attacker),
             _effect_key(defender),
         )
+        self._last_key = key
         cached = self._bounds_cache.get(key)
         if cached is not None:
             return cached
@@ -884,7 +899,22 @@ class ParticleFilter:
             damage_for_roll(context, self._chart, 100),
         )
         self._bounds_cache[key] = bounds
+        self._rolls_cache[key] = tuple(
+            damage_for_roll(context, self._chart, roll) for roll in range(85, 101)
+        )
         return bounds
+
+    def _roll_damages(self, **kwargs: Any) -> tuple[int, ...]:
+        """All sixteen rolls, in HP, for the same arguments `_roll_bounds` takes.
+
+        Shares `_roll_bounds`' cache key and is populated by it, so asking for the
+        full set after the endpoints costs a dictionary lookup. The endpoints are
+        still what the feasibility test uses; this is for the likelihood (D102),
+        where the question is not "could this roll have produced the figure" but
+        "how much of the roll distribution did".
+        """
+        self._roll_bounds(**kwargs)
+        return self._rolls_cache[self._last_key]
 
     def _types_of(self, species: str, observed: Sequence[str] = ()) -> list[str]:
         """Observed types win over the species entry's.
@@ -1196,6 +1226,36 @@ def _speed_consistent(their_speed: float, our_speed: float, theirs_is_larger: bo
     everyone invests in the same benchmarks.
     """
     return their_speed >= our_speed if theirs_is_larger else their_speed <= our_speed
+
+
+def _roll_mass(
+    damages: Sequence[int],
+    observed: float,
+    tolerance: float,
+    clamped: bool,
+) -> float:
+    """The share of the sixteen damage rolls consistent with the figure observed.
+
+    The likelihood the interval-overlap test was standing in for. Each roll is
+    equally likely, so this is a probability, and it is automatically soft where
+    `_damage_consistent` needed a tolerance to be: a point value that only the
+    most extreme roll could explain scores 1/16 rather than passing outright.
+
+    `tolerance` survives because it now absorbs only *model* error -- an
+    unmodelled ability or a secondary effect -- rather than doubling as a stand-in
+    for the roll spread, which is 15% of the damage and dominated it.
+    """
+    if not damages:
+        return 0.0
+    low = observed * (1.0 - tolerance)
+    high = observed * (1.0 + tolerance)
+    if clamped:
+        # The figure is the target's remaining HP, so the true damage was at
+        # least that: any roll reaching it explains what we saw.
+        hits = sum(1 for damage in damages if damage >= low)
+    else:
+        hits = sum(1 for damage in damages if low <= damage <= high)
+    return hits / len(damages)
 
 
 def _damage_consistent(
