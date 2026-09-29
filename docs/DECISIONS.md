@@ -1286,3 +1286,27 @@ Corroborating, from 3,642 live belief snapshots: the opponent's stat-point box i
 **What is NOT claimed, and this matters.** No accuracy gain. `scripts/eval_belief.py corpus` shows none (nature 60.3% to 60.0%), but that harness **cannot see this work**: `evaluate._spectator_snapshot` feeds the filter a neutral all-zero own-side spread, because open team sheets carry item, ability, moves and nature but never stat points. Every speed and damage inequality it builds therefore rests on wrong own stats. This is a limitation the function's own docstring records, and it means the corpus curve for nature and spreads has never been a measurement of the filter -- which is also why the "nature is inert" reading needed correcting twice before landing on the real defect. Self-play, where both teams are ours and own stats are exact, is the only instrument that can see it. A batch is running as this is written.
 
 Consequences: `champions/belief/particles.py` (`_contraction`, `_roll_mass`, `_roll_damages`, `_rolls_cache`, all three handlers), `scripts/oracle_regret.py` (new, and the reusable form of the gate). D99's particle-count finding is now explained rather than merely observed. The corpus belief evaluation's nature and spread columns should carry a warning or be dropped; they measure the harness, not the filter.
+
+## D103. The likelihood pays on decisions, not on top-1 accuracy — 2026-09-28, Claude Code
+
+D102 shipped three corrections to the belief filter and explicitly claimed no accuracy gain. Measured now, on self-play where own stats are exact, and the result is worth stating precisely because it is not the result that was being looked for.
+
+**Field accuracy did not improve.** Over 24 games on `regmc-aero`, seed 900, against open-team-file ground truth: nature 85.1% against the pre-D102 85.5%, item 74.6% against 75.2%, moves 76.0% against 78.5%, whole-set 4.4% against 5.9%. Nature still does not rise with observation (83.5% at turn 1, 79.2% at turn 8). At 24 games these differences are inside the noise, but there is no signal of improvement in any of them, and moves and whole-set point mildly the wrong way.
+
+**Decision quality improved substantially.** `scripts/oracle_regret.py`, which is the gate D102 pre-committed to, on the same traces:
+
+| configuration | decisions | regret a decision | a game | oracle prefers another row | bias | mean absolute cell error |
+| --- | --- | --- | --- | --- | --- | --- |
+| pre-D102 | 1,217 | 2.97 | 19.3 | 38.5% | -2.88 | 4.79 |
+| `_contraction` only | ~300 | 3.14 | 20.4 | 30.4% | -2.47 | 4.63 |
+| **full D102** | ~300 | **1.89** | **12.3** | **29.1%** | **-1.94** | **4.53** |
+
+Regret falls 36%, the oracle disagrees with the chosen row on 29.1% of decisions against 38.5%, the pessimism bias shrinks by a third and the mean absolute error of the payoff cells falls. The middle row matters: `_contraction` alone was *worse than doing nothing* (3.14 against 2.97), and the roll-mass likelihood together with the replay-context fix is what turned it into a gain. Those two rows are a matched pair -- same seed, same team, same 24 games -- so 3.14 to 1.89 isolates them cleanly; the pre-D102 row is a different seed and a larger sample, so that comparison is unmatched and the direction rather than the exact size is what it supports.
+
+**Why accuracy and decisions can move apart, which is the useful part.** The payoff model does not read a top-1 nature. It reads `spreads.allocation()`, a point allocation derived from the box and the hypothesis. A likelihood that reweights the population improves the *distribution* -- which hypothesis carries weight, and therefore which box and which allocation the search prices its damage against -- without necessarily changing which single value is modal. Top-1 field accuracy was never the quantity the search consumes, and D102's own corpus measurements were being read as if it were. Regret is the right gate and it was right to pre-commit to it.
+
+**The risk profile is the opposite of D99's.** D99 made a component more accurate and lost, because the extra information entered as unpriced pessimism. Here the pessimism bias *fell*, from -2.88 to -1.94, so the known failure mode is moving the right way rather than the wrong one. That is a reason to expect transfer, not a substitute for measuring it.
+
+Decision: D102 stands. `BeliefFlatAgent` (`belief-flat`) reproduces the pre-D102 filter -- feasibility test instead of likelihood, shared replay context -- as the ablation arm, so the change can be played rather than argued, and a self-play A/B is running. No win rate is claimed. D92, D98 and D99 are three cautions that a better-conditioned number need not transfer, and the clock is not a concern either way: the turn costs 252 ms mean and 578 ms at the 95th percentile against a much larger budget, with the belief update up from 21 ms to 53 ms.
+
+Consequences: `champions/belief/particles.py` (`USE_LIKELIHOOD`), `champions/agents/belief_agent.py` (`BeliefFlatAgent`), `scripts/selfplay.py`. The corpus belief evaluation's nature and spread columns remain unable to see any of this and should not be cited for it.
