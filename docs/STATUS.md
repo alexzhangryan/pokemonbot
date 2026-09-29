@@ -4,77 +4,70 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (D102: the belief had no likelihood at all; the oracle gate says a perfect opponent model is worth 18 points a game), by Claude Code.
+Last updated: 2026-09-29 (D102-D103: the belief had no likelihood; fixing it cut oracle decision regret 36%, and the A/B is running), by Claude Code.
 
 ## Where to pick up (read this first)
 
-**The work in flight is D102 and the roadmap it came from.** Read
-`docs/roadmap-2026-09-28.md` for the survey of the field and the ranked plan, then
-D102 in `DECISIONS.md` for what has been measured since.
+**In flight: the D103 A/B.** Two 80-game self-play runs, `belief` against
+`belief-flat` (the pre-D102 filter), on ports 8090 and 8091: `regmc-aero` seed
+1100 in `runs/d103-ab-a`, `regmc-mence` seed 1200 in `runs/d103-ab-b`, logs
+`d103-a.log` and `d103-b.log` in the scratchpad. Pool the two arms with a Wilson
+interval. **If `belief-flat` wins, revert D102** -- the win rate is the standard,
+and D92, D98 and D99 are three cautions that a better-conditioned number need not
+transfer.
 
-### What is done
+### What has been established, in the order it was measured
 
-1. **The gate cleared, and it is the number that matters.** `scripts/oracle_regret.py`
-   re-solves every logged decision twice, once with the belief and once with the true
-   teams, over the same rows and columns. Over 322 self-play decisions a **perfect
-   opponent model is worth 2.78 win-probability points a decision, 18.1 a game**, and
-   the oracle prefers a different row 38.5% of the time. The belief's own value for the
-   chosen cell is 2.39 points **below** the truth, so it is pessimistic -- which
-   independently confirms the ladder's -8.1 turn-1 luck from another direction. Re-run it
-   with:
-   `python scripts/oracle_regret.py runs/d100-ab-a --team-a regmc-aero --team-b regmc-aero`
-2. **The roadmap's cheap Phase 0 is measured and small.** Minimax hedging concedes 0.24
-   points a decision and re-pricing the switch columns 0.08, against the belief's 2.78.
-   Both are nearly free and still worth shipping; neither is the work, and neither is
-   resolvable by any A/B this project can afford. This falsified the reviewing critic's
-   claim that `PRIOR_WEIGHT = 1.0` was the largest available win.
-3. **The belief had no likelihood** (D102). All three soft-evidence handlers changed a
-   particle's weight only when the observation was *impossible*; a possible one changed
-   it by nothing. Fixed in two parts: `_contraction` (volume contraction, all three
-   handlers) and `_roll_mass` (the incoming-damage boolean replaced by the share of the
-   sixteen rolls, marginalised over the feasible set). Tests pass.
+1. **A perfect opponent model is worth 18 points of win probability a game.**
+   `scripts/oracle_regret.py` re-solves every logged decision twice, once with the
+   belief and once with the true teams, over the same rows and columns; nothing
+   samples, so it is exact rather than statistical and costs no games.
+2. **The roadmap's cheap Phase 0 is small.** Minimax hedging concedes 0.24 points
+   a decision and re-pricing the switch columns 0.08, against the belief's 2.97.
+   Both remain worth shipping and neither is the work. This falsified the
+   reviewing critic's claim that `PRIOR_WEIGHT = 1.0` was the largest win
+   available, before any of it was built.
+3. **The belief had no likelihood** (D102). Fixed in three parts: `_contraction`
+   at all three handlers, `_roll_mass` for incoming damage, and a replay buffer
+   that pairs each observation with the board it was observed on instead of
+   scoring turn-2 evidence against turn-11 positions.
+4. **It pays on decisions, not on top-1 accuracy** (D103). Oracle regret 2.97 to
+   **1.89** a decision, row disagreement 38.5% to 29.1%, pessimism bias -2.88 to
+   -1.94, mean absolute payoff-cell error 4.79 to 4.53. Field accuracy did NOT
+   improve (nature 85.5% to 85.1%, moves 78.5% to 76.0%). `_contraction` alone was
+   *worse than nothing* (3.14); the roll-mass and replay fixes are what turned it
+   into a gain. Clock is fine: turn 252 ms mean, 578 ms p95; belief update 21 to
+   53 ms.
 
-### The trap to avoid, and it cost two wrong diagnoses today
+### Two traps that cost real time here
 
-`scripts/eval_belief.py corpus` **cannot measure spread or nature work.**
-`evaluate._spectator_snapshot` feeds the filter a neutral all-zero own-side spread,
-because open team sheets carry item, ability, moves and nature but never stat points, so
-every speed and damage inequality it builds rests on wrong own stats. Its nature column
-measures the harness, not the filter. Use **self-play**, where both teams are ours and
-own stats are exact: `python scripts/eval_belief.py traces --trace-dir <dir> --team <name>`.
+- **`eval_belief corpus` cannot measure spread or nature work.**
+  `evaluate._spectator_snapshot` feeds the filter a neutral all-zero own-side
+  spread, because open sheets carry item, ability, moves and nature but never stat
+  points, so every speed and damage inequality it builds rests on wrong own stats.
+  Its nature column measures the harness. Use self-play:
+  `python scripts/eval_belief.py traces --trace-dir <dir> --team <name>`.
+- **Top-1 field accuracy is not what the search consumes.** The payoff model reads
+  `spreads.allocation()`, a point allocation derived from the box and the
+  hypothesis, so a likelihood can improve which hypothesis carries weight -- and
+  therefore every damage cell -- without moving the modal value at all. Gate belief
+  work on `oracle_regret.py`, not on the accuracy table.
 
-### The immediate next step
+### Next, in order
 
-A 24-game self-play batch is in `runs/d102-belief` (seed 900, `regmc-aero` mirror, port
-8090, log `d102.log`). **It was launched before the roll-mass change and so measures
-`_contraction` alone.** When it finishes:
-
-1. `python scripts/eval_belief.py traces --trace-dir runs/d102-belief --team regmc-aero`
-   and compare the nature and item curves against the pre-D102 baseline in
-   `runs/d100-ab-a` (nature 85.0% turn 1 to 85.6% turn 8, item 71.1% to 78.6%). **The
-   question is whether nature now RISES with observation.** If it does not, the
-   likelihood is present but not discriminative and the roll-mass path is the remaining
-   lever.
-2. Re-run `scripts/oracle_regret.py` on the new traces. Regret falling below 2.78 is the
-   direct evidence that the belief got better; that number, not a win rate, is the gate.
-3. Only then play games. D99 is the standing warning that a more accurate belief can lose.
-
-Also unmeasured: the roll-mass change costs sixteen `damage_for_roll` calls per cache
-miss instead of two. Check the turn clock on the next run (it was 0.2 s mean against a
-much larger budget, so there is room, but confirm rather than assume).
-
-### Still open from the roadmap, in order
-
-- Phase 1 item 7: replace `resample()`'s 48-item replay with a per-hypothesis accumulated
-  log-likelihood. It currently redraws from the constrained prior with every box back to
-  `[0,32]` about four times a game, which discards whatever the new likelihood learns.
-- Phase 1 item 8: condition the set prior on the six previewed species, which are public
-  even with sheets declined.
-- Phase 0 items, as cheap wins once something else needs a run: price the switch columns
-  at 0.491 decaying to 0 once four opponent Pokemon have appeared; `PRIOR_WEIGHT = 1.0`.
-- Phase 2: widen `SetSource` to `sample(n)` and take the belief-weighted matrix average
-  (the safe ~20 lines -- **not** the per-world minimax residual, which every judge flagged
-  as the hazard), then exact capped transition enumeration.
+- Read the D103 A/B and decide. Then a ladder run if it holds.
+- Phase 1 item 8: condition the set prior on the six previewed species, public
+  even with sheets declined. This acts at turn 0, which matters because the mean
+  game is 7.0 turns and no likelihood has time to work in most of them. Given that
+  nature still does not rise with observation (83.5% at turn 1 to 79.2% at turn 8),
+  and that a majority of reachable base-100 Speeds are consistent with more than
+  one nature, **this is now the more promising half of Phase 1**.
+- The cheap Phase 0 pair, as riders on whatever runs next: switch columns priced at
+  0.491 decaying to 0 once four opponent Pokemon have appeared, and
+  `PRIOR_WEIGHT = 1.0`.
+- Phase 2: widen `SetSource` to `sample(n)` and take the belief-weighted matrix
+  average -- the safe ~20 lines, **not** the per-world minimax residual, which every
+  judge flagged as the hazard -- then exact capped transition enumeration.
 
 
 ## D99 lost, D100 found why, the pair ships (read this first)
