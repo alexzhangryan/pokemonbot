@@ -4,9 +4,9 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (D99 corrected the move marginal and LOST its A/B 35-55; D100 found why and is in its own A/B now), by Claude Code.
+Last updated: 2026-09-28 (D99 lost 35-55, D100 found why, the pair now wins 91-69 over 160 games; ladder run in flight), by Claude Code.
 
-## In flight: D100's A/B, and why D99 lost (read this first)
+## D99 lost, D100 found why, the pair ships (read this first)
 
 The first defect found in the opponent model itself (D99, a move marginal
 reported at a quarter of its true value) was corrected, **and the corrected
@@ -42,13 +42,28 @@ how likely each admitted thing is, or the minimax converts the new information
 into pessimism. That is the same failure D91 fixed one level up, and it is
 worth checking before the next widening, not after.
 
-**Two A/Bs are running now** (80 games each, ports 8090 and 8091):
-`belief` against `belief-legacy` on `regmc-aero` seed 700, which is D99+D100
-against the configuration that actually laddered and is the arm the shipping
-decision is made against; and `belief` against `belief-kindcolumns` on
-`regmc-mence` seed 800, which isolates D100 from D99. Logs in the scratchpad
-as `d100-a.log` and `d100-b.log`. **If `belief-legacy` wins, both D99 and D100
-revert** -- the win rate is the standard, not the conditioning.
+**Both A/Bs have run and both D99 and D100 ship (D101).** Against
+`belief-legacy`, the configuration behind every belief-agent win rate the
+project has: 47-33 over 80 games on `regmc-aero` seed 700, 58.8% with a Wilson
+95% interval of [47.8%, 68.9%]. Against `belief-kindcolumns`, which isolates
+D100 from D99: 44-36 on `regmc-mence` seed 800, 55.0% [44.1%, 65.4%]. Pooled
+91-69 over 160 games, 56.9% [49.1%, 64.3%].
+
+**Neither interval excludes 50% and the pooled lower bound is 49.1%, so this
+is suggestive at roughly p = 0.08 and not established.** The first sixteen
+games of the `belief-legacy` arm read 6-10 and the final eighty read 47-33,
+which is what a small self-play sample is worth. Over 1,067 decisions an arm
+every intermediate quantity moved as the mechanism says: column coverage 97.1%
+of 1,460 observed opponent moves against 91.2% of 1,452, mean game value 0.535
+against 0.417, and the passivity reversed -- 13.4% switching against the
+opponents' 15.0%, where D99 alone switched 16.8% against 14.5%. The weights
+are live rather than collapsing to a uniform split: largest pinned column
+0.097 against smallest 0.007 over 213 decisions, never all equal.
+
+**A 30-game ladder run on `regmc-aero` with this agent is in flight**, seed 8,
+`traces/`, log `ladder-d100.log`. That is the measurement that counts: D98's
+team won its mirror at 0.62 and then laddered at parity, so a self-play edge
+is not a rating.
 
 Also fixed, all three measured on 2,388 species-turns: the move ranking was
 censored at eight entries in 90.9% of species-turns (now 12, and it matters
