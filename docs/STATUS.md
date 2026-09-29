@@ -4,7 +4,7 @@ Mutable. Current state only. History belongs in `DECISIONS.md`.
 
 Whoever finishes a work session updates this file before stopping. Whoever starts one reads it first.
 
-Last updated: 2026-09-28 (D99 lost 35-55, D100 found why, the pair now wins 91-69 over 160 games; ladder run in flight), by Claude Code.
+Last updated: 2026-09-28 (D99+D100 shipped and laddered 17-13, Elo 1074 to 1200; the model is now pessimistic early, not optimistic), by Claude Code.
 
 ## D99 lost, D100 found why, the pair ships (read this first)
 
@@ -60,10 +60,44 @@ opponents' 15.0%, where D99 alone switched 16.8% against 14.5%. The weights
 are live rather than collapsing to a uniform split: largest pinned column
 0.097 against smallest 0.007 over 213 decisions, never all equal.
 
-**A 30-game ladder run on `regmc-aero` with this agent is in flight**, seed 8,
-`traces/`, log `ladder-d100.log`. That is the measurement that counts: D98's
-team won its mirror at 0.62 and then laddered at parity, so a self-play edge
-is not a rating.
+**The ladder run has finished and the self-play edge transferred, which it
+never had before: 17-13 (56.7%, Wilson 0.39-0.73) on `regmc-aero` seed 8, Elo
+1104 to 1200 with a peak of 1222 in the run, GXE to 46.6, Glicko 1474.** The
+account is 171-183 over 354 rated games. The two earlier runs on this same
+team and the pre-D99 agent were 19-11 then 10-20, 29-31 pooled at 48%, so 30
+games at 56.7% is consistent with the self-play 56.9% and with nothing else
+having changed. Thirty games is not a significant result on its own; what makes
+it worth something is that it is the number self-play predicted.
+
+**All-time measured peak Elo remains 1377** (earlier on 2026-09-28, the
+previous configuration). This run peaked at 1222 because it started from 1104
+after the previous batch's decline, not because it played worse.
+
+**The new finding, and it is the next lever.** The model has flipped from
+optimistic to pessimistic on early turns. Luck by turn -- model expectation
+minus realised, so negative means the position turned out better than the model
+thought -- now reads turn 1 -8.1, turn 2 -7.5, turn 3 +0.1, then turn 5 +5.7
+and turn 6 +9.5. Every earlier batch was optimistic on the early turns. D100
+priced the columns but left `PRIOR_WEIGHT` at 0.8, so a fifth of the column
+player is still a free adversary choosing the worst of a set that is largest
+exactly when the belief is most diffuse, which is turn one. **So fit
+`PRIOR_WEIGHT`, and fit it per turn bucket rather than as one number** --
+`kinds.BUCKETS` already exists for the kind rates and the same buckets are the
+natural shape for this. That is the highest-value search-side work now open,
+and the direction is measured rather than guessed.
+
+Also from the run: the opponent's joint line was on the model's support 23.2%
+of 142 decisions against the 18% that motivated D99, and was the top column
+12.7%; the coach's best line was in the agent's rows 74.1%; the turn clock is
+0.2 s mean against a budget that is not close to binding. The turn-one kind
+prior still understates double attacks badly -- realised 64.3% against the
+model's 42.4% -- which is the conditioning-on-the-opponent's-team item that has
+been open since the first `regmc-aero` run and is now the clearest miss in the
+kind table.
+
+**Do not compare this run's ex-ante loss (6.0 in wins, 10.4 in losses) with any
+earlier batch.** The coach's own move threshold and column cap moved today, so
+the instrument changed with the agent.
 
 Also fixed, all three measured on 2,388 species-turns: the move ranking was
 censored at eight entries in 90.9% of species-turns (now 12, and it matters
