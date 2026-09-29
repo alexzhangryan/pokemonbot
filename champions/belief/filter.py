@@ -63,6 +63,7 @@ class BattleBelief:
         player_role: str,
         n_particles: int = DEFAULT_PARTICLES,
         seed: int | None = None,
+        use_likelihood: bool = True,
     ) -> None:
         self.dex = dex
         self.player_role = player_role or "p1"
@@ -74,6 +75,7 @@ class BattleBelief:
             species=list(opponent_species),
             n_particles=n_particles,
             rng=np.random.default_rng(seed if seed is not None else 0),
+            use_likelihood=use_likelihood,
         )
         self.turns_observed = 0
         self.last_evidence: list[dict[str, Any]] = []

@@ -20,6 +20,7 @@ from champions.agents.baseline import MaxBasePowerAgent, RandomAgent, TracingPla
 from champions.agents.belief_agent import (
     AdaptiveBeliefAgent,
     BeliefAgent,
+    BeliefFlatAgent,
     BeliefNarrowAgent,
     KindColumnAgent,
     LegacyBeliefAgent,
@@ -101,6 +102,7 @@ AGENTS = {
     "adaptive-belief": AdaptiveBeliefAgent,
     "belief-wide": WideBeliefAgent,
     "belief-narrow": BeliefNarrowAgent,
+    "belief-flat": BeliefFlatAgent,
     "belief-kindcolumns": KindColumnAgent,
     "belief-legacy": LegacyBeliefAgent,
     "llm": LanguageAgent,

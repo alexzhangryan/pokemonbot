@@ -82,6 +82,15 @@ ESS_FRACTION = 0.5
 #: single quantized observation being able to delete the truth.
 SOFT_INCONSISTENT = 0.05
 
+#: Whether an observation reweights a particle by how well it explains it (D102)
+#: or only by whether it could have. False reproduces the pre-D102 filter, in
+#: which a possible observation changed a weight by nothing, and is what the
+#: ablation arm `BeliefFlatAgent` plays. Per filter instance and NOT a module
+#: flag: self-play runs both arms in one process, so a module flag would disable
+#: the likelihood for the arm under test as well as the control and the A/B would
+#: silently compare an agent with itself.
+USE_LIKELIHOOD = True
+
 
 def _contraction(before: int, after: int) -> float:
     """The likelihood a box particle filter is supposed to apply (D102).
@@ -247,11 +256,13 @@ class ParticleFilter:
         species: Sequence[str],
         n_particles: int = DEFAULT_PARTICLES,
         rng: np.random.Generator | None = None,
+        use_likelihood: bool = USE_LIKELIHOOD,
     ) -> None:
         self.dex = dex
         self.prior = prior
         self.species = [to_id(s) for s in species]
         self.n_particles = n_particles
+        self.use_likelihood = use_likelihood
         self.rng = rng if rng is not None else np.random.default_rng(0)
         self.constraints = TeamConstraints()
         for species_id in self.species:
@@ -561,7 +572,12 @@ class ParticleFilter:
         what a single shared context did before D102, turns the inequality into
         a statement about nothing.
         """
+        shared = self._replay_context
         for evidence, context in self._replay:
+            if not self.use_likelihood and shared is not None:
+                # The pre-D102 replay scored every remembered observation
+                # against the latest board; the arm has to reproduce that too.
+                context = shared
             if isinstance(evidence, SpeedEvidence):
                 self._apply_speed(evidence, context, only=particle)
             elif isinstance(evidence, DamageEvidence):
@@ -628,7 +644,8 @@ class ParticleFilter:
             if not allowed:
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
                 continue
-            particle.log_weight += _contraction(len(feasible), len(allowed))
+            if self.use_likelihood:
+                particle.log_weight += _contraction(len(feasible), len(allowed))
             if not spread.restrict_points("spe", allowed):
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
 
@@ -740,7 +757,8 @@ class ParticleFilter:
             # is P(figure | particle) marginalised over the nuisance parameter
             # under the uniform the box already represents. Subsumes
             # `_contraction`: that is this quantity when every mass is 0 or 1.
-            particle.log_weight += math.log(total / len(feasible))
+            if self.use_likelihood:
+                particle.log_weight += math.log(total / len(feasible))
             if not spread.restrict_points(attack_stat, allowed):
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
 
@@ -835,7 +853,8 @@ class ParticleFilter:
             if not allowed:
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
                 continue
-            particle.log_weight += _contraction(joint_before, len(allowed))
+            if self.use_likelihood:
+                particle.log_weight += _contraction(joint_before, len(allowed))
             if not joint_restrict(spread, "hp", defense_stat, allowed):
                 particle.log_weight += math.log(SOFT_INCONSISTENT)
 

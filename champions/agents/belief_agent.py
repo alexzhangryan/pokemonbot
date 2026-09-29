@@ -213,6 +213,26 @@ class BeliefNarrowAgent(BeliefAgent):
         super().__init__(*args, **kwargs)
 
 
+class BeliefFlatAgent(BeliefAgent):
+    """The pre-D102 filter, kept as the ablation arm.
+
+    Before D102 an observation reweighted a particle only when it was
+    *impossible*: a possible one changed the weight by nothing, so every speed
+    and damage figure was a feasibility test rather than a likelihood, and the
+    replay after a resample scored all its remembered evidence against the
+    latest board instead of the board each observation came from. This arm turns
+    both back off so the difference is played rather than argued.
+
+    Per agent instance, not a module flag: self-play runs both arms in one
+    process, so a module flag would have disabled the likelihood for the arm
+    under test as well as the control and the A/B would have compared an agent
+    with itself.
+    """
+
+    strategy = "one-ply-belief-flat"
+    belief_likelihood = False
+
+
 class LegacyBeliefAgent(BeliefNarrowAgent):
     """The belief agent exactly as it laddered: pre-D99 moves, pre-D100 solve.
 

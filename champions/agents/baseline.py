@@ -67,6 +67,12 @@ class TracingPlayer(Player):
     structure is wired in from the first game rather than retrofitted (D7).
     """
 
+    #: Whether this agent's belief reweights a particle by how well it explains
+    #: an observation (D102) or only by whether it could have. `BeliefFlatAgent`
+    #: sets it False. Per agent rather than a module flag because self-play runs
+    #: both arms in one process.
+    belief_likelihood: bool = True
+
     #: Recorded on every equilibrium event so a trace identifies the policy that
     #: produced it. Subclasses override.
     strategy = "abstract"
@@ -273,6 +279,7 @@ class TracingPlayer(Player):
                 opponent_species=preview,
                 player_role=battle.player_role or "p1",
                 seed=_battle_seed(self._seed, tag),
+                use_likelihood=self.belief_likelihood,
             )
         return self._beliefs[tag]
 
